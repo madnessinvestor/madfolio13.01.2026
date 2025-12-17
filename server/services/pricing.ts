@@ -113,9 +113,11 @@ export async function fetchAssetPrice(symbol: string, market: string): Promise<n
   if (market === "crypto") {
     const result = await fetchCryptoPrice(symbol);
     return result?.price || null;
-  } else {
+  } else if (market === "variable_income" || market === "traditional") {
     const result = await fetchBrazilianStockPrice(symbol);
     return result?.price || null;
+  } else {
+    return null;
   }
 }
 
@@ -123,6 +125,10 @@ export async function updateAssetPrice(assetId: string): Promise<number | null> 
   try {
     const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
     if (!asset) return null;
+
+    if (asset.market === "fixed_income" || asset.market === "real_estate") {
+      return asset.currentPrice;
+    }
 
     const price = await fetchAssetPrice(asset.symbol, asset.market);
     if (price === null) return null;

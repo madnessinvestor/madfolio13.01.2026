@@ -23,7 +23,7 @@ import { Plus, Loader2, RefreshCw, CheckCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 export type AssetCategory = "crypto" | "stocks" | "fixed_income" | "cash" | "fii" | "etf" | "real_estate" | "others";
-export type MarketType = "crypto" | "traditional";
+export type MarketType = "crypto" | "fixed_income" | "variable_income";
 
 export interface Investment {
   id: string;
@@ -63,12 +63,14 @@ const categoryLabels: Record<AssetCategory, string> = {
 
 const marketLabels: Record<MarketType, string> = {
   crypto: "Mercado Cripto",
-  traditional: "Mercado Tradicional",
+  fixed_income: "Renda Fixa",
+  variable_income: "Renda Variável",
 };
 
 const categoriesByMarket: Record<MarketType, AssetCategory[]> = {
   crypto: ["crypto"],
-  traditional: ["stocks", "fixed_income", "cash", "fii", "etf", "others"],
+  fixed_income: ["fixed_income", "cash", "others"],
+  variable_income: ["stocks", "fii", "etf", "others"],
 };
 
 interface ExistingAsset {
@@ -107,6 +109,12 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading }: AddInve
   });
 
   const fetchCurrentPrice = useCallback(async (symbolToFetch: string, marketType: MarketType) => {
+    if (marketType === "fixed_income") {
+      setCurrentPrice(null);
+      setPriceError(false);
+      return;
+    }
+
     if (!symbolToFetch || symbolToFetch.length < 2) {
       setCurrentPrice(null);
       return;

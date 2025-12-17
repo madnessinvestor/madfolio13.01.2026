@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, TrendingUp, PiggyBank, BarChart3 } from "lucide-react";
+import { Wallet, TrendingUp, Landmark, BarChart3 } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -21,7 +21,7 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
           <Card>
             <CardHeader className="pb-2">
               <TrendingUp className="h-8 w-8 text-primary mb-2" />
@@ -36,12 +36,24 @@ export default function LandingPage() {
 
           <Card>
             <CardHeader className="pb-2">
-              <PiggyBank className="h-8 w-8 text-primary mb-2" />
-              <CardTitle className="text-lg">Ações BR</CardTitle>
+              <Landmark className="h-8 w-8 text-primary mb-2" />
+              <CardTitle className="text-lg">Renda Fixa</CardTitle>
             </CardHeader>
             <CardContent>
               <CardDescription>
-                PETR4, VALE3, ITUB4 e todas as ações da B3 atualizadas.
+                CDBs, LCIs, LCAs e títulos. Cadastre e atualize valores manualmente.
+              </CardDescription>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <BarChart3 className="h-8 w-8 text-primary mb-2" />
+              <CardTitle className="text-lg">Renda Variável</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                Ações, FIIs e ETFs da B3 com preços atualizados automaticamente.
               </CardDescription>
             </CardContent>
           </Card>

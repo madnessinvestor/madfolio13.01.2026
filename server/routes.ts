@@ -11,7 +11,7 @@ const investmentSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
   category: z.string(),
-  market: z.enum(["crypto", "traditional", "real_estate"]),
+  market: z.enum(["crypto", "fixed_income", "variable_income", "real_estate"]),
   currency: z.enum(["BRL", "USD", "EUR"]).default("BRL"),
   quantity: z.number().positive(),
   acquisitionPrice: z.number().positive(),
@@ -129,7 +129,7 @@ export async function registerRoutes(
         acquisitionDate: validated.acquisitionDate,
       });
       
-      if (validated.market !== "real_estate") {
+      if (validated.market === "crypto" || validated.market === "variable_income") {
         const price = await fetchAssetPrice(asset.symbol, asset.market);
         if (price !== null) {
           await storage.updateAsset(asset.id, { 
@@ -311,6 +311,8 @@ export async function registerRoutes(
       let totalValue = 0;
       let cryptoValue = 0;
       let traditionalValue = 0;
+      let fixedIncomeValue = 0;
+      let variableIncomeValue = 0;
       let realEstateValue = 0;
       
       const holdings = await Promise.all(allAssets.map(async (asset) => {
@@ -334,6 +336,12 @@ export async function registerRoutes(
           cryptoValue += valueInBRL;
         } else if (asset.market === "real_estate") {
           realEstateValue += valueInBRL;
+        } else if (asset.market === "fixed_income") {
+          fixedIncomeValue += valueInBRL;
+          traditionalValue += valueInBRL;
+        } else if (asset.market === "variable_income") {
+          variableIncomeValue += valueInBRL;
+          traditionalValue += valueInBRL;
         } else {
           traditionalValue += valueInBRL;
         }
@@ -361,6 +369,8 @@ export async function registerRoutes(
         totalValue,
         cryptoValue,
         traditionalValue,
+        fixedIncomeValue,
+        variableIncomeValue,
         realEstateValue,
         cryptoExposure: totalValue > 0 ? (cryptoValue / totalValue) * 100 : 0,
         exchangeRates: rates,

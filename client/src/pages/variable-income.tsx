@@ -3,7 +3,7 @@ import { HoldingsTable, type Holding } from "@/components/dashboard/HoldingsTabl
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { AddInvestmentDialog, type Investment, type Snapshot } from "@/components/dashboard/AddInvestmentDialog";
-import { Landmark, TrendingUp, Briefcase } from "lucide-react";
+import { TrendingUp, Briefcase, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -25,7 +25,9 @@ interface PortfolioSummary {
   totalValue: number;
   cryptoValue: number;
   traditionalValue: number;
-  cryptoExposure: number;
+  fixedIncomeValue: number;
+  variableIncomeValue: number;
+  realEstateValue: number;
   holdings: Array<{
     id: string;
     symbol: string;
@@ -41,7 +43,7 @@ interface PortfolioSummary {
   }>;
 }
 
-export default function TraditionalPage() {
+export default function VariableIncomePage() {
   const { toast } = useToast();
   const { displayCurrency } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
@@ -88,9 +90,9 @@ export default function TraditionalPage() {
     },
   });
 
-  const traditionalHoldings = summary?.holdings.filter((h) => h.market === "traditional") || [];
+  const variableIncomeHoldings = summary?.holdings.filter((h) => h.market === "variable_income") || [];
 
-  const holdings: Holding[] = traditionalHoldings.map((h) => ({
+  const holdings: Holding[] = variableIncomeHoldings.map((h) => ({
     id: h.id,
     symbol: h.symbol,
     name: h.name,
@@ -151,14 +153,12 @@ export default function TraditionalPage() {
     setAssetToDelete(null);
   };
 
-  const totalValue = summary?.traditionalValue || 0;
+  const totalValue = summary?.variableIncomeValue || 0;
 
   const categoryTotals: Record<string, number> = {};
-  traditionalHoldings.forEach((h) => {
+  variableIncomeHoldings.forEach((h) => {
     const cat = h.category === "stocks" ? "Ações" : 
-                h.category === "fixed_income" ? "Renda Fixa" :
                 h.category === "fii" ? "FIIs" :
-                h.category === "cash" ? "Caixa" :
                 h.category === "etf" ? "ETFs" : "Outros";
     categoryTotals[cat] = (categoryTotals[cat] || 0) + h.value;
   });
@@ -175,8 +175,8 @@ export default function TraditionalPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Mercado Tradicional</h1>
-          <p className="text-muted-foreground">Ações, FIIs, Renda Fixa e Caixa</p>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">Renda Variável</h1>
+          <p className="text-muted-foreground">Ações, FIIs e ETFs com preços atualizados automaticamente</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AddInvestmentDialog onAdd={handleAddInvestment} onAddSnapshot={handleAddSnapshot} isLoading={createInvestmentMutation.isPending || createSnapshotMutation.isPending} />
@@ -184,26 +184,21 @@ export default function TraditionalPage() {
       </div>
 
       {summaryLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {[...Array(2)].map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-lg" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <MetricCard
             title="Valor Total"
             value={format(totalValue)}
-            icon={Landmark}
-          />
-          <MetricCard
-            title="Exposição Tradicional"
-            value={`${(100 - (summary?.cryptoExposure || 0)).toFixed(1)}%`}
-            icon={TrendingUp}
+            icon={BarChart3}
           />
           <MetricCard
             title="Ativos"
-            value={traditionalHoldings.length.toString()}
+            value={variableIncomeHoldings.length.toString()}
             icon={Briefcase}
           />
         </div>
@@ -215,7 +210,7 @@ export default function TraditionalPage() {
             <Skeleton className="h-96 rounded-lg" />
           ) : holdings.length > 0 ? (
             <HoldingsTable
-              title="Holdings Tradicional"
+              title="Holdings Renda Variável"
               holdings={holdings}
               onEdit={handleEdit}
               onDelete={handleDelete}

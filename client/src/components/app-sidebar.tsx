@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Bitcoin,
   Landmark,
+  BarChart3,
   Building2,
   History,
   FileText,
@@ -33,9 +34,14 @@ const menuItems = [
     icon: Bitcoin,
   },
   {
-    title: "Mercado Tradicional",
-    url: "/traditional",
+    title: "Renda Fixa",
+    url: "/fixed-income",
     icon: Landmark,
+  },
+  {
+    title: "Renda Variável",
+    url: "/variable-income",
+    icon: BarChart3,
   },
   {
     title: "Imóveis",

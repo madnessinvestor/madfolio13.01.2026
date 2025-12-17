@@ -30,7 +30,8 @@ export function useDisplayCurrency() {
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import CryptoPage from "@/pages/crypto";
-import TraditionalPage from "@/pages/traditional";
+import FixedIncomePage from "@/pages/fixed-income";
+import VariableIncomePage from "@/pages/variable-income";
 import RealEstatePage from "@/pages/real-estate";
 import HistoryPage from "@/pages/history";
 import StatementsPage from "@/pages/statements";
@@ -41,7 +42,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/crypto" component={CryptoPage} />
-      <Route path="/traditional" component={TraditionalPage} />
+      <Route path="/fixed-income" component={FixedIncomePage} />
+      <Route path="/variable-income" component={VariableIncomePage} />
       <Route path="/real-estate" component={RealEstatePage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/statements" component={StatementsPage} />
