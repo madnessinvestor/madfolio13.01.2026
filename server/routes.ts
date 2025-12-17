@@ -177,6 +177,26 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/price-lookup", async (req, res) => {
+    const symbol = req.query.symbol as string;
+    const market = req.query.market as string;
+    
+    if (!symbol || !market) {
+      return res.status(400).json({ error: "Symbol and market are required" });
+    }
+    
+    try {
+      const price = await fetchAssetPrice(symbol, market);
+      if (price === null) {
+        return res.json({ symbol: symbol.toUpperCase(), price: null, currency: "BRL", error: "Price not found" });
+      }
+      
+      res.json({ symbol: symbol.toUpperCase(), price, currency: "BRL" });
+    } catch (error) {
+      res.json({ symbol: symbol.toUpperCase(), price: null, currency: "BRL", error: "Failed to fetch price" });
+    }
+  });
+
   app.get("/api/snapshots", isAuthenticated, async (req: any, res) => {
     try {
       const assetId = req.query.assetId as string | undefined;

@@ -21,7 +21,7 @@ export function MetricCard({ title, value, change, changeLabel, icon: Icon }: Me
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold tabular-nums mt-1" data-testid={`text-metric-${title.toLowerCase().replace(/\s/g, '-')}`}>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums mt-1 truncate" data-testid={`text-metric-${title.toLowerCase().replace(/\s/g, '-')}`}>
               {value}
             </p>
             {change !== undefined && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,11 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, RefreshCw, CheckCircle } from "lucide-react";
 
 export type AssetCategory = "crypto" | "stocks" | "fixed_income" | "cash" | "fii" | "etf" | "real_estate" | "others";
-export type MarketType = "crypto" | "traditional" | "real_estate";
-export type CurrencyType = "BRL" | "USD" | "EUR";
+export type MarketType = "crypto" | "traditional";
 
 export interface Investment {
   id: string;
@@ -30,7 +29,6 @@ export interface Investment {
   symbol: string;
   category: AssetCategory;
   market: MarketType;
-  currency: CurrencyType;
   quantity: number;
   acquisitionPrice: number;
   acquisitionDate: string;
@@ -56,42 +54,75 @@ const categoryLabels: Record<AssetCategory, string> = {
 const marketLabels: Record<MarketType, string> = {
   crypto: "Mercado Cripto",
   traditional: "Mercado Tradicional",
-  real_estate: "Imóveis",
-};
-
-const currencyLabels: Record<CurrencyType, string> = {
-  BRL: "R$ Real",
-  USD: "$ Dólar",
-  EUR: "€ Euro",
-};
-
-const currencySymbols: Record<CurrencyType, string> = {
-  BRL: "R$",
-  USD: "$",
-  EUR: "€",
 };
 
 const categoriesByMarket: Record<MarketType, AssetCategory[]> = {
   crypto: ["crypto"],
   traditional: ["stocks", "fixed_income", "cash", "fii", "etf", "others"],
-  real_estate: ["real_estate"],
 };
 
 export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogProps) {
   const [open, setOpen] = useState(false);
   const [market, setMarket] = useState<MarketType>("crypto");
-  const [currency, setCurrency] = useState<CurrencyType>("BRL");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [category, setCategory] = useState<AssetCategory>("crypto");
   const [quantity, setQuantity] = useState("");
   const [acquisitionPrice, setAcquisitionPrice] = useState("");
   const [acquisitionDate, setAcquisitionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState(false);
+
+  const fetchCurrentPrice = useCallback(async (symbolToFetch: string, marketType: MarketType) => {
+    if (!symbolToFetch || symbolToFetch.length < 2) {
+      setCurrentPrice(null);
+      return;
+    }
+
+    setPriceLoading(true);
+    setPriceError(false);
+
+    try {
+      const response = await fetch(`/api/price-lookup?symbol=${encodeURIComponent(symbolToFetch)}&market=${marketType}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.price) {
+          setCurrentPrice(data.price);
+        } else {
+          setCurrentPrice(null);
+          setPriceError(true);
+        }
+      } else {
+        setCurrentPrice(null);
+        setPriceError(true);
+      }
+    } catch (error) {
+      setCurrentPrice(null);
+      setPriceError(true);
+    } finally {
+      setPriceLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (symbol.length >= 2) {
+        fetchCurrentPrice(symbol, market);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [symbol, market, fetchCurrentPrice]);
 
   const handleMarketChange = (value: MarketType) => {
     setMarket(value);
     const defaultCategory = categoriesByMarket[value][0];
     setCategory(defaultCategory);
+    setCurrentPrice(null);
+    if (symbol) {
+      fetchCurrentPrice(symbol, value);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -109,7 +140,6 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
       symbol: symbol.toUpperCase(),
       category,
       market,
-      currency,
       quantity: parsedQuantity,
       acquisitionPrice: parsedPrice,
       acquisitionDate,
@@ -121,13 +151,14 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
 
   const resetForm = () => {
     setMarket("crypto");
-    setCurrency("BRL");
     setName("");
     setSymbol("");
     setCategory("crypto");
     setQuantity("");
     setAcquisitionPrice("");
     setAcquisitionDate(new Date().toISOString().split("T")[0]);
+    setCurrentPrice(null);
+    setPriceError(false);
   };
 
   const formatCurrency = (val: string) => {
@@ -137,7 +168,7 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    return `${currencySymbols[currency]} ${formatted}`;
+    return `R$ ${formatted}`;
   };
 
   const availableCategories = categoriesByMarket[market];
@@ -180,9 +211,9 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
                 <Label htmlFor="symbol">Símbolo / Código</Label>
                 <Input
                   id="symbol"
-                  placeholder={market === "crypto" ? "BTC, ETH" : market === "real_estate" ? "APT01" : "PETR4, IVVB11"}
+                  placeholder={market === "crypto" ? "BTC, ETH" : "PETR4, IVVB11"}
                   value={symbol}
-                  onChange={(e) => setSymbol(e.target.value)}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                   data-testid="input-symbol"
                 />
               </div>
@@ -190,13 +221,35 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
                 <Label htmlFor="name">Nome do Ativo</Label>
                 <Input
                   id="name"
-                  placeholder={market === "crypto" ? "Bitcoin" : market === "real_estate" ? "Apartamento SP" : "Petrobras"}
+                  placeholder={market === "crypto" ? "Bitcoin" : "Petrobras"}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   data-testid="input-name"
                 />
               </div>
             </div>
+
+            {currentPrice !== null && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm text-green-700 dark:text-green-300">
+                  Preço atual: R$ {currentPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+
+            {priceLoading && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span className="text-sm text-muted-foreground">Buscando preço atual...</span>
+              </div>
+            )}
+
+            {priceError && !priceLoading && symbol.length >= 2 && (
+              <div className="text-sm text-yellow-600 dark:text-yellow-400">
+                Preço não encontrado. O valor será atualizado após o cadastro.
+              </div>
+            )}
 
             {availableCategories.length > 1 && (
               <div className="grid gap-2">
@@ -216,25 +269,6 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
               </div>
             )}
 
-            <div className="grid gap-2">
-              <Label htmlFor="currency">Moeda</Label>
-              <Select value={currency} onValueChange={(value: CurrencyType) => {
-                setCurrency(value);
-                setAcquisitionPrice("");
-              }}>
-                <SelectTrigger data-testid="select-currency">
-                  <SelectValue placeholder="Selecione a moeda" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(currencyLabels) as CurrencyType[]).map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {currencyLabels[c]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="quantity">Quantidade</Label>
@@ -252,7 +286,7 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
                 <Label htmlFor="acquisitionPrice">Preço de Aquisição</Label>
                 <Input
                   id="acquisitionPrice"
-                  placeholder={`${currencySymbols[currency]} 0,00`}
+                  placeholder="R$ 0,00"
                   value={acquisitionPrice}
                   onChange={(e) => setAcquisitionPrice(formatCurrency(e.target.value))}
                   data-testid="input-acquisition-price"
@@ -271,11 +305,9 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
               />
             </div>
 
-            {market !== "real_estate" && (
-              <p className="text-sm text-muted-foreground">
-                O preço atual será buscado automaticamente após o cadastro.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              Os valores são armazenados em Reais (BRL). Você pode visualizar em outras moedas usando o seletor no canto superior direito.
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

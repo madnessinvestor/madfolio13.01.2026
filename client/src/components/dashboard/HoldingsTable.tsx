@@ -19,7 +19,7 @@ export interface Holding {
   avgPrice: number;
   currentPrice: number;
   change24h: number;
-  type: "crypto" | "stock" | "etf" | "fii";
+  type: "crypto" | "stock" | "etf" | "fii" | "real_estate";
 }
 
 interface HoldingsTableProps {

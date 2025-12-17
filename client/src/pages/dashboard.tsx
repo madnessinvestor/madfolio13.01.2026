@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDisplayCurrency } from "@/App";
+import { useCurrencyConverter } from "@/components/CurrencySwitcher";
 
 interface PortfolioSummary {
   totalValue: number;
@@ -39,6 +41,8 @@ interface HistoryPoint {
 
 export default function Dashboard() {
   const { toast } = useToast();
+  const { displayCurrency } = useDisplayCurrency();
+  const { formatCurrency } = useCurrencyConverter();
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
@@ -50,7 +54,7 @@ export default function Dashboard() {
 
   const createInvestmentMutation = useMutation({
     mutationFn: async (investment: Omit<Investment, "id" | "currentPrice">) => {
-      return apiRequest("POST", "/api/investments", investment);
+      return apiRequest("POST", "/api/investments", { ...investment, currency: "BRL" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
@@ -104,6 +108,8 @@ export default function Dashboard() {
 
   const isLoading = summaryLoading || historyLoading;
 
+  const format = (value: number) => formatCurrency(value, displayCurrency);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -126,22 +132,22 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           <MetricCard
             title="Total do Portfólio"
-            value={`R$ ${totalPortfolio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            value={format(totalPortfolio)}
             icon={Wallet}
           />
           <MetricCard
             title="Cripto"
-            value={`R$ ${cryptoValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            value={format(cryptoValue)}
             icon={TrendingUp}
           />
           <MetricCard
             title="Tradicional"
-            value={`R$ ${traditionalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            value={format(traditionalValue)}
             icon={PiggyBank}
           />
           <MetricCard
             title="Imóveis"
-            value={`R$ ${realEstateValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            value={format(realEstateValue)}
             icon={Building2}
           />
           <MetricCard
@@ -164,7 +170,12 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-        <ExposureCard cryptoValue={cryptoValue} traditionalValue={traditionalValue} />
+        <ExposureCard 
+          cryptoValue={cryptoValue} 
+          traditionalValue={traditionalValue} 
+          realEstateValue={realEstateValue}
+          formatCurrency={format}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

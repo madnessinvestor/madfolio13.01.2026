@@ -15,9 +15,9 @@ import {
   LayoutDashboard,
   Bitcoin,
   Landmark,
+  Building2,
   History,
   FileText,
-  Settings,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -36,6 +36,11 @@ const menuItems = [
     title: "Mercado Tradicional",
     url: "/traditional",
     icon: Landmark,
+  },
+  {
+    title: "Imóveis",
+    url: "/real-estate",
+    icon: Building2,
   },
   {
     title: "Histórico",
