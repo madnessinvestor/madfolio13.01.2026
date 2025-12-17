@@ -5,12 +5,16 @@
 InvestTracker is a personal investment portfolio tracking web application that allows users to manually track their cryptocurrency and traditional market investments. It functions as a manual portfolio tracker (similar to Blockfolio) without blockchain/wallet connections. Users input investment values manually, and the system maintains historical records, generates charts, and provides monthly statements to track portfolio evolution over time.
 
 Key features:
-- Manual asset registration (crypto, stocks, fixed income, real estate, etc.)
+- Manual asset registration across four market types:
+  - Crypto: Bitcoin, Ethereum, etc. (auto-priced via CoinGecko)
+  - Renda Variável: Brazilian stocks, FIIs, ETFs (auto-priced via BRAPI)
+  - Renda Fixa: CDBs, LCIs, LCAs, Tesouro Direto (manual entry only)
+  - Imóveis: Real estate properties (manual entry only)
 - Snapshot-based value tracking (each update creates history, no overwrites)
-- Automatic price updates via CoinGecko (crypto) and BRAPI (Brazilian stocks)
+- Automatic price updates for crypto and variable income assets
+- Manual value entry for fixed income and real estate investments
 - Portfolio performance visualization with charts
 - Monthly statement generation
-- Multi-market support (crypto, traditional, real estate)
 
 ## User Preferences
 
