@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -20,45 +19,54 @@ import {
 import { Input } from "@/components/ui/input";
 import { History, Search, Filter, Calendar } from "lucide-react";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Asset } from "@/components/dashboard/AddAssetDialog";
 
-interface HistoryEntry {
+interface Snapshot {
   id: string;
-  date: string;
-  assetSymbol: string;
-  assetName: string;
-  market: "crypto" | "traditional";
+  assetId: string;
   value: number;
-  previousValue?: number;
-  notes?: string;
+  amount: number | null;
+  unitPrice: number | null;
+  date: string;
+  notes: string | null;
 }
 
-// todo: remove mock functionality
-const mockHistory: HistoryEntry[] = [
-  { id: "1", date: "2024-12-15", assetSymbol: "BTC", assetName: "Bitcoin", market: "crypto", value: 52500, previousValue: 50000, notes: "Aporte mensal" },
-  { id: "2", date: "2024-12-14", assetSymbol: "PETR4", assetName: "Petrobras", market: "traditional", value: 3820, previousValue: 3650 },
-  { id: "3", date: "2024-12-10", assetSymbol: "ETH", assetName: "Ethereum", market: "crypto", value: 28000, previousValue: 27500 },
-  { id: "4", date: "2024-12-08", assetSymbol: "VALE3", assetName: "Vale", market: "traditional", value: 3625, previousValue: 3600 },
-  { id: "5", date: "2024-12-05", assetSymbol: "SOL", assetName: "Solana", market: "crypto", value: 7800, previousValue: 7200, notes: "Compra nova" },
-  { id: "6", date: "2024-12-01", assetSymbol: "SELIC", assetName: "Tesouro Selic", market: "traditional", value: 15200, previousValue: 15100 },
-  { id: "7", date: "2024-11-28", assetSymbol: "BTC", assetName: "Bitcoin", market: "crypto", value: 50000, previousValue: 48000 },
-  { id: "8", date: "2024-11-25", assetSymbol: "HGLG11", assetName: "CSHG Logística", market: "traditional", value: 3240, previousValue: 3200 },
-];
-
-// todo: remove mock functionality
-const mockPortfolioHistory = [
-  { month: "Jul", value: 85000 },
-  { month: "Ago", value: 88000 },
-  { month: "Set", value: 92000 },
-  { month: "Out", value: 95000 },
-  { month: "Nov", value: 100000 },
-  { month: "Dez", value: 112500 },
-];
+interface HistoryPoint {
+  month: string;
+  year: number;
+  value: number;
+  variation: number;
+}
 
 export default function HistoryPage() {
   const [filter, setFilter] = useState<"all" | "crypto" | "traditional">("all");
   const [search, setSearch] = useState("");
 
-  const filteredHistory = mockHistory.filter((entry) => {
+  const { data: snapshots = [], isLoading: snapshotsLoading } = useQuery<Snapshot[]>({
+    queryKey: ["/api/snapshots"],
+  });
+
+  const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
+    queryKey: ["/api/assets"],
+  });
+
+  const { data: history = [], isLoading: historyLoading } = useQuery<HistoryPoint[]>({
+    queryKey: ["/api/portfolio/history"],
+  });
+
+  const enrichedSnapshots = snapshots.map((snapshot) => {
+    const asset = assets.find((a) => a.id === snapshot.assetId);
+    return {
+      ...snapshot,
+      assetSymbol: asset?.symbol || "Unknown",
+      assetName: asset?.name || "Unknown",
+      market: asset?.market || "unknown",
+    };
+  });
+
+  const filteredHistory = enrichedSnapshots.filter((entry) => {
     const matchesFilter = filter === "all" || entry.market === filter;
     const matchesSearch =
       search === "" ||
@@ -70,6 +78,13 @@ export default function HistoryPage() {
   const formatCurrency = (value: number) =>
     `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
+  const performanceData = history.map((h) => ({
+    month: h.month,
+    value: h.value,
+  }));
+
+  const isLoading = snapshotsLoading || assetsLoading || historyLoading;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -79,7 +94,15 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      <PerformanceChart data={mockPortfolioHistory} title="Evolução do Patrimônio Total" />
+      {historyLoading ? (
+        <Skeleton className="h-80 rounded-lg" />
+      ) : performanceData.length > 0 ? (
+        <PerformanceChart data={performanceData} title="Evolução do Patrimônio Total" />
+      ) : (
+        <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+          Adicione lançamentos para ver o gráfico de evolução
+        </div>
+      )}
 
       <Card>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
@@ -112,26 +135,24 @@ export default function HistoryPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Ativo</TableHead>
-                  <TableHead>Mercado</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-right">Variação</TableHead>
-                  <TableHead>Observação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredHistory.map((entry) => {
-                  const variation = entry.previousValue
-                    ? ((entry.value - entry.previousValue) / entry.previousValue) * 100
-                    : 0;
-                  const isPositive = variation >= 0;
-
-                  return (
+          {isLoading ? (
+            <div className="p-6">
+              <Skeleton className="h-64 rounded-lg" />
+            </div>
+          ) : filteredHistory.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Ativo</TableHead>
+                    <TableHead>Mercado</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Observação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredHistory.map((entry) => (
                     <TableRow key={entry.id} data-testid={`row-history-${entry.id}`}>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -155,28 +176,19 @@ export default function HistoryPage() {
                       <TableCell className="text-right tabular-nums font-medium">
                         {formatCurrency(entry.value)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {entry.previousValue && (
-                          <span
-                            className={`tabular-nums text-sm ${
-                              isPositive
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
-                            }`}
-                          >
-                            {isPositive ? "+" : ""}{variation.toFixed(2)}%
-                          </span>
-                        )}
-                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {entry.notes || "-"}
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-muted-foreground">
+              Nenhum lançamento encontrado. Adicione ativos e registre valores para ver o histórico.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

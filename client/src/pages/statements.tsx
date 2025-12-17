@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -9,81 +8,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MonthlyStatement, type MonthlyStatementData } from "@/components/dashboard/MonthlyStatement";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { FileText, Download, TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
-// todo: remove mock functionality
-const mockStatements: MonthlyStatementData[] = [
-  {
-    id: "1",
-    month: 12,
-    year: 2024,
-    startValue: 100000,
-    endValue: 112500,
-    transactions: [
-      { date: "2024-12-05", assetSymbol: "BTC", value: 52500, type: "snapshot" },
-      { date: "2024-12-10", assetSymbol: "ETH", value: 28000, type: "snapshot" },
-      { date: "2024-12-14", assetSymbol: "PETR4", value: 3820, type: "snapshot" },
-      { date: "2024-12-15", assetSymbol: "SOL", value: 7800, type: "snapshot" },
-    ],
-  },
-  {
-    id: "2",
-    month: 11,
-    year: 2024,
-    startValue: 95000,
-    endValue: 100000,
-    transactions: [
-      { date: "2024-11-01", assetSymbol: "BTC", value: 48000, type: "snapshot" },
-      { date: "2024-11-15", assetSymbol: "VALE3", value: 3600, type: "snapshot" },
-      { date: "2024-11-28", assetSymbol: "HGLG11", value: 3240, type: "snapshot" },
-    ],
-  },
-  {
-    id: "3",
-    month: 10,
-    year: 2024,
-    startValue: 92000,
-    endValue: 95000,
-    transactions: [
-      { date: "2024-10-05", assetSymbol: "BTC", value: 45000, type: "snapshot" },
-      { date: "2024-10-20", assetSymbol: "ETH", value: 26000, type: "snapshot" },
-    ],
-  },
-  {
-    id: "4",
-    month: 9,
-    year: 2024,
-    startValue: 88000,
-    endValue: 92000,
-    transactions: [
-      { date: "2024-09-10", assetSymbol: "PETR4", value: 3500, type: "snapshot" },
-      { date: "2024-09-25", assetSymbol: "SELIC", value: 15000, type: "snapshot" },
-    ],
-  },
-  {
-    id: "5",
-    month: 8,
-    year: 2024,
-    startValue: 85000,
-    endValue: 88000,
-    transactions: [
-      { date: "2024-08-15", assetSymbol: "BTC", value: 42000, type: "snapshot" },
-    ],
-  },
-];
+interface MonthlyStatement {
+  id: string;
+  month: number;
+  year: number;
+  startValue: number;
+  endValue: number;
+}
 
-// todo: remove mock functionality
-const mockMonthlyData = [
-  { month: "Jul", value: 85000, variation: 0 },
-  { month: "Ago", value: 88000, variation: 3.5 },
-  { month: "Set", value: 92000, variation: 4.5 },
-  { month: "Out", value: 95000, variation: 3.3 },
-  { month: "Nov", value: 100000, variation: 5.3 },
-  { month: "Dez", value: 112500, variation: 12.5 },
-];
+interface HistoryPoint {
+  month: string;
+  year: number;
+  value: number;
+  variation: number;
+}
 
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -92,29 +38,86 @@ const monthNames = [
 
 export default function StatementsPage() {
   const { toast } = useToast();
-  const [yearFilter, setYearFilter] = useState("2024");
+  const currentYear = new Date().getFullYear();
+  const [yearFilter, setYearFilter] = useState(currentYear.toString());
 
-  const filteredStatements = mockStatements.filter(
-    (s) => s.year.toString() === yearFilter
-  );
+  const { data: statements = [], isLoading: statementsLoading } = useQuery<MonthlyStatement[]>({
+    queryKey: ["/api/statements", yearFilter],
+    queryFn: async () => {
+      const res = await fetch(`/api/statements?year=${yearFilter}`);
+      if (!res.ok) throw new Error("Failed to fetch statements");
+      return res.json();
+    },
+  });
+
+  const { data: history = [], isLoading: historyLoading } = useQuery<HistoryPoint[]>({
+    queryKey: ["/api/portfolio/history"],
+  });
 
   const handleExport = (format: "csv" | "pdf") => {
-    toast({
-      title: "Exportando...",
-      description: `Gerando arquivo ${format.toUpperCase()} do extrato.`,
-    });
+    if (statements.length === 0) {
+      toast({
+        title: "Sem dados",
+        description: "Não há extratos para exportar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (format === "csv") {
+      const headers = ["Mês", "Ano", "Valor Inicial", "Valor Final", "Variação R$", "Variação %"];
+      const rows = statements.map((s) => {
+        const variation = s.endValue - s.startValue;
+        const variationPercent = s.startValue > 0 ? ((variation / s.startValue) * 100) : 0;
+        return [
+          monthNames[s.month - 1],
+          s.year,
+          s.startValue.toFixed(2),
+          s.endValue.toFixed(2),
+          variation.toFixed(2),
+          variationPercent.toFixed(2) + "%"
+        ].join(",");
+      });
+      
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `extrato-${yearFilter}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Exportado",
+        description: "O arquivo CSV foi baixado.",
+      });
+    } else {
+      toast({
+        title: "Em desenvolvimento",
+        description: "Exportação em PDF será implementada em breve.",
+      });
+    }
   };
 
   const formatCurrency = (value: number) =>
     `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-  // Calculate summary
-  const totalVariation = filteredStatements.length > 0
-    ? filteredStatements[0].endValue - filteredStatements[filteredStatements.length - 1].startValue
+  const totalVariation = statements.length > 0
+    ? statements[0].endValue - statements[statements.length - 1].startValue
     : 0;
-  const totalVariationPercent = filteredStatements.length > 0 && filteredStatements[filteredStatements.length - 1].startValue > 0
-    ? ((totalVariation / filteredStatements[filteredStatements.length - 1].startValue) * 100)
+  const totalVariationPercent = statements.length > 0 && statements[statements.length - 1].startValue > 0
+    ? ((totalVariation / statements[statements.length - 1].startValue) * 100)
     : 0;
+
+  const performanceData = history
+    .filter((h) => h.year.toString() === yearFilter)
+    .map((h) => ({
+      month: h.month,
+      value: h.value,
+    }));
+
+  const isLoading = statementsLoading || historyLoading;
 
   return (
     <div className="p-6 space-y-6">
@@ -130,8 +133,11 @@ export default function StatementsPage() {
               <SelectValue placeholder="Ano" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
+              {[currentYear, currentYear - 1, currentYear - 2].map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={() => handleExport("csv")} data-testid="button-export-csv">
@@ -145,108 +151,205 @@ export default function StatementsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <FileText className="h-6 w-6 text-primary" />
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Meses Registrados</p>
+                  <p className="text-2xl font-bold">{statements.length}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Meses Registrados</p>
-                <p className="text-2xl font-bold">{filteredStatements.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-lg ${totalVariation >= 0 ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}>
+                  {totalVariation >= 0 ? (
+                    <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Variação no Ano</p>
+                  <p className={`text-2xl font-bold tabular-nums ${totalVariation >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {totalVariation >= 0 ? "+" : ""}{formatCurrency(totalVariation)}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${totalVariation >= 0 ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}>
-                {totalVariation >= 0 ? (
-                  <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-                ) : (
-                  <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
-                )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-lg ${totalVariationPercent >= 0 ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}>
+                  {totalVariationPercent >= 0 ? (
+                    <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Rentabilidade</p>
+                  <p className={`text-2xl font-bold tabular-nums ${totalVariationPercent >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {totalVariationPercent >= 0 ? "+" : ""}{totalVariationPercent.toFixed(2)}%
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Variação no Ano</p>
-                <p className={`text-2xl font-bold tabular-nums ${totalVariation >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                  {totalVariation >= 0 ? "+" : ""}{formatCurrency(totalVariation)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${totalVariationPercent >= 0 ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}>
-                {totalVariationPercent >= 0 ? (
-                  <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-                ) : (
-                  <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Rentabilidade</p>
-                <p className={`text-2xl font-bold tabular-nums ${totalVariationPercent >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                  {totalVariationPercent >= 0 ? "+" : ""}{totalVariationPercent.toFixed(2)}%
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      <PerformanceChart data={mockMonthlyData} title="Evolução Mensal" />
+      {isLoading ? (
+        <Skeleton className="h-80 rounded-lg" />
+      ) : performanceData.length > 0 ? (
+        <PerformanceChart data={performanceData} title="Evolução Mensal" />
+      ) : (
+        <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+          Adicione lançamentos para ver a evolução mensal
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MonthlyStatement statements={filteredStatements} />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Extrato Mensal
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-6">
+                <Skeleton className="h-64 rounded-lg" />
+              </div>
+            ) : statements.length > 0 ? (
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-4 p-6 pt-0">
+                  {statements.map((statement) => {
+                    const variation = statement.endValue - statement.startValue;
+                    const variationPercent = statement.startValue > 0 
+                      ? ((variation / statement.startValue) * 100) 
+                      : 0;
+                    const isPositive = variation >= 0;
+
+                    return (
+                      <div
+                        key={statement.id}
+                        className="border rounded-lg p-4 space-y-3"
+                        data-testid={`statement-${statement.year}-${statement.month}`}
+                      >
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold">
+                              {monthNames[statement.month - 1]} {statement.year}
+                            </span>
+                          </div>
+                          <Badge
+                            variant={isPositive ? "default" : "destructive"}
+                            className="flex items-center gap-1"
+                          >
+                            {isPositive ? (
+                              <TrendingUp className="h-3 w-3" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3" />
+                            )}
+                            {isPositive ? "+" : ""}{variationPercent.toFixed(2)}%
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Início do mês</p>
+                            <p className="font-medium tabular-nums">{formatCurrency(statement.startValue)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Final do mês</p>
+                            <p className="font-medium tabular-nums">{formatCurrency(statement.endValue)}</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t">
+                          <p className={`text-sm font-medium ${isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                            Variação: {isPositive ? "+" : ""}{formatCurrency(variation)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="p-12 text-center text-muted-foreground">
+                Nenhum extrato disponível. Adicione lançamentos para gerar extratos mensais.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold">Comparativo Mensal</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {filteredStatements.map((statement) => {
-                const variation = statement.endValue - statement.startValue;
-                const variationPercent = statement.startValue > 0
-                  ? ((variation / statement.startValue) * 100)
-                  : 0;
-                const isPositive = variation >= 0;
+            {isLoading ? (
+              <Skeleton className="h-64 rounded-lg" />
+            ) : statements.length > 0 ? (
+              <div className="space-y-4">
+                {statements.map((statement) => {
+                  const variation = statement.endValue - statement.startValue;
+                  const variationPercent = statement.startValue > 0
+                    ? ((variation / statement.startValue) * 100)
+                    : 0;
+                  const isPositive = variation >= 0;
 
-                return (
-                  <div
-                    key={statement.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                    data-testid={`comparison-${statement.year}-${statement.month}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${isPositive ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}>
-                        {isPositive ? (
-                          <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-                        )}
+                  return (
+                    <div
+                      key={statement.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                      data-testid={`comparison-${statement.year}-${statement.month}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${isPositive ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}>
+                          {isPositive ? (
+                            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{monthNames[statement.month - 1]}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{monthNames[statement.month - 1]}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {statement.transactions.length} lançamento(s)
+                      <div className="text-right">
+                        <p className="font-medium tabular-nums">{formatCurrency(statement.endValue)}</p>
+                        <p className={`text-sm tabular-nums ${isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          {isPositive ? "+" : ""}{variationPercent.toFixed(2)}%
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium tabular-nums">{formatCurrency(statement.endValue)}</p>
-                      <p className={`text-sm tabular-nums ${isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                        {isPositive ? "+" : ""}{variationPercent.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-muted-foreground">
+                Sem dados para exibir
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

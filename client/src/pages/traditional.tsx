@@ -6,6 +6,9 @@ import { AddAssetDialog, type Asset } from "@/components/dashboard/AddAssetDialo
 import { SnapshotDialog, type Snapshot } from "@/components/dashboard/SnapshotDialog";
 import { Landmark, TrendingUp, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,138 +20,144 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// todo: remove mock functionality
-const mockHoldings: Holding[] = [
-  {
-    id: "1",
-    symbol: "PETR4",
-    name: "Petrobras",
-    amount: 100,
-    avgPrice: 32.5,
-    currentPrice: 38.2,
-    change24h: 1.2,
-    type: "stock",
-  },
-  {
-    id: "2",
-    symbol: "VALE3",
-    name: "Vale",
-    amount: 50,
-    avgPrice: 68.0,
-    currentPrice: 72.5,
-    change24h: -0.8,
-    type: "stock",
-  },
-  {
-    id: "3",
-    symbol: "SELIC",
-    name: "Tesouro Selic 2029",
-    amount: 1,
-    avgPrice: 14500,
-    currentPrice: 15200,
-    change24h: 0.02,
-    type: "etf",
-  },
-  {
-    id: "4",
-    symbol: "HGLG11",
-    name: "CSHG Logística",
-    amount: 20,
-    avgPrice: 155.0,
-    currentPrice: 162.0,
-    change24h: 0.5,
-    type: "fii",
-  },
-  {
-    id: "5",
-    symbol: "CAIXA",
-    name: "Reserva de Emergência",
-    amount: 1,
-    avgPrice: 5000,
-    currentPrice: 5000,
-    change24h: 0,
-    type: "etf",
-  },
-];
-
-// todo: remove mock functionality
-const mockAssets: Asset[] = [
-  { id: "1", name: "Petrobras", symbol: "PETR4", category: "stocks", market: "traditional" },
-  { id: "2", name: "Vale", symbol: "VALE3", category: "stocks", market: "traditional" },
-  { id: "3", name: "Tesouro Selic 2029", symbol: "SELIC", category: "fixed_income", market: "traditional" },
-  { id: "4", name: "CSHG Logística", symbol: "HGLG11", category: "fii", market: "traditional" },
-  { id: "5", name: "Reserva de Emergência", symbol: "CAIXA", category: "cash", market: "traditional" },
-];
+interface PortfolioSummary {
+  totalValue: number;
+  cryptoValue: number;
+  traditionalValue: number;
+  cryptoExposure: number;
+  holdings: Array<{
+    id: string;
+    symbol: string;
+    name: string;
+    category: string;
+    market: string;
+    value: number;
+    amount?: number;
+    unitPrice?: number;
+  }>;
+}
 
 export default function TraditionalPage() {
   const { toast } = useToast();
-  const [holdings, setHoldings] = useState<Holding[]>(mockHoldings);
-  const [assets, setAssets] = useState<Asset[]>(mockAssets);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [holdingToDelete, setHoldingToDelete] = useState<Holding | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<{ id: string; symbol: string } | null>(null);
+
+  const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
+    queryKey: ["/api/assets", "traditional"],
+    queryFn: async () => {
+      const res = await fetch("/api/assets?market=traditional");
+      if (!res.ok) throw new Error("Failed to fetch assets");
+      return res.json();
+    },
+  });
+
+  const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
+    queryKey: ["/api/portfolio/summary"],
+  });
+
+  const createAssetMutation = useMutation({
+    mutationFn: async (asset: Omit<Asset, "id">) => {
+      return apiRequest("POST", "/api/assets", asset);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      toast({
+        title: "Ativo adicionado",
+        description: "O ativo foi cadastrado com sucesso.",
+      });
+    },
+  });
+
+  const createSnapshotMutation = useMutation({
+    mutationFn: async (snapshot: Omit<Snapshot, "id">) => {
+      return apiRequest("POST", "/api/snapshots", snapshot);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      toast({
+        title: "Lançamento registrado",
+        description: "O valor foi atualizado com sucesso.",
+      });
+    },
+  });
+
+  const deleteAssetMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/assets/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      toast({
+        title: "Ativo removido",
+        description: "O ativo foi removido do portfólio.",
+      });
+    },
+  });
+
+  const traditionalHoldings = summary?.holdings.filter((h) => h.market === "traditional") || [];
+
+  const holdings: Holding[] = traditionalHoldings.map((h) => ({
+    id: h.id,
+    symbol: h.symbol,
+    name: h.name,
+    amount: h.amount || 0,
+    avgPrice: h.unitPrice || 0,
+    currentPrice: h.unitPrice || 0,
+    change24h: 0,
+    type: h.category === "fii" ? "fii" : h.category === "etf" ? "etf" : "stock",
+  }));
 
   const handleAddAsset = (asset: Omit<Asset, "id">) => {
-    const newAsset: Asset = {
-      ...asset,
-      id: Date.now().toString(),
-    };
-    setAssets((prev) => [...prev, newAsset]);
-    toast({
-      title: "Ativo adicionado",
-      description: `${asset.symbol} foi cadastrado com sucesso.`,
-    });
+    createAssetMutation.mutate(asset);
   };
 
   const handleAddSnapshot = (snapshot: Omit<Snapshot, "id">) => {
-    const asset = assets.find((a) => a.id === snapshot.assetId);
-    toast({
-      title: "Lançamento registrado",
-      description: `Valor de ${asset?.symbol || "ativo"} atualizado.`,
-    });
+    createSnapshotMutation.mutate(snapshot);
   };
 
   const handleEdit = (holding: Holding) => {
     toast({
       title: "Editar ativo",
-      description: `Editando ${holding.symbol}...`,
+      description: `Use "Novo Lançamento" para atualizar o valor de ${holding.symbol}.`,
     });
   };
 
   const handleDelete = (holding: Holding) => {
-    setHoldingToDelete(holding);
+    setAssetToDelete({ id: holding.id, symbol: holding.symbol });
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (holdingToDelete) {
-      setHoldings((prev) => prev.filter((h) => h.id !== holdingToDelete.id));
-      toast({
-        title: "Ativo removido",
-        description: `${holdingToDelete.symbol} foi removido do portfólio.`,
-      });
+    if (assetToDelete) {
+      deleteAssetMutation.mutate(assetToDelete.id);
     }
     setDeleteDialogOpen(false);
-    setHoldingToDelete(null);
+    setAssetToDelete(null);
   };
 
-  // todo: remove mock functionality - calculate from real data
-  const totalValue = holdings.reduce((sum, h) => sum + h.amount * h.currentPrice, 0);
-  const totalCost = holdings.reduce((sum, h) => sum + h.amount * h.avgPrice, 0);
-  const profitLoss = totalValue - totalCost;
-  const profitLossPercent = totalCost > 0 ? ((profitLoss / totalCost) * 100) : 0;
+  const totalValue = summary?.traditionalValue || 0;
 
-  // Group by category
-  const categoryTotals = holdings.reduce((acc, h) => {
-    const category = h.type === "stock" ? "Ações" : h.type === "fii" ? "FIIs" : h.type === "etf" ? "Renda Fixa" : "Outros";
-    acc[category] = (acc[category] || 0) + h.amount * h.currentPrice;
-    return acc;
-  }, {} as Record<string, number>);
+  const categoryTotals: Record<string, number> = {};
+  traditionalHoldings.forEach((h) => {
+    const cat = h.category === "stocks" ? "Ações" : 
+                h.category === "fixed_income" ? "Renda Fixa" :
+                h.category === "fii" ? "FIIs" :
+                h.category === "cash" ? "Caixa" :
+                h.category === "etf" ? "ETFs" : "Outros";
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + h.value;
+  });
 
   const categoryData = Object.entries(categoryTotals).map(([name, value], index) => ({
     name,
     value,
     color: `hsl(var(--chart-${(index % 5) + 1}))`,
   }));
+
+  const isLoading = assetsLoading || summaryLoading;
 
   return (
     <div className="p-6 space-y-6">
@@ -163,37 +172,56 @@ export default function TraditionalPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <MetricCard
-          title="Valor Total"
-          value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          change={5.3}
-          changeLabel="vs mês anterior"
-          icon={Landmark}
-        />
-        <MetricCard
-          title="Lucro/Prejuízo"
-          value={`R$ ${profitLoss.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          change={profitLossPercent}
-          icon={TrendingUp}
-        />
-        <MetricCard
-          title="Ativos"
-          value={holdings.length.toString()}
-          icon={Briefcase}
-        />
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <MetricCard
+            title="Valor Total"
+            value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            icon={Landmark}
+          />
+          <MetricCard
+            title="Exposição Tradicional"
+            value={`${(100 - (summary?.cryptoExposure || 0)).toFixed(1)}%`}
+            icon={TrendingUp}
+          />
+          <MetricCard
+            title="Ativos"
+            value={traditionalHoldings.length.toString()}
+            icon={Briefcase}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <HoldingsTable
-            title="Holdings Tradicional"
-            holdings={holdings}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          {isLoading ? (
+            <Skeleton className="h-96 rounded-lg" />
+          ) : holdings.length > 0 ? (
+            <HoldingsTable
+              title="Holdings Tradicional"
+              holdings={holdings}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ) : (
+            <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+              Adicione ativos e registre valores para vê-los aqui
+            </div>
+          )}
         </div>
-        <CategoryChart title="Por Categoria" data={categoryData} />
+        {categoryData.length > 0 ? (
+          <CategoryChart title="Por Categoria" data={categoryData} />
+        ) : (
+          <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+            Sem dados para exibir
+          </div>
+        )}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -201,7 +229,7 @@ export default function TraditionalPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja remover {holdingToDelete?.symbol} do seu portfólio?
+              Tem certeza que deseja remover {assetToDelete?.symbol} do seu portfólio?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>

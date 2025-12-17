@@ -6,6 +6,9 @@ import { AddAssetDialog, type Asset } from "@/components/dashboard/AddAssetDialo
 import { SnapshotDialog, type Snapshot } from "@/components/dashboard/SnapshotDialog";
 import { Bitcoin, TrendingUp, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,120 +20,134 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// todo: remove mock functionality
-const mockHoldings: Holding[] = [
-  {
-    id: "1",
-    symbol: "BTC",
-    name: "Bitcoin",
-    amount: 0.25,
-    avgPrice: 180000,
-    currentPrice: 210000,
-    change24h: 2.5,
-    type: "crypto",
-  },
-  {
-    id: "2",
-    symbol: "ETH",
-    name: "Ethereum",
-    amount: 2.5,
-    avgPrice: 9500,
-    currentPrice: 11200,
-    change24h: -1.2,
-    type: "crypto",
-  },
-  {
-    id: "3",
-    symbol: "SOL",
-    name: "Solana",
-    amount: 15,
-    avgPrice: 450,
-    currentPrice: 520,
-    change24h: 4.8,
-    type: "crypto",
-  },
-  {
-    id: "4",
-    symbol: "ADA",
-    name: "Cardano",
-    amount: 500,
-    avgPrice: 2.5,
-    currentPrice: 2.8,
-    change24h: -0.5,
-    type: "crypto",
-  },
-];
-
-// todo: remove mock functionality
-const mockAssets: Asset[] = [
-  { id: "1", name: "Bitcoin", symbol: "BTC", category: "crypto", market: "crypto" },
-  { id: "2", name: "Ethereum", symbol: "ETH", category: "crypto", market: "crypto" },
-  { id: "3", name: "Solana", symbol: "SOL", category: "crypto", market: "crypto" },
-  { id: "4", name: "Cardano", symbol: "ADA", category: "crypto", market: "crypto" },
-];
+interface PortfolioSummary {
+  totalValue: number;
+  cryptoValue: number;
+  traditionalValue: number;
+  cryptoExposure: number;
+  holdings: Array<{
+    id: string;
+    symbol: string;
+    name: string;
+    category: string;
+    market: string;
+    value: number;
+    amount?: number;
+    unitPrice?: number;
+  }>;
+}
 
 export default function CryptoPage() {
   const { toast } = useToast();
-  const [holdings, setHoldings] = useState<Holding[]>(mockHoldings);
-  const [assets, setAssets] = useState<Asset[]>(mockAssets);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [holdingToDelete, setHoldingToDelete] = useState<Holding | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<{ id: string; symbol: string } | null>(null);
+
+  const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
+    queryKey: ["/api/assets", "crypto"],
+    queryFn: async () => {
+      const res = await fetch("/api/assets?market=crypto");
+      if (!res.ok) throw new Error("Failed to fetch assets");
+      return res.json();
+    },
+  });
+
+  const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
+    queryKey: ["/api/portfolio/summary"],
+  });
+
+  const createAssetMutation = useMutation({
+    mutationFn: async (asset: Omit<Asset, "id">) => {
+      return apiRequest("POST", "/api/assets", asset);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      toast({
+        title: "Ativo adicionado",
+        description: "O ativo foi cadastrado com sucesso.",
+      });
+    },
+  });
+
+  const createSnapshotMutation = useMutation({
+    mutationFn: async (snapshot: Omit<Snapshot, "id">) => {
+      return apiRequest("POST", "/api/snapshots", snapshot);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      toast({
+        title: "Lançamento registrado",
+        description: "O valor foi atualizado com sucesso.",
+      });
+    },
+  });
+
+  const deleteAssetMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/assets/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      toast({
+        title: "Ativo removido",
+        description: "O ativo foi removido do portfólio.",
+      });
+    },
+  });
+
+  const cryptoHoldings = summary?.holdings.filter((h) => h.market === "crypto") || [];
+
+  const holdings: Holding[] = cryptoHoldings.map((h) => ({
+    id: h.id,
+    symbol: h.symbol,
+    name: h.name,
+    amount: h.amount || 0,
+    avgPrice: h.unitPrice || 0,
+    currentPrice: h.unitPrice || 0,
+    change24h: 0,
+    type: "crypto",
+  }));
 
   const handleAddAsset = (asset: Omit<Asset, "id">) => {
-    const newAsset: Asset = {
-      ...asset,
-      id: Date.now().toString(),
-    };
-    setAssets((prev) => [...prev, newAsset]);
-    toast({
-      title: "Ativo adicionado",
-      description: `${asset.symbol} foi cadastrado com sucesso.`,
-    });
+    createAssetMutation.mutate(asset);
   };
 
   const handleAddSnapshot = (snapshot: Omit<Snapshot, "id">) => {
-    const asset = assets.find((a) => a.id === snapshot.assetId);
-    toast({
-      title: "Lançamento registrado",
-      description: `Valor de ${asset?.symbol || "ativo"} atualizado.`,
-    });
+    createSnapshotMutation.mutate(snapshot);
   };
 
   const handleEdit = (holding: Holding) => {
     toast({
       title: "Editar ativo",
-      description: `Editando ${holding.symbol}...`,
+      description: `Use "Novo Lançamento" para atualizar o valor de ${holding.symbol}.`,
     });
   };
 
   const handleDelete = (holding: Holding) => {
-    setHoldingToDelete(holding);
+    setAssetToDelete({ id: holding.id, symbol: holding.symbol });
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (holdingToDelete) {
-      setHoldings((prev) => prev.filter((h) => h.id !== holdingToDelete.id));
-      toast({
-        title: "Ativo removido",
-        description: `${holdingToDelete.symbol} foi removido do portfólio.`,
-      });
+    if (assetToDelete) {
+      deleteAssetMutation.mutate(assetToDelete.id);
     }
     setDeleteDialogOpen(false);
-    setHoldingToDelete(null);
+    setAssetToDelete(null);
   };
 
-  // todo: remove mock functionality - calculate from real data
-  const totalValue = holdings.reduce((sum, h) => sum + h.amount * h.currentPrice, 0);
-  const totalCost = holdings.reduce((sum, h) => sum + h.amount * h.avgPrice, 0);
-  const profitLoss = totalValue - totalCost;
-  const profitLossPercent = totalCost > 0 ? ((profitLoss / totalCost) * 100) : 0;
+  const totalValue = summary?.cryptoValue || 0;
 
-  const chartData = holdings.map((h, index) => ({
+  const chartData = cryptoHoldings.map((h, index) => ({
     name: h.symbol,
-    value: h.amount * h.currentPrice,
+    value: h.value,
     color: `hsl(var(--chart-${(index % 5) + 1}))`,
   }));
+
+  const isLoading = assetsLoading || summaryLoading;
 
   return (
     <div className="p-6 space-y-6">
@@ -145,37 +162,56 @@ export default function CryptoPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <MetricCard
-          title="Valor Total Cripto"
-          value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          change={15.2}
-          changeLabel="vs mês anterior"
-          icon={Bitcoin}
-        />
-        <MetricCard
-          title="Lucro/Prejuízo"
-          value={`R$ ${profitLoss.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          change={profitLossPercent}
-          icon={TrendingUp}
-        />
-        <MetricCard
-          title="Ativos"
-          value={holdings.length.toString()}
-          icon={Coins}
-        />
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <MetricCard
+            title="Valor Total Cripto"
+            value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            icon={Bitcoin}
+          />
+          <MetricCard
+            title="Exposição Cripto"
+            value={`${(summary?.cryptoExposure || 0).toFixed(1)}%`}
+            icon={TrendingUp}
+          />
+          <MetricCard
+            title="Ativos"
+            value={cryptoHoldings.length.toString()}
+            icon={Coins}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <HoldingsTable
-            title="Holdings Cripto"
-            holdings={holdings}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          {isLoading ? (
+            <Skeleton className="h-96 rounded-lg" />
+          ) : holdings.length > 0 ? (
+            <HoldingsTable
+              title="Holdings Cripto"
+              holdings={holdings}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ) : (
+            <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+              Adicione ativos cripto e registre valores para vê-los aqui
+            </div>
+          )}
         </div>
-        <PortfolioChart title="Distribuição Cripto" data={chartData} />
+        {chartData.length > 0 ? (
+          <PortfolioChart title="Distribuição Cripto" data={chartData} />
+        ) : (
+          <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+            Sem dados para exibir
+          </div>
+        )}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -183,7 +219,7 @@ export default function CryptoPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja remover {holdingToDelete?.symbol} do seu portfólio?
+              Tem certeza que deseja remover {assetToDelete?.symbol} do seu portfólio?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
