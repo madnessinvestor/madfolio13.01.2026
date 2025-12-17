@@ -1,0 +1,120 @@
+PROMPT PARA O REPLIT (COM EXTRATO MENSAL)
+
+Crie um aplicativo web para controle de investimentos pessoais, funcionando como um portfolio tracker manual (estilo blockfólio pessoal), sem conexão com wallet e sem leitura de blockchain.
+
+Objetivo
+
+O usuário insere manualmente os valores dos seus investimentos, e o sistema registra histórico, gera gráficos automáticos, mantém extrato mensal e permite acompanhar a evolução mês a mês do patrimônio.
+
+Requisitos principais
+
+Não conectar nenhuma wallet
+
+Não usar Web3, blockchain ou leitura on-chain
+
+Todos os dados são inseridos manualmente pelo usuário
+
+Cada atualização de valor deve gerar histórico automático
+
+Funcionalidades obrigatórias
+1. Cadastro de ativos
+
+Nome do ativo (ex: BTC, ETH, Ações, Caixa, Renda Fixa)
+
+Categoria (Cripto, Ações, Renda Fixa, Caixa, Outros)
+
+2. Lançamento de valores (Snapshots)
+
+Usuário informa o valor atual do ativo
+
+Data do lançamento
+
+Cada lançamento cria um snapshot, não sobrescreve dados anteriores
+
+3. Histórico automático
+
+Histórico por ativo
+
+Histórico do valor total do portfólio
+
+Visualização por mês e por período
+
+4. Extrato mensal (NOVO – OBRIGATÓRIO)
+
+O sistema deve gerar automaticamente um extrato por mês
+
+O extrato mensal deve conter:
+
+Mês/Ano
+
+Valor total no início do mês
+
+Valor total no final do mês
+
+Variação absoluta (R$ / US$)
+
+Variação percentual (%)
+
+Lista de lançamentos feitos no mês
+
+O extrato deve ficar salvo e acessível posteriormente
+
+5. Gráficos
+
+Gráfico de linha com evolução do patrimônio total
+
+Gráfico de barras com evolução mês a mês
+
+Gráfico de pizza com distribuição por categoria
+
+Indicação visual de variação positiva ou negativa no mês
+
+6. Modo cripto manual
+
+Usuário lança manualmente o valor total investido em cripto
+
+O sistema calcula automaticamente a porcentagem de exposição cripto no portfólio
+
+Stack técnica desejada
+
+Frontend: React + Vite
+
+Estilização: TailwindCSS
+
+Gráficos: Chart.js ou Recharts
+
+Backend: Node.js + Express
+
+Banco de dados: SQLite (persistente)
+
+Comportamento esperado
+
+Ao criar ou atualizar qualquer lançamento, o sistema deve:
+
+Recalcular o valor total do portfólio
+
+Atualizar gráficos
+
+Atualizar o extrato mensal correspondente
+
+O histórico e os extratos não podem ser apagados automaticamente
+
+Extras desejáveis (se possível)
+
+Filtro por mês/ano
+
+Comparação entre meses
+
+Exportar extrato mensal em CSV ou PDF
+
+Layout simples, limpo e focado em finanças pessoais
+
+Crie a estrutura completa do projeto (frontend + backend), com banco de dados configurado, rotas organizadas e exemplos de dados para teste.
+
+DICA IMPORTANTE (para o Replit não errar)
+
+Se ele não criar o extrato corretamente, depois mande:
+
+“Implemente corretamente o extrato mensal, criando uma tabela própria no banco para armazenar os extratos por mês, sem recalcular tudo no frontend.”
+
+Isso força ele a fazer do jeito certo.
