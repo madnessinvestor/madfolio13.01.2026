@@ -1,20 +1,15 @@
 import { 
-  type User, type InsertUser,
   type Asset, type InsertAsset,
   type Snapshot, type InsertSnapshot,
   type MonthlyStatement, type InsertMonthlyStatement,
-  users, assets, snapshots, monthlyStatements
+  assets, snapshots, monthlyStatements
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
-  getAssets(): Promise<Asset[]>;
-  getAssetsByMarket(market: string): Promise<Asset[]>;
+  getAssets(userId?: string): Promise<Asset[]>;
+  getAssetsByMarket(market: string, userId?: string): Promise<Asset[]>;
   getAsset(id: string): Promise<Asset | undefined>;
   createAsset(asset: InsertAsset): Promise<Asset>;
   updateAsset(id: string, asset: Partial<InsertAsset>): Promise<Asset | undefined>;
@@ -32,26 +27,17 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
-
-  async getAssets(): Promise<Asset[]> {
+  async getAssets(userId?: string): Promise<Asset[]> {
+    if (userId) {
+      return db.select().from(assets).where(eq(assets.userId, userId)).orderBy(assets.symbol);
+    }
     return db.select().from(assets).orderBy(assets.symbol);
   }
 
-  async getAssetsByMarket(market: string): Promise<Asset[]> {
+  async getAssetsByMarket(market: string, userId?: string): Promise<Asset[]> {
+    if (userId) {
+      return db.select().from(assets).where(and(eq(assets.market, market), eq(assets.userId, userId))).orderBy(assets.symbol);
+    }
     return db.select().from(assets).where(eq(assets.market, market)).orderBy(assets.symbol);
   }
 

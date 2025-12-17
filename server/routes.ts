@@ -3,24 +3,29 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertAssetSchema, insertSnapshotSchema } from "@shared/schema";
 import { z } from "zod";
+import { isAuthenticated } from "./replit_integrations/auth";
+import { fetchAssetPrice, updateAssetPrice, startPriceUpdater } from "./services/pricing";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  app.get("/api/assets", async (req, res) => {
+  startPriceUpdater(5 * 60 * 1000);
+
+  app.get("/api/assets", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
     try {
       const market = req.query.market as string | undefined;
       const assets = market 
-        ? await storage.getAssetsByMarket(market)
-        : await storage.getAssets();
+        ? await storage.getAssetsByMarket(market, userId)
+        : await storage.getAssets(userId);
       res.json(assets);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch assets" });
     }
   });
 
-  app.get("/api/assets/:id", async (req, res) => {
+  app.get("/api/assets/:id", isAuthenticated, async (req: any, res) => {
     try {
       const asset = await storage.getAsset(req.params.id);
       if (!asset) {
@@ -32,20 +37,29 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/assets", async (req, res) => {
+  app.post("/api/assets", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
     try {
       const validated = insertAssetSchema.parse(req.body);
-      const asset = await storage.createAsset(validated);
-      res.status(201).json(asset);
+      const asset = await storage.createAsset({ ...validated, userId });
+      
+      const price = await fetchAssetPrice(asset.symbol, asset.market);
+      if (price !== null) {
+        await storage.updateAsset(asset.id, { currentPrice: price, lastPriceUpdate: new Date() });
+      }
+      
+      const updatedAsset = await storage.getAsset(asset.id);
+      res.status(201).json(updatedAsset);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
+      console.error("Error creating asset:", error);
       res.status(500).json({ error: "Failed to create asset" });
     }
   });
 
-  app.patch("/api/assets/:id", async (req, res) => {
+  app.patch("/api/assets/:id", isAuthenticated, async (req: any, res) => {
     try {
       const validated = insertAssetSchema.partial().parse(req.body);
       const asset = await storage.updateAsset(req.params.id, validated);
@@ -61,7 +75,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/assets/:id", async (req, res) => {
+  app.delete("/api/assets/:id", isAuthenticated, async (req: any, res) => {
     try {
       const deleted = await storage.deleteAsset(req.params.id);
       if (!deleted) {
@@ -73,7 +87,20 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/snapshots", async (req, res) => {
+  app.post("/api/assets/:id/refresh-price", isAuthenticated, async (req: any, res) => {
+    try {
+      const price = await updateAssetPrice(req.params.id);
+      if (price === null) {
+        return res.status(404).json({ error: "Could not fetch price" });
+      }
+      const asset = await storage.getAsset(req.params.id);
+      res.json(asset);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to refresh price" });
+    }
+  });
+
+  app.get("/api/snapshots", isAuthenticated, async (req: any, res) => {
     try {
       const assetId = req.query.assetId as string | undefined;
       const snapshots = await storage.getSnapshots(assetId);
@@ -83,7 +110,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/snapshots/latest", async (req, res) => {
+  app.get("/api/snapshots/latest", isAuthenticated, async (req: any, res) => {
     try {
       const snapshots = await storage.getLatestSnapshots();
       res.json(snapshots);
@@ -92,7 +119,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/snapshots/range", async (req, res) => {
+  app.get("/api/snapshots/range", isAuthenticated, async (req: any, res) => {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
@@ -108,7 +135,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/snapshots", async (req, res) => {
+  app.post("/api/snapshots", isAuthenticated, async (req: any, res) => {
     try {
       const validated = insertSnapshotSchema.parse(req.body);
       const snapshot = await storage.createSnapshot(validated);
@@ -117,11 +144,12 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
+      console.error("Error creating snapshot:", error);
       res.status(500).json({ error: "Failed to create snapshot" });
     }
   });
 
-  app.delete("/api/snapshots/:id", async (req, res) => {
+  app.delete("/api/snapshots/:id", isAuthenticated, async (req: any, res) => {
     try {
       const deleted = await storage.deleteSnapshot(req.params.id);
       if (!deleted) {
@@ -133,7 +161,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/statements", async (req, res) => {
+  app.get("/api/statements", isAuthenticated, async (req: any, res) => {
     try {
       const year = req.query.year ? parseInt(req.query.year as string) : undefined;
       const statements = await storage.getMonthlyStatements(year);
@@ -143,7 +171,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/statements/:year/:month", async (req, res) => {
+  app.get("/api/statements/:year/:month", isAuthenticated, async (req: any, res) => {
     try {
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
@@ -177,7 +205,8 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/portfolio/summary", async (req, res) => {
+  app.get("/api/portfolio/summary", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
     try {
       const assets = await storage.getAssets();
       const latestSnapshots = await storage.getLatestSnapshots();
@@ -224,7 +253,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/portfolio/history", async (req, res) => {
+  app.get("/api/portfolio/history", isAuthenticated, async (req: any, res) => {
     try {
       const statements = await storage.getMonthlyStatements();
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];

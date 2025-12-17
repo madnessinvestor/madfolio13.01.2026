@@ -3,26 +3,17 @@ import { pgTable, text, varchar, integer, real, timestamp, date } from "drizzle-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export * from "./models/auth";
 
 export const assets = pgTable("assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
   symbol: text("symbol").notNull(),
   name: text("name").notNull(),
   category: text("category").notNull(),
   market: text("market").notNull(),
+  currentPrice: real("current_price"),
+  lastPriceUpdate: timestamp("last_price_update"),
 });
 
 export const insertAssetSchema = createInsertSchema(assets).omit({ id: true });
