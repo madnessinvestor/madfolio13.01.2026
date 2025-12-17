@@ -22,6 +22,7 @@ import { Plus, Loader2 } from "lucide-react";
 
 export type AssetCategory = "crypto" | "stocks" | "fixed_income" | "cash" | "fii" | "etf" | "real_estate" | "others";
 export type MarketType = "crypto" | "traditional" | "real_estate";
+export type CurrencyType = "BRL" | "USD" | "EUR";
 
 export interface Investment {
   id: string;
@@ -29,6 +30,7 @@ export interface Investment {
   symbol: string;
   category: AssetCategory;
   market: MarketType;
+  currency: CurrencyType;
   quantity: number;
   acquisitionPrice: number;
   acquisitionDate: string;
@@ -57,6 +59,18 @@ const marketLabels: Record<MarketType, string> = {
   real_estate: "Imóveis",
 };
 
+const currencyLabels: Record<CurrencyType, string> = {
+  BRL: "R$ Real",
+  USD: "$ Dólar",
+  EUR: "€ Euro",
+};
+
+const currencySymbols: Record<CurrencyType, string> = {
+  BRL: "R$",
+  USD: "$",
+  EUR: "€",
+};
+
 const categoriesByMarket: Record<MarketType, AssetCategory[]> = {
   crypto: ["crypto"],
   traditional: ["stocks", "fixed_income", "cash", "fii", "etf", "others"],
@@ -66,6 +80,7 @@ const categoriesByMarket: Record<MarketType, AssetCategory[]> = {
 export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogProps) {
   const [open, setOpen] = useState(false);
   const [market, setMarket] = useState<MarketType>("crypto");
+  const [currency, setCurrency] = useState<CurrencyType>("BRL");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [category, setCategory] = useState<AssetCategory>("crypto");
@@ -94,6 +109,7 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
       symbol: symbol.toUpperCase(),
       category,
       market,
+      currency,
       quantity: parsedQuantity,
       acquisitionPrice: parsedPrice,
       acquisitionDate,
@@ -105,6 +121,7 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
 
   const resetForm = () => {
     setMarket("crypto");
+    setCurrency("BRL");
     setName("");
     setSymbol("");
     setCategory("crypto");
@@ -120,7 +137,7 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    return `R$ ${formatted}`;
+    return `${currencySymbols[currency]} ${formatted}`;
   };
 
   const availableCategories = categoriesByMarket[market];
@@ -199,6 +216,25 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
               </div>
             )}
 
+            <div className="grid gap-2">
+              <Label htmlFor="currency">Moeda</Label>
+              <Select value={currency} onValueChange={(value: CurrencyType) => {
+                setCurrency(value);
+                setAcquisitionPrice("");
+              }}>
+                <SelectTrigger data-testid="select-currency">
+                  <SelectValue placeholder="Selecione a moeda" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(currencyLabels) as CurrencyType[]).map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {currencyLabels[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="quantity">Quantidade</Label>
@@ -216,7 +252,7 @@ export function AddInvestmentDialog({ onAdd, isLoading }: AddInvestmentDialogPro
                 <Label htmlFor="acquisitionPrice">Preço de Aquisição</Label>
                 <Input
                   id="acquisitionPrice"
-                  placeholder="R$ 0,00"
+                  placeholder={`${currencySymbols[currency]} 0,00`}
                   value={acquisitionPrice}
                   onChange={(e) => setAcquisitionPrice(formatCurrency(e.target.value))}
                   data-testid="input-acquisition-price"

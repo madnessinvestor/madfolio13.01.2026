@@ -5,12 +5,14 @@ import { insertAssetSchema, insertSnapshotSchema } from "@shared/schema";
 import { z } from "zod";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { fetchAssetPrice, updateAssetPrice, startPriceUpdater } from "./services/pricing";
+import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/exchangeRate";
 
 const investmentSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
   category: z.string(),
   market: z.enum(["crypto", "traditional", "real_estate"]),
+  currency: z.enum(["BRL", "USD", "EUR"]).default("BRL"),
   quantity: z.number().positive(),
   acquisitionPrice: z.number().positive(),
   acquisitionDate: z.string(),
@@ -121,6 +123,7 @@ export async function registerRoutes(
         name: validated.name,
         category: validated.category,
         market: validated.market,
+        currency: validated.currency,
         quantity: validated.quantity,
         acquisitionPrice: validated.acquisitionPrice,
         acquisitionDate: validated.acquisitionDate,
@@ -141,17 +144,20 @@ export async function registerRoutes(
         });
       }
       
-      const totalValue = validated.quantity * (validated.market === "real_estate" ? validated.acquisitionPrice : (await storage.getAsset(asset.id))?.currentPrice || validated.acquisitionPrice);
+      const updatedAsset = await storage.getAsset(asset.id);
+      const currentPrice = updatedAsset?.currentPrice || validated.acquisitionPrice;
+      const totalValueInCurrency = validated.quantity * currentPrice;
+      const totalValueBRL = await convertToBRL(totalValueInCurrency, validated.currency);
+      
       await storage.createSnapshot({
         assetId: asset.id,
-        value: totalValue,
+        value: totalValueBRL,
         amount: validated.quantity,
         unitPrice: validated.acquisitionPrice,
         date: validated.acquisitionDate,
         notes: "Aquisição inicial"
       });
       
-      const updatedAsset = await storage.getAsset(asset.id);
       res.status(201).json(updatedAsset);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -159,6 +165,15 @@ export async function registerRoutes(
       }
       console.error("Error creating investment:", error);
       res.status(500).json({ error: "Failed to create investment" });
+    }
+  });
+
+  app.get("/api/exchange-rates", async (req, res) => {
+    try {
+      const rates = await fetchExchangeRates();
+      res.json(rates);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch exchange rates" });
     }
   });
 
@@ -271,28 +286,36 @@ export async function registerRoutes(
     const userId = req.user?.claims?.sub;
     try {
       const allAssets = await storage.getAssets(userId);
+      const rates = await fetchExchangeRates();
       
       let totalValue = 0;
       let cryptoValue = 0;
       let traditionalValue = 0;
       let realEstateValue = 0;
       
-      const holdings = allAssets.map((asset) => {
+      const holdings = await Promise.all(allAssets.map(async (asset) => {
         const currentPrice = asset.currentPrice || asset.acquisitionPrice || 0;
         const quantity = asset.quantity || 0;
-        const value = quantity * currentPrice;
-        const acquisitionValue = quantity * (asset.acquisitionPrice || 0);
-        const profitLoss = value - acquisitionValue;
-        const profitLossPercent = acquisitionValue > 0 ? (profitLoss / acquisitionValue) * 100 : 0;
+        const currency = asset.currency || "BRL";
         
-        totalValue += value;
+        const valueInCurrency = quantity * currentPrice;
+        const exchangeRate = rates[currency as keyof typeof rates] || 1;
+        const valueInBRL = valueInCurrency * exchangeRate;
+        
+        const acquisitionValueInCurrency = quantity * (asset.acquisitionPrice || 0);
+        const acquisitionValueInBRL = acquisitionValueInCurrency * exchangeRate;
+        
+        const profitLoss = valueInBRL - acquisitionValueInBRL;
+        const profitLossPercent = acquisitionValueInBRL > 0 ? (profitLoss / acquisitionValueInBRL) * 100 : 0;
+        
+        totalValue += valueInBRL;
         
         if (asset.market === "crypto") {
-          cryptoValue += value;
+          cryptoValue += valueInBRL;
         } else if (asset.market === "real_estate") {
-          realEstateValue += value;
+          realEstateValue += valueInBRL;
         } else {
-          traditionalValue += value;
+          traditionalValue += valueInBRL;
         }
         
         return {
@@ -301,15 +324,18 @@ export async function registerRoutes(
           name: asset.name,
           category: asset.category,
           market: asset.market,
-          value,
+          currency,
+          value: valueInBRL,
+          valueInCurrency,
           quantity,
           acquisitionPrice: asset.acquisitionPrice || 0,
           currentPrice,
           profitLoss,
           profitLossPercent,
+          exchangeRate,
           lastUpdate: asset.lastPriceUpdate
         };
-      });
+      }));
       
       res.json({
         totalValue,
@@ -317,6 +343,7 @@ export async function registerRoutes(
         traditionalValue,
         realEstateValue,
         cryptoExposure: totalValue > 0 ? (cryptoValue / totalValue) * 100 : 0,
+        exchangeRates: rates,
         holdings
       });
     } catch (error) {
