@@ -131,24 +131,18 @@ async function extractDebankNetWorth(page: any, walletName: string, attempt: num
 async function extractJupAgNetWorth(page: any, walletName: string, attempt: number): Promise<string | null> {
   console.log(`[Step.finance] [Attempt ${attempt}/3] Extracting Jup.Ag Net Worth for ${walletName}`);
   
+  // Wait extra time for heavy pages (10 more seconds beyond the 20s initial wait)
+  await page.evaluate(() => new Promise(r => setTimeout(r, 10000)));
+  
   try {
     const result = await page.evaluate(() => {
-      const pageText = document.body.innerText;
+      // Try both innerText and textContent to capture all visible text
+      const pageText = (document.body.innerText || '') + '\n' + (document.body.textContent || '');
       
-      // Strategy 1: Find "Net Worth" and get text after it until first number
-      const netWorthIndex = pageText.toLowerCase().indexOf('net worth');
-      if (netWorthIndex !== -1) {
-        const afterNetWorth = pageText.substring(netWorthIndex, netWorthIndex + 200);
-        const currencyMatch = afterNetWorth.match(/[\$€]\s*[\d.,]+/);
-        if (currencyMatch) {
-          const value = currencyMatch[0].replace(/[\$€\s]/g, '');
-          return { source: 'net_worth_label', value };
-        }
-      }
-      
-      // Strategy 2: Extract ALL currency formatted numbers ($X,XXX.XX or $X.XXX,XX)
-      const currencyMatches = pageText.match(/[\$€][\s]*[\d.]+(?:[,][\d]+)?/g) || [];
       const allValues: Array<{ str: string; num: number }> = [];
+      
+      // Strategy 1: Extract currency formatted numbers ($X,XXX.XX or €2.008,95)
+      const currencyMatches = pageText.match(/[\$€][\s]*[\d,.]+/g) || [];
       
       for (const match of currencyMatches) {
         const value = match.replace(/[\$€\s]/g, '');
@@ -176,36 +170,46 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
         }
       }
       
-      allValues.sort((a, b) => b.num - a.num);
-      return { source: 'currency_match', allValues };
-    });
-
-    // Try net worth label result first
-    if (result.source === 'net_worth_label' && result.value) {
-      let numValue: number;
-      const value = result.value;
-      if (value.includes('.') && value.includes(',')) {
-        const lastComma = value.lastIndexOf(',');
-        const lastDot = value.lastIndexOf('.');
-        numValue = lastComma > lastDot 
-          ? parseFloat(value.replace(/\./g, '').replace(',', '.'))
-          : parseFloat(value.replace(/,/g, ''));
-      } else if (value.includes(',')) {
-        numValue = parseFloat(value.replace(',', '.'));
-      } else {
-        numValue = parseFloat(value.replace(/\./g, ''));
+      // Strategy 2: Extract ANY number with dots and/or commas (aggressive matching for all numeric patterns)
+      const bigNumberMatches = pageText.match(/\d+(?:[.,]\d+)+/g) || [];
+      
+      for (const match of bigNumberMatches) {
+        let numValue: number;
+        
+        if (match.includes('.') && match.includes(',')) {
+          const lastDot = match.lastIndexOf('.');
+          const lastComma = match.lastIndexOf(',');
+          numValue = lastComma > lastDot 
+            ? parseFloat(match.replace(/\./g, '').replace(',', '.'))
+            : parseFloat(match.replace(/,/g, ''));
+        } else if (match.includes(',')) {
+          numValue = parseFloat(match.replace(',', '.'));
+        } else if (match.includes('.')) {
+          const parts = match.split('.');
+          numValue = parts[parts.length - 1].length <= 2
+            ? parseFloat(match.replace(/\./g, ''))
+            : parseFloat(match);
+        } else {
+          numValue = parseFloat(match);
+        }
+        
+        // Avoid duplicates
+        if (!isNaN(numValue) && numValue > 0 && !allValues.some(v => v.num === numValue)) {
+          allValues.push({ str: match, num: numValue });
+        }
       }
       
-      console.log(`[Step.finance] [Attempt ${attempt}/3] Found via Net Worth label: $${result.value} = ${numValue}`);
-      return `$${result.value}`;
-    }
-    
-    // Fallback to largest currency value found
+      allValues.sort((a, b) => b.num - a.num);
+      return { allValues };
+    });
+
+    // Extract largest currency value found
     if (result.allValues && result.allValues.length > 0) {
-      console.log(`[Jup.Ag Debug] Currency values found:`, result.allValues.slice(0, 10).map((v: any) => `${v.str}=${v.num}`).join(', '));
+      console.log(`[Jup.Ag Debug] Top 5 currency values:`, result.allValues.slice(0, 5).map((v: any) => `${v.str}=${v.num}`).join(', '));
       
+      // Accept values from $10 upward (more flexible lower bound)
       for (const item of result.allValues) {
-        if (item.num >= 100 && item.num < 100000000) {
+        if (item.num >= 10 && item.num < 100000000) {
           console.log(`[Step.finance] [Attempt ${attempt}/3] Found Jup.Ag Net Worth: $${item.str} (${item.num})`);
           return `$${item.str}`;
         }
