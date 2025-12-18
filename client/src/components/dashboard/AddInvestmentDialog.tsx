@@ -93,6 +93,7 @@ interface ExistingAsset {
   symbol: string;
   name: string;
   market: string;
+  category?: string;
 }
 
 export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEditAssetId, existingAssets: providedAssets }: AddInvestmentDialogProps) {
@@ -124,6 +125,7 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
   const [updateValue, setUpdateValue] = useState("");
   const [updateDate, setUpdateDate] = useState(new Date().toISOString().split("T")[0]);
   const [updateNotes, setUpdateNotes] = useState("");
+  const [selectedAssetMarket, setSelectedAssetMarket] = useState<MarketType | "">("");
 
   // Fetch existing assets for the update tab (or use provided assets)
   const { data: fetchedAssets = [] } = useQuery<ExistingAsset[]>({
@@ -339,6 +341,7 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
     setUpdateValue("");
     setUpdateDate(new Date().toISOString().split("T")[0]);
     setUpdateNotes("");
+    setSelectedAssetMarket("");
   };
 
   const formatCurrency = (val: string) => {
@@ -406,7 +409,7 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                 {market === "crypto_simplified" ? (
                   <>
                     <div className="grid gap-2">
-                      <Label htmlFor="wallet-name">Nome da Carteira</Label>
+                      <Label htmlFor="wallet-name">Asset</Label>
                       <Input
                         id="wallet-name"
                         placeholder="Ex: Carteira Principal, Coinbase, etc"
@@ -663,17 +666,6 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                       </div>
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="acquisitionDate">Data da Aquisição</Label>
-                      <Input
-                        id="acquisitionDate"
-                        type="date"
-                        value={acquisitionDate}
-                        onChange={(e) => setAcquisitionDate(e.target.value)}
-                        data-testid="input-acquisition-date"
-                      />
-                    </div>
-
                     <p className="text-sm text-muted-foreground">
                       Os valores são armazenados em Reais (BRL). Você pode visualizar em outras moedas usando o seletor no canto superior direito.
                     </p>
@@ -703,7 +695,13 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="asset">Ativo</Label>
-                  <Select value={selectedAssetId} onValueChange={setSelectedAssetId}>
+                  <Select value={selectedAssetId} onValueChange={(value) => {
+                    setSelectedAssetId(value);
+                    const asset = existingAssets.find(a => a.id === value);
+                    if (asset) {
+                      setSelectedAssetMarket((asset.market as MarketType) || "");
+                    }
+                  }}>
                     <SelectTrigger data-testid="select-asset">
                       <SelectValue placeholder="Selecione o ativo" />
                     </SelectTrigger>
@@ -724,7 +722,9 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                 )}
 
                 <div className="grid gap-2">
-                  <Label htmlFor="updateValue">Valor Atual</Label>
+                  <Label htmlFor="updateValue">
+                    {selectedAssetMarket === "crypto" || selectedAssetMarket === "crypto_simplified" ? "Valor Total (Reais)" : selectedAssetMarket === "fixed_income" ? "Valor Aportado" : "Valor Atual"}
+                  </Label>
                   <Input
                     id="updateValue"
                     placeholder="R$ 0,00"
