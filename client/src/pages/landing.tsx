@@ -1,12 +1,87 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, TrendingUp, Landmark, BarChart3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Wallet, TrendingUp, Landmark, BarChart3, Loader2, Mail, Lock, User } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+interface AuthFormData {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}
 
 export default function LandingPage() {
+  const { toast } = useToast();
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerFirstName, setRegisterFirstName] = useState("");
+  const [registerLastName, setRegisterLastName] = useState("");
+
+  const loginMutation = useMutation({
+    mutationFn: async (data: AuthFormData) => {
+      const response = await apiRequest("POST", "/api/auth/login", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      window.location.reload();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao fazer login",
+        description: error.message || "Email ou senha incorretos",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async (data: AuthFormData) => {
+      const response = await apiRequest("POST", "/api/auth/register", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      window.location.reload();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar conta",
+        description: error.message || "Não foi possível criar sua conta",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) return;
+    loginMutation.mutate({ email: loginEmail, password: loginPassword });
+  };
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registerEmail || !registerPassword) return;
+    registerMutation.mutate({
+      email: registerEmail,
+      password: registerPassword,
+      firstName: registerFirstName || undefined,
+      lastName: registerLastName || undefined,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-6">
-      <div className="max-w-4xl mx-auto text-center space-y-8">
-        <div className="space-y-4">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="p-4 bg-primary/10 rounded-full">
               <Wallet className="h-16 w-16 text-primary" />
@@ -71,16 +146,184 @@ export default function LandingPage() {
           </Card>
         </div>
 
-        <div className="pt-4">
-          <Button size="lg" className="text-lg px-8" asChild>
-            <a href="/api/login">
-              Entrar com Google
-            </a>
-          </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            Faça login com sua conta Google para começar
-          </p>
+        <div className="max-w-md mx-auto">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle>Acesse sua conta</CardTitle>
+              <CardDescription>
+                Faça login ou crie uma conta para começar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="login" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="login" data-testid="tab-login">Entrar</TabsTrigger>
+                  <TabsTrigger value="register" data-testid="tab-register">Criar Conta</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="login">
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="login-email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="login-email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          value={loginEmail}
+                          onChange={(e) => setLoginEmail(e.target.value)}
+                          className="pl-10"
+                          data-testid="input-login-email"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="login-password">Senha</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="login-password"
+                          type="password"
+                          placeholder="Sua senha"
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          className="pl-10"
+                          data-testid="input-login-password"
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={loginMutation.isPending}
+                      data-testid="button-login"
+                    >
+                      {loginMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Entrando...
+                        </>
+                      ) : (
+                        "Entrar"
+                      )}
+                    </Button>
+                  </form>
+                  
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">ou</span>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full" asChild>
+                    <a href="/api/login" data-testid="button-login-google">
+                      Entrar com Google
+                    </a>
+                  </Button>
+                </TabsContent>
+                
+                <TabsContent value="register">
+                  <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="register-firstName">Nome</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="register-firstName"
+                            placeholder="Nome"
+                            value={registerFirstName}
+                            onChange={(e) => setRegisterFirstName(e.target.value)}
+                            className="pl-10"
+                            data-testid="input-register-first-name"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="register-lastName">Sobrenome</Label>
+                        <Input
+                          id="register-lastName"
+                          placeholder="Sobrenome"
+                          value={registerLastName}
+                          onChange={(e) => setRegisterLastName(e.target.value)}
+                          data-testid="input-register-last-name"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="register-email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          value={registerEmail}
+                          onChange={(e) => setRegisterEmail(e.target.value)}
+                          className="pl-10"
+                          data-testid="input-register-email"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-password">Senha</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="register-password"
+                          type="password"
+                          placeholder="Mínimo 6 caracteres"
+                          value={registerPassword}
+                          onChange={(e) => setRegisterPassword(e.target.value)}
+                          className="pl-10"
+                          data-testid="input-register-password"
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={registerMutation.isPending}
+                      data-testid="button-register"
+                    >
+                      {registerMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Criando conta...
+                        </>
+                      ) : (
+                        "Criar Conta"
+                      )}
+                    </Button>
+                  </form>
+                  
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">ou</span>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full" asChild>
+                    <a href="/api/login" data-testid="button-register-google">
+                      Criar conta com Google
+                    </a>
+                  </Button>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </div>
+        
+        <p className="text-center text-sm text-muted-foreground">
+          Seus dados são salvos automaticamente e ficam sincronizados em qualquer dispositivo.
+        </p>
       </div>
     </div>
   );
