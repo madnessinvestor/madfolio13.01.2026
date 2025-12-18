@@ -167,23 +167,43 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading }: AddInve
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !symbol || !quantity || !acquisitionPrice || !acquisitionDate) return;
+    
+    // Para renda fixa, validação simplificada
+    if (market === "fixed_income") {
+      if (!name || !acquisitionPrice) return;
+      const priceString = acquisitionPrice.replace(/[^\d.,]/g, "");
+      const parsedPrice = parseFloat(priceString.replace(/\./g, "").replace(",", "."));
+      if (isNaN(parsedPrice)) return;
 
-    const parsedQuantity = parseFloat(quantity.replace(",", "."));
-    const priceString = acquisitionPrice.replace(/[^\d.,]/g, "");
-    const parsedPrice = parseFloat(priceString.replace(/\./g, "").replace(",", "."));
+      onAdd({
+        name,
+        symbol: name.substring(0, 10),
+        category: "fixed_income",
+        market,
+        quantity: 1,
+        acquisitionPrice: parsedPrice,
+        acquisitionDate: new Date().toISOString().split("T")[0],
+      });
+    } else {
+      // Para outros mercados, validação completa
+      if (!name || !symbol || !quantity || !acquisitionPrice || !acquisitionDate) return;
 
-    if (isNaN(parsedQuantity) || isNaN(parsedPrice)) return;
+      const parsedQuantity = parseFloat(quantity.replace(",", "."));
+      const priceString = acquisitionPrice.replace(/[^\d.,]/g, "");
+      const parsedPrice = parseFloat(priceString.replace(/\./g, "").replace(",", "."));
 
-    onAdd({
-      name,
-      symbol: symbol.toUpperCase(),
-      category,
-      market,
-      quantity: parsedQuantity,
-      acquisitionPrice: parsedPrice,
-      acquisitionDate,
-    });
+      if (isNaN(parsedQuantity) || isNaN(parsedPrice)) return;
+
+      onAdd({
+        name,
+        symbol: symbol.toUpperCase(),
+        category,
+        market,
+        quantity: parsedQuantity,
+        acquisitionPrice: parsedPrice,
+        acquisitionDate,
+      });
+    }
 
     resetForm();
     setOpen(false);
@@ -290,108 +310,140 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading }: AddInve
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="symbol">Símbolo / Código</Label>
-                    <Input
-                      id="symbol"
-                      placeholder={market === "crypto" ? "BTC, ETH" : "PETR4, IVVB11"}
-                      value={symbol}
-                      onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                      data-testid="input-symbol"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Nome do Ativo</Label>
-                    <Input
-                      id="name"
-                      placeholder={market === "crypto" ? "Bitcoin" : "Petrobras"}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      data-testid="input-name"
-                    />
-                  </div>
-                </div>
+                {market === "fixed_income" ? (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="bank">Banco/Instituição Financeira</Label>
+                      <Input
+                        id="bank"
+                        placeholder="Ex: Nubank, Banco do Brasil, etc"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        data-testid="input-bank-name"
+                      />
+                    </div>
 
-                {currentPrice !== null && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <span className="text-sm text-green-700 dark:text-green-300">
-                      Preço atual: R$ {currentPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="value">Valor Aportado</Label>
+                      <Input
+                        id="value"
+                        placeholder="R$ 0,00"
+                        value={acquisitionPrice}
+                        onChange={(e) => setAcquisitionPrice(formatCurrency(e.target.value))}
+                        data-testid="input-fixed-income-value"
+                      />
+                    </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Os valores são armazenados em Reais (BRL).
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="symbol">Símbolo / Código</Label>
+                        <Input
+                          id="symbol"
+                          placeholder={market === "crypto" ? "BTC, ETH" : "PETR4, IVVB11"}
+                          value={symbol}
+                          onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                          data-testid="input-symbol"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Nome do Ativo</Label>
+                        <Input
+                          id="name"
+                          placeholder={market === "crypto" ? "Bitcoin" : "Petrobras"}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          data-testid="input-name"
+                        />
+                      </div>
+                    </div>
+
+                    {currentPrice !== null && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <span className="text-sm text-green-700 dark:text-green-300">
+                          Preço atual: R$ {currentPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+
+                    {priceLoading && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Buscando preço atual...</span>
+                      </div>
+                    )}
+
+                    {priceError && !priceLoading && symbol.length >= 2 && (
+                      <div className="text-sm text-yellow-600 dark:text-yellow-400">
+                        Preço não encontrado. O valor será atualizado após o cadastro.
+                      </div>
+                    )}
+
+                    {availableCategories.length > 1 && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="category">Categoria</Label>
+                        <Select value={category} onValueChange={(value: AssetCategory) => setCategory(value)}>
+                          <SelectTrigger data-testid="select-category">
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableCategories.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {categoryLabels[cat]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="quantity">Quantidade</Label>
+                        <Input
+                          id="quantity"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.5"
+                          value={quantity}
+                          onChange={(e) => setQuantity(e.target.value)}
+                          data-testid="input-quantity"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="acquisitionPrice">Preço de Aquisição</Label>
+                        <Input
+                          id="acquisitionPrice"
+                          placeholder="R$ 0,00"
+                          value={acquisitionPrice}
+                          onChange={(e) => setAcquisitionPrice(formatCurrency(e.target.value))}
+                          data-testid="input-acquisition-price"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="acquisitionDate">Data da Aquisição</Label>
+                      <Input
+                        id="acquisitionDate"
+                        type="date"
+                        value={acquisitionDate}
+                        onChange={(e) => setAcquisitionDate(e.target.value)}
+                        data-testid="input-acquisition-date"
+                      />
+                    </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Os valores são armazenados em Reais (BRL). Você pode visualizar em outras moedas usando o seletor no canto superior direito.
+                    </p>
+                  </>
                 )}
-
-                {priceLoading && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Buscando preço atual...</span>
-                  </div>
-                )}
-
-                {priceError && !priceLoading && symbol.length >= 2 && (
-                  <div className="text-sm text-yellow-600 dark:text-yellow-400">
-                    Preço não encontrado. O valor será atualizado após o cadastro.
-                  </div>
-                )}
-
-                {availableCategories.length > 1 && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Categoria</Label>
-                    <Select value={category} onValueChange={(value: AssetCategory) => setCategory(value)}>
-                      <SelectTrigger data-testid="select-category">
-                        <SelectValue placeholder="Selecione a categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableCategories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {categoryLabels[cat]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="quantity">Quantidade</Label>
-                    <Input
-                      id="quantity"
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.5"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      data-testid="input-quantity"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="acquisitionPrice">Preço de Aquisição</Label>
-                    <Input
-                      id="acquisitionPrice"
-                      placeholder="R$ 0,00"
-                      value={acquisitionPrice}
-                      onChange={(e) => setAcquisitionPrice(formatCurrency(e.target.value))}
-                      data-testid="input-acquisition-price"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="acquisitionDate">Data da Aquisição</Label>
-                  <Input
-                    id="acquisitionDate"
-                    type="date"
-                    value={acquisitionDate}
-                    onChange={(e) => setAcquisitionDate(e.target.value)}
-                    data-testid="input-acquisition-date"
-                  />
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                  Os valores são armazenados em Reais (BRL). Você pode visualizar em outras moedas usando o seletor no canto superior direito.
-                </p>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
