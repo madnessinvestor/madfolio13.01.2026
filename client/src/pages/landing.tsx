@@ -12,18 +12,16 @@ import { useToast } from "@/hooks/use-toast";
 interface AuthFormData {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  username?: string;
 }
 
 export default function LandingPage() {
   const { toast } = useToast();
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [registerUsername, setRegisterUsername] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
-  const [registerFirstName, setRegisterFirstName] = useState("");
-  const [registerLastName, setRegisterLastName] = useState("");
 
   const loginMutation = useMutation({
     mutationFn: async (data: AuthFormData) => {
@@ -69,12 +67,11 @@ export default function LandingPage() {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registerEmail || !registerPassword) return;
+    if (!registerUsername || !registerEmail || !registerPassword) return;
     registerMutation.mutate({
+      username: registerUsername,
       email: registerEmail,
       password: registerPassword,
-      firstName: registerFirstName || undefined,
-      lastName: registerLastName || undefined,
     });
   };
 
@@ -228,29 +225,17 @@ export default function LandingPage() {
                 
                 <TabsContent value="register">
                   <form onSubmit={handleRegister} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="register-firstName">Nome</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="register-firstName"
-                            placeholder="Nome"
-                            value={registerFirstName}
-                            onChange={(e) => setRegisterFirstName(e.target.value)}
-                            className="pl-10"
-                            data-testid="input-register-first-name"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="register-lastName">Sobrenome</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-username">Usuário</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
-                          id="register-lastName"
-                          placeholder="Sobrenome"
-                          value={registerLastName}
-                          onChange={(e) => setRegisterLastName(e.target.value)}
-                          data-testid="input-register-last-name"
+                          id="register-username"
+                          placeholder="Escolha um usuário"
+                          value={registerUsername}
+                          onChange={(e) => setRegisterUsername(e.target.value)}
+                          className="pl-10"
+                          data-testid="input-register-username"
                         />
                       </div>
                     </div>

@@ -6,10 +6,9 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const registerSchema = z.object({
+  username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -27,13 +26,17 @@ export function setupCredentialAuth(app: Express) {
         return res.status(400).json({ message: "Email já cadastrado" });
       }
 
+      const existingUsername = await db.select().from(users).where(eq(users.username, validated.username));
+      if (existingUsername.length > 0) {
+        return res.status(400).json({ message: "Usuário já cadastrado" });
+      }
+
       const passwordHash = await bcrypt.hash(validated.password, 10);
       
       const [newUser] = await db.insert(users).values({
+        username: validated.username,
         email: validated.email,
         passwordHash,
-        firstName: validated.firstName || null,
-        lastName: validated.lastName || null,
         authProvider: "local",
       }).returning();
 
@@ -47,9 +50,8 @@ export function setupCredentialAuth(app: Express) {
         }
         res.status(201).json({
           id: newUser.id,
+          username: newUser.username,
           email: newUser.email,
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
         });
       });
     } catch (error) {
@@ -86,9 +88,8 @@ export function setupCredentialAuth(app: Express) {
         }
         res.json({
           id: user.id,
+          username: user.username,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
         });
       });
     } catch (error) {
