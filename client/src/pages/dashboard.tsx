@@ -2,6 +2,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { ExposureCard } from "@/components/dashboard/ExposureCard";
+import { IncomeExposureCard } from "@/components/dashboard/IncomeExposureCard";
 import { AddInvestmentDialog, type Investment, type Snapshot } from "@/components/dashboard/AddInvestmentDialog";
 import { Wallet, TrendingUp, Landmark, BarChart3, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -201,6 +202,14 @@ export default function Dashboard() {
           cryptoValue={cryptoValue} 
           traditionalValue={fixedIncomeValue + variableIncomeValue} 
           realEstateValue={realEstateValue}
+          formatCurrency={format}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <IncomeExposureCard 
+          fixedIncomeValue={fixedIncomeValue} 
+          variableIncomeValue={variableIncomeValue}
           formatCurrency={format}
         />
       </div>

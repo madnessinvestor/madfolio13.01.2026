@@ -90,8 +90,32 @@ export async function fetchCryptoPrice(symbol: string): Promise<CryptoPrice | nu
 
 export async function fetchBrazilianStockPrice(symbol: string): Promise<StockPrice | null> {
   try {
-    const url = `${BRAPI_API}/quote/${symbol.toUpperCase()}`;
-    const res = await fetch(url);
+    const upperSymbol = symbol.toUpperCase();
+    
+    // Try the main endpoint first
+    let url = `${BRAPI_API}/quote/${upperSymbol}`;
+    let res = await fetch(url);
+    
+    // If the symbol includes a number and is not found, try searching
+    if (!res.ok && /\d/.test(upperSymbol)) {
+      try {
+        const searchUrl = `${BRAPI_API}/search?q=${upperSymbol}`;
+        const searchRes = await fetch(searchUrl);
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          const stocks = searchData.stocks || [];
+          const found = stocks.find((s: any) => s.stock === upperSymbol);
+          if (found) {
+            // Try again with the found symbol
+            url = `${BRAPI_API}/quote/${upperSymbol}`;
+            res = await fetch(url);
+          }
+        }
+      } catch (e) {
+        console.log(`Search attempt for ${upperSymbol} failed, continuing with original response`);
+      }
+    }
+
     if (!res.ok) return null;
 
     const data = await res.json();
@@ -99,7 +123,7 @@ export async function fetchBrazilianStockPrice(symbol: string): Promise<StockPri
     if (!result || !result.regularMarketPrice) return null;
 
     return {
-      symbol: symbol.toUpperCase(),
+      symbol: upperSymbol,
       price: result.regularMarketPrice,
       currency: "BRL",
     };
