@@ -135,6 +135,55 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
   await page.evaluate(() => new Promise(r => setTimeout(r, 10000)));
   
   try {
+    // Strategy 0: Try to find the specific Net Worth span element using multiple selectors
+    const specificValue = await page.evaluate(() => {
+      // Try different selectors and methods to find the value
+      const candidates: string[] = [];
+      
+      // Try text-none and whitespace-nowrap classes
+      const spans = document.querySelectorAll('span');
+      for (const span of spans) {
+        const text = (span.innerText || span.textContent || '').trim();
+        if (text.match(/^\$[\d,.]+$/) && text.length < 20) {
+          candidates.push(text);
+        }
+      }
+      
+      // Also try divs
+      const divs = document.querySelectorAll('div');
+      for (const div of divs) {
+        const text = (div.innerText || '').trim();
+        if (text.match(/^\$[\d,.]+$/) && text.length < 20) {
+          candidates.push(text);
+        }
+      }
+      
+      return candidates.length > 0 ? candidates[0] : null;
+    });
+    
+    if (specificValue) {
+      const cleanValue = specificValue.replace(/[\$\s]/g, '');
+      let numValue: number;
+      
+      if (cleanValue.includes('.') && cleanValue.includes(',')) {
+        const lastDot = cleanValue.lastIndexOf('.');
+        const lastComma = cleanValue.lastIndexOf(',');
+        numValue = lastComma > lastDot 
+          ? parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'))
+          : parseFloat(cleanValue.replace(/,/g, ''));
+      } else if (cleanValue.includes(',')) {
+        numValue = parseFloat(cleanValue.replace(',', '.'));
+      } else {
+        numValue = parseFloat(cleanValue.replace(/\./g, ''));
+      }
+      
+      if (!isNaN(numValue) && numValue > 0) {
+        console.log(`[Step.finance] [Attempt ${attempt}/3] Found via element search: $${cleanValue} (${numValue})`);
+        return `$${cleanValue}`;
+      }
+    }
+    
+    // Fallback Strategy: Extract all numbers if specific selector didn't work
     const result = await page.evaluate(() => {
       // Try both innerText and textContent to capture all visible text
       const pageText = (document.body.innerText || '') + '\n' + (document.body.textContent || '');
