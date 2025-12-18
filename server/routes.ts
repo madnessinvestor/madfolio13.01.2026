@@ -11,6 +11,7 @@ import { getBalances, getDetailedBalances, startStepMonitor, forceRefresh, force
 import { getWalletHistory, getAllHistory, getLatestByWallet, getWalletStats } from "./services/walletCache";
 import { insertWalletSchema } from "@shared/schema";
 import { fetchJupPortfolio } from "./services/jupAgScraper";
+import { fetchBlockchainBalance, fetchMultipleBlockchainBalances } from "./services/blockchainScraper";
 
 const investmentSchema = z.object({
   name: z.string().min(1),
@@ -643,6 +644,12 @@ export async function registerRoutes(
         platform = "step";
       } else if (validated.link.includes("debank.com")) {
         platform = "debank";
+      } else if (validated.link.includes("portfolio.ready.co")) {
+        platform = "starknet";
+      } else if (validated.link.includes("aptoscan.com")) {
+        platform = "aptos";
+      } else if (validated.link.includes("seiscan.io")) {
+        platform = "sei";
       }
       
       const wallet = await storage.createWallet({
@@ -655,12 +662,95 @@ export async function registerRoutes(
       const allWallets = await storage.getWallets(userId);
       setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
       
+      // Se for um wallet blockchain, tenta buscar o saldo imediatamente
+      if (platform === "starknet" || platform === "aptos" || platform === "sei") {
+        const blockchainType = platform as "starknet" | "aptos" | "sei";
+        try {
+          const balance = await fetchBlockchainBalance({
+            name: validated.name,
+            link: validated.link,
+            blockchain: blockchainType
+          });
+          console.log(`[${blockchainType.toUpperCase()}] Initial balance fetch for ${validated.name}: ${balance.balance}`);
+        } catch (error) {
+          console.error(`[${blockchainType.toUpperCase()}] Initial balance fetch failed:`, error);
+        }
+      }
+      
       res.status(201).json(wallet);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
       res.status(500).json({ error: "Failed to create wallet" });
+    }
+  });
+
+  // Endpoint para buscar saldos de wallets blockchain
+  app.post("/api/wallets/blockchain/balance", isAuthenticated, async (req: any, res) => {
+    try {
+      const { walletLink, walletName } = req.body;
+      
+      if (!walletLink || !walletName) {
+        return res.status(400).json({ error: "walletLink and walletName are required" });
+      }
+      
+      // Detectar o tipo de blockchain
+      let blockchain: "starknet" | "aptos" | "sei" | null = null;
+      if (walletLink.includes("portfolio.ready.co")) {
+        blockchain = "starknet";
+      } else if (walletLink.includes("aptoscan.com")) {
+        blockchain = "aptos";
+      } else if (walletLink.includes("seiscan.io")) {
+        blockchain = "sei";
+      }
+      
+      if (!blockchain) {
+        return res.status(400).json({ error: "Unsupported blockchain URL" });
+      }
+      
+      const balance = await fetchBlockchainBalance({
+        name: walletName,
+        link: walletLink,
+        blockchain
+      });
+      
+      res.json(balance);
+    } catch (error) {
+      console.error("Error fetching blockchain balance:", error);
+      res.status(500).json({ error: "Failed to fetch blockchain balance" });
+    }
+  });
+
+  // Endpoint para atualizar saldos de todas as wallets blockchain do usuário
+  app.post("/api/wallets/blockchain/refresh-all", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const userWallets = await storage.getWallets(userId);
+      
+      const blockchainWallets = userWallets.filter(
+        (w) =>
+          w.platform === "starknet" ||
+          w.platform === "aptos" ||
+          w.platform === "sei"
+      );
+      
+      const balances = await fetchMultipleBlockchainBalances(
+        blockchainWallets.map((w) => ({
+          name: w.name,
+          link: w.link,
+          blockchain: w.platform as "starknet" | "aptos" | "sei",
+        }))
+      );
+      
+      res.json({
+        message: "Blockchain wallets refreshed",
+        balances,
+        count: balances.length,
+      });
+    } catch (error) {
+      console.error("Error refreshing blockchain wallets:", error);
+      res.status(500).json({ error: "Failed to refresh blockchain wallets" });
     }
   });
 
