@@ -19,8 +19,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Loader2, RefreshCw, CheckCircle } from "lucide-react";
+import { Plus, Loader2, RefreshCw, CheckCircle, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+
+interface WalletBalance {
+  name: string;
+  address: string;
+  balance: string;
+  lastUpdated: string;
+  error?: string;
+}
 
 export type AssetCategory = "crypto" | "stocks" | "fixed_income" | "cash" | "fii" | "etf" | "real_estate" | "others";
 export type MarketType = "crypto" | "crypto_simplified" | "fixed_income" | "variable_income" | "variable_income_simplified";
@@ -138,6 +146,12 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
   // Fetch exchange rates for crypto simplified
   const { data: exchangeRates = { USD: 5.51 } } = useQuery<Record<string, number>>({
     queryKey: ["/api/exchange-rates"],
+    enabled: open && market === "crypto_simplified",
+  });
+
+  // Fetch DeBank wallets
+  const { data: debankWallets = [] } = useQuery<WalletBalance[]>({
+    queryKey: ["/api/saldo/detailed"],
     enabled: open && market === "crypto_simplified",
   });
   
@@ -457,7 +471,49 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                 {market === "crypto_simplified" ? (
                   <>
                     <div className="grid gap-2">
-                      <Label htmlFor="wallet-name">Asset</Label>
+                      <Label htmlFor="wallet-select">Selecionar Wallet do DeBank</Label>
+                      <Select value={walletAddress} onValueChange={(value) => {
+                        setWalletAddress(value);
+                        const selectedWallet = debankWallets.find(w => w.address === value);
+                        if (selectedWallet) {
+                          setWalletName(selectedWallet.name);
+                          // Extract USD value from balance string (e.g., "$1,234.56" -> "1234.56")
+                          const balanceValue = selectedWallet.balance.replace(/[$,]/g, '');
+                          setCryptoValueUSD(balanceValue);
+                          
+                          // Convert USD to BRL
+                          const parsedUSD = parseFloat(balanceValue);
+                          if (!isNaN(parsedUSD)) {
+                            const brlValue = parsedUSD * exchangeRates.USD;
+                            const formatted = (brlValue).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                            setCryptoValueBRL(`${formatted}`);
+                          }
+                        }
+                      }}>
+                        <SelectTrigger data-testid="select-wallet-debank">
+                          <SelectValue placeholder="Selecione uma wallet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {debankWallets.map((wallet) => (
+                            <SelectItem key={wallet.address} value={wallet.address}>
+                              <div className="flex items-center gap-2">
+                                <Wallet className="h-4 w-4" />
+                                {wallet.name} - {wallet.balance}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {debankWallets.length === 0 && (
+                        <p className="text-xs text-muted-foreground">Carregando wallets do DeBank...</p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="wallet-name">Nome do Asset</Label>
                       <Input
                         id="wallet-name"
                         placeholder="Ex: Carteira Principal, Coinbase, etc"
@@ -465,58 +521,6 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                         onChange={(e) => setWalletName(e.target.value)}
                         data-testid="input-wallet-name"
                       />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="wallet-link">Link da Wallet (DeBankAPI, Etherscan, BlockScout, etc)</Label>
-                      <Input
-                        id="wallet-link"
-                        placeholder="Ex: https://debank.com/profile/0x083c828b221b126965a146658d4e512337182df1"
-                        value={walletLink}
-                        onChange={(e) => {
-                          setWalletLink(e.target.value);
-                          const result = parseWalletAddressFromLink(e.target.value);
-                          if (result.address) {
-                            setWalletAddress(result.address);
-                            // Clear existing refresh interval
-                            if (refreshIntervalId) clearInterval(refreshIntervalId);
-                            // Fetch immediately
-                            if (result.address) {
-                              fetchWalletBalanceData(result.address, result.isDeBank);
-                              // Set up periodic refresh every 10 minutes for DeBankAPI
-                              if (result.isDeBank) {
-                                const intervalId = setInterval(() => {
-                                  if (result.address) {
-                                    fetchWalletBalanceData(result.address, true);
-                                  }
-                                }, 10 * 60 * 1000);
-                                setRefreshIntervalId(intervalId);
-                              }
-                            }
-                          }
-                        }}
-                        data-testid="input-wallet-link"
-                        disabled={walletLoading}
-                      />
-                      {walletLoading && <p className="text-xs text-muted-foreground">Buscando saldo...</p>}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="wallet-address">Wallet (Endereço direto)</Label>
-                      <Input
-                        id="wallet-address"
-                        placeholder="Ex: 0x083c828b221b126965a146658d4e512337182df1"
-                        value={walletAddress}
-                        onChange={(e) => {
-                          setWalletAddress(e.target.value);
-                          if (e.target.value.startsWith("0x") && e.target.value.length === 42) {
-                            fetchWalletBalanceData(e.target.value);
-                          }
-                        }}
-                        data-testid="input-wallet-address"
-                        disabled={walletLoading}
-                      />
-                      {walletLoading && <p className="text-xs text-muted-foreground">Buscando saldo...</p>}
                     </div>
 
                     <div className="grid gap-2">
