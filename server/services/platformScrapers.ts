@@ -188,7 +188,7 @@ async function scrapeJupiterPortfolioNetWorth(
   }, timeoutMs);
   
   try {
-    console.log('[JupiterPortfolio] Starting opportunistic scraper for jup.ag/portfolio');
+    console.log('[JupiterPortfolio] Starting calculation-based scraper (SOL × Price)');
     
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
@@ -197,142 +197,125 @@ async function scrapeJupiterPortfolioNetWorth(
       console.log('[JupiterPortfolio] Navigation warning: ' + e.message)
     );
     
-    // Wait for JS to render
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait significantly longer for JS to render and load portfolio data
+    console.log('[JupiterPortfolio] Waiting for page to fully render...');
+    await new Promise(resolve => setTimeout(resolve, 8000));
     
-    console.log('[JupiterPortfolio] Extracting monetary values with semantic filtering');
+    console.log('[JupiterPortfolio] Extracting total SOL amount from portfolio');
     
-    // Extract monetary values with context for semantic filtering
-    const filteredValues = await page.evaluate(() => {
+    // Extract total SOL from page
+    const debugInfo = await page.evaluate(() => {
       const fullText = document.body.innerText;
       
-      // Keywords to ignore (case insensitive)
-      const blacklistKeywords = ['pnl', 'holdings', 'claimable'];
-      
-      // Match both European format ($1.911,36) and US format ($1,911.36)
-      const regex = /\$[\d.,]+/g;
-      let match;
-      const valueContexts = [];
-      
-      while ((match = regex.exec(fullText)) !== null) {
-        const valueString = match[0];
-        const matchIndex = match.index;
-        
-        // Get context around the value (100 chars before and after)
-        const contextStart = Math.max(0, matchIndex - 100);
-        const contextEnd = Math.min(fullText.length, matchIndex + valueString.length + 100);
-        const context = fullText.substring(contextStart, contextEnd).toLowerCase();
-        
-        // Check if context contains blacklisted keywords
-        const hasBlacklistKeyword = blacklistKeywords.some(keyword => context.includes(keyword));
-        
-        // Check if value has negative sign nearby
-        const hasNegativeSign = context.includes('-');
-        
-        // Only include if no blacklist keywords and no negative sign
-        if (!hasBlacklistKeyword && !hasNegativeSign) {
-          valueContexts.push({
-            value: valueString,
-            context: context
-          });
-        }
-      }
-      
-      if (valueContexts.length === 0) {
-        console.log('[JupiterPortfolio] No values passed semantic filter');
-        return null;
-      }
-      
-      console.log('[JupiterPortfolio] Found ' + valueContexts.length + ' values after semantic filtering');
-      return valueContexts.map(vc => vc.value);
+      // Return full text for external logging
+      return {
+        fullText: fullText,
+        preview: fullText.substring(0, 3000)
+      };
     });
     
-    if (filteredValues && filteredValues.length > 0) {
-      console.log('[JupiterPortfolio] Filtered values: ' + filteredValues.join(', '));
-      
-      // Normalize and find the largest value
-      let maxValue = 0;
-      let maxFormattedValue = '';
-      
-      for (const rawValue of filteredValues) {
-        // Normalize format
-        const normalizedValue = normalizeJupiterValue(rawValue);
-        const numericValue = parseFloat(normalizedValue);
-        
-        console.log('[JupiterPortfolio] Evaluated ' + rawValue + ' → ' + numericValue);
-        
-        // Only consider positive, valid values
-        if (!isNaN(numericValue) && numericValue > 0 && numericValue > maxValue) {
-          maxValue = numericValue;
-          maxFormattedValue = normalizedValue;
-        }
-      }
-      
-      if (maxValue > 0 && maxFormattedValue !== '') {
-        const finalValue = '$' + maxFormattedValue;
-        console.log('[JupiterPortfolio] VALIDATION PASSED - Largest valid value found: ' + finalValue);
-        return { value: finalValue, success: true, platform: 'jupiter' };
-      }
-    }
+    console.log('[JupiterPortfolio] DOM preview length: ' + debugInfo.fullText.length);
+    console.log('[JupiterPortfolio] DOM preview (first 1500 chars): ' + debugInfo.preview.replace(/\n/g, ' | '));
     
-    console.log('[JupiterPortfolio] No values passed semantic filter - initiating fallback strategy');
-    
-    // ============================================================================
-    // FALLBACK: Wait and retry without semantic filters
-    // ============================================================================
-    
-    console.log('[JupiterPortfolio] Waiting 4 seconds for late-loading DOM content...');
-    await new Promise(resolve => setTimeout(resolve, 4000));
-    
-    console.log('[JupiterPortfolio] Extracting all monetary values (fallback - no semantic filters)');
-    
-    // Extract ALL monetary values without semantic filtering
-    const fallbackValues = await page.evaluate(() => {
+    // Now extract SOL amounts
+    const solAmount = await page.evaluate(() => {
       const fullText = document.body.innerText;
       
-      // Match both European format ($1.911,36) and US format ($1,911.36)
-      const regex = /\$[\d.,]+/g;
-      const matches = fullText.match(regex);
+      // Use regex to find all numbers followed by SOL
+      const regex = /([\d.,]+)\s*SOL(?!\w)/gi;
+      const matches = [];
+      let match;
       
-      if (!matches || matches.length === 0) {
-        console.log('[JupiterPortfolio] No dollar values found in fallback');
-        return null;
+      while ((match = regex.exec(fullText)) !== null) {
+        const rawAmount = match[1];
+        
+        // Get context to check for PnL, Holdings, Claimable
+        const contextStart = Math.max(0, match.index - 150);
+        const contextEnd = Math.min(fullText.length, match.index + 150);
+        const context = fullText.substring(contextStart, contextEnd).toLowerCase();
+        
+        const isPnl = context.includes('pnl');
+        const isHoldings = context.includes('holdings');
+        const isClaimable = context.includes('claimable');
+        const isNegative = context.includes('-' + match[1]) || context.includes('−' + match[1]);
+        
+        matches.push({
+          raw: rawAmount,
+          isPnl,
+          isHoldings,
+          isClaimable,
+          isNegative,
+          accepted: !isPnl && !isHoldings && !isClaimable && !isNegative
+        });
       }
       
-      console.log('[JupiterPortfolio] Found ' + matches.length + ' monetary values in fallback');
       return matches;
     });
     
-    if (fallbackValues && fallbackValues.length > 0) {
-      console.log('[JupiterPortfolio] Fallback values: ' + fallbackValues.join(', '));
-      
-      // Normalize and find the largest POSITIVE value
-      let maxFallbackValue = 0;
-      let maxFallbackFormattedValue = '';
-      
-      for (const rawValue of fallbackValues) {
-        // Normalize format
-        const normalizedValue = normalizeJupiterValue(rawValue);
-        const numericValue = parseFloat(normalizedValue);
-        
-        console.log('[JupiterPortfolio] Fallback evaluated ' + rawValue + ' → ' + numericValue);
-        
-        // Only consider positive, valid values
-        if (!isNaN(numericValue) && numericValue > 0 && numericValue > maxFallbackValue) {
-          maxFallbackValue = numericValue;
-          maxFallbackFormattedValue = normalizedValue;
-        }
-      }
-      
-      if (maxFallbackValue > 0 && maxFallbackFormattedValue !== '') {
-        const fallbackFinalValue = '$' + maxFallbackFormattedValue;
-        console.log('[JupiterPortfolio] FALLBACK VALIDATION PASSED - Largest value found: ' + fallbackFinalValue);
-        return { value: fallbackFinalValue, success: true, platform: 'jupiter' };
-      }
+    console.log('[JupiterPortfolio] Found ' + solAmount.length + ' SOL matches');
+    for (const match of solAmount) {
+      console.log('[JupiterPortfolio]   ' + match.raw + ' - pnl:' + match.isPnl + ' holdings:' + match.isHoldings + ' claimable:' + match.isClaimable + ' negative:' + match.isNegative + ' accepted:' + match.accepted);
     }
     
-    console.log('[JupiterPortfolio] Fallback also failed - Could not find valid positive monetary values');
-    return { value: null, success: false, platform: 'jupiter', error: 'No valid portfolio value found' };
+    // Filter accepted matches
+    const acceptedMatches = solAmount.filter(m => m.accepted).map(m => m.raw);
+    
+    if (acceptedMatches.length === 0) {
+      console.log('[JupiterPortfolio] No valid SOL values found after filtering');
+      return { value: null, success: false, platform: 'jupiter', error: 'SOL amount not found' };
+    }
+    
+    // Normalize and find largest
+    const normalized = acceptedMatches.map(m => ({
+      raw: m,
+      numeric: parseFloat(m.replace(/\./g, '').replace(/,/g, '.'))
+    }));
+    
+    for (const n of normalized) {
+      console.log('[JupiterPortfolio]   Normalized: ' + n.raw + ' → ' + n.numeric);
+    }
+    
+    // Filter to values > 0.01
+    const validValues = normalized.filter(n => n.numeric > 0.01);
+    if (validValues.length === 0) {
+      console.log('[JupiterPortfolio] No values > 0.01 found');
+      return { value: null, success: false, platform: 'jupiter', error: 'SOL amount not found' };
+    }
+    
+    const largestMatch = validValues.reduce((a, b) => a.numeric > b.numeric ? a : b);
+    const solValue = largestMatch.numeric;
+    console.log('[JupiterPortfolio] Selected SOL: ' + largestMatch.raw + ' = ' + solValue);
+    
+    // Fetch SOL price from CoinGecko API
+    console.log('[JupiterPortfolio] Fetching SOL/USD price from CoinGecko');
+    
+    let solPrice = 0;
+    try {
+      const priceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      if (priceResponse.ok) {
+        const priceData = await priceResponse.json() as any;
+        solPrice = priceData.solana?.usd || 0;
+        console.log('[JupiterPortfolio] SOL/USD price from CoinGecko: ' + solPrice);
+      } else {
+        console.log('[JupiterPortfolio] CoinGecko API error: ' + priceResponse.status);
+      }
+    } catch (apiError) {
+      console.error('[JupiterPortfolio] Error fetching SOL price:', apiError);
+    }
+    
+    if (solPrice <= 0) {
+      console.log('[JupiterPortfolio] Could not fetch valid SOL price');
+      return { value: null, success: false, platform: 'jupiter', error: 'SOL price not available' };
+    }
+    
+    // Calculate portfolio value in USD
+    const portfolioUsd = solValue * solPrice;
+    const formattedValue = portfolioUsd.toFixed(2);
+    
+    console.log('[JupiterPortfolio] Calculation: ' + solValue + ' SOL × $' + solPrice + ' = $' + formattedValue);
+    console.log('[JupiterPortfolio] VALIDATION PASSED - Portfolio value: $' + formattedValue);
+    
+    return { value: '$' + formattedValue, success: true, platform: 'jupiter' };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[JupiterPortfolio] Error:', msg);
