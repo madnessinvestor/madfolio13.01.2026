@@ -75,6 +75,14 @@ const categoriesByMarket: Record<MarketType, AssetCategory[]> = {
   variable_income: ["stocks", "fii", "etf", "others"],
 };
 
+const investmentTypeLabels: Record<string, string> = {
+  renda_fixa: "Renda Fixa",
+  tesouro: "Tesouro",
+  caixinha: "Caixinha",
+  poupanca: "Poupança",
+  outros: "Outros",
+};
+
 interface ExistingAsset {
   id: string;
   symbol: string;
@@ -97,6 +105,7 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceError, setPriceError] = useState(false);
+  const [investmentType, setInvestmentType] = useState("renda_fixa");
 
   // Update value form state
   const [selectedAssetId, setSelectedAssetId] = useState("");
@@ -253,6 +262,7 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
     setAcquisitionDate(new Date().toISOString().split("T")[0]);
     setCurrentPrice(null);
     setPriceError(false);
+    setInvestmentType("renda_fixa");
   };
 
   const resetUpdateForm = () => {
@@ -335,6 +345,22 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                         onChange={(e) => setName(e.target.value)}
                         data-testid="input-bank-name"
                       />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="investmentType">Tipo de Investimento</Label>
+                      <Select value={investmentType} onValueChange={setInvestmentType}>
+                        <SelectTrigger data-testid="select-investment-type">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(investmentTypeLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="grid gap-2">
