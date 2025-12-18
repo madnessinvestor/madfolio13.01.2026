@@ -49,6 +49,38 @@ export function createDefaultAdmin() {
   }
 }
 
+// Find user by username or email
+export function findUserByUsernameOrEmail(usernameOrEmail) {
+  return db.prepare(`
+    SELECT * FROM users WHERE username = ? OR email = ?
+  `).get(usernameOrEmail, usernameOrEmail);
+}
+
+// Validate login credentials
+export function validateLogin(usernameOrEmail, password) {
+  const user = findUserByUsernameOrEmail(usernameOrEmail);
+  
+  if (!user) {
+    return { success: false, user: null };
+  }
+  
+  const isPasswordValid = bcrypt.compareSync(password, user.password_hash);
+  
+  if (!isPasswordValid) {
+    return { success: false, user: null };
+  }
+  
+  return { 
+    success: true, 
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    }
+  };
+}
+
 // Export query helpers
 export function query(sql) {
   return db.prepare(sql);

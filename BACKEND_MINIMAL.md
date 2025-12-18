@@ -2,7 +2,7 @@
 
 ## ✅ Status: Rodando
 
-Backend Express com banco de dados SQLite configurado e rodando na **porta 3000**.
+Backend Express com banco de dados SQLite e sistema de login configurado e rodando na **porta 3000**.
 
 ## 📋 Detalhes
 
@@ -24,11 +24,6 @@ npm install
 node server/index.js
 ```
 
-Ou, se configurado em package.json:
-```bash
-npm run backend-minimal
-```
-
 ## 📡 Endpoints
 
 ### GET /health
@@ -39,6 +34,59 @@ curl http://localhost:3000/health
 Resposta:
 ```json
 { "status": "ok" }
+```
+
+### POST /login
+Permite login com **username OU email** + senha.
+
+```bash
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"usernameOrEmail":"admin","password":"admin123"}'
+```
+
+**Resposta (sucesso - 200):**
+```json
+{
+  "success": true,
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@localhost",
+    "role": "admin"
+  }
+}
+```
+
+**Resposta (erro - 401):**
+```json
+{
+  "success": false,
+  "message": "Invalid credentials"
+}
+```
+
+**Exemplos de uso:**
+
+Login com username:
+```bash
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"usernameOrEmail":"admin","password":"admin123"}'
+```
+
+Login com email:
+```bash
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"usernameOrEmail":"admin@localhost","password":"admin123"}'
+```
+
+Senha errada (retorna 401):
+```bash
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"usernameOrEmail":"admin","password":"wrongpassword"}'
 ```
 
 ## 📂 Estrutura
@@ -84,7 +132,7 @@ Senhas são hasheadas com **bcrypt** (10 salt rounds).
 ```javascript
 import express from "express";
 import cors from "cors";
-import { initializeDatabase, createDefaultAdmin } from "./db.js";
+import { initializeDatabase, createDefaultAdmin, validateLogin } from "./db.js";
 
 const app = express();
 const PORT = 3000;
@@ -92,12 +140,33 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize database and create default admin on startup
 initializeDatabase();
 createDefaultAdmin();
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.post("/login", (req, res) => {
+  const { usernameOrEmail, password } = req.body;
+  
+  if (!usernameOrEmail || !password) {
+    return res.status(401).json({ 
+      success: false, 
+      message: "Username/Email and password are required" 
+    });
+  }
+  
+  const result = validateLogin(usernameOrEmail, password);
+  
+  if (!result.success) {
+    return res.status(401).json({ 
+      success: false, 
+      message: "Invalid credentials" 
+    });
+  }
+  
+  res.json({ success: true, user: result.user });
 });
 
 app.listen(PORT, "0.0.0.0", () => {
@@ -111,6 +180,7 @@ import Database from "better-sqlite3";
 import bcrypt from "bcrypt";
 
 export const db = new Database("data/app.db");
+db.pragma("foreign_keys = ON");
 
 export function initializeDatabase() {
   db.exec(`
@@ -132,20 +202,36 @@ export function createDefaultAdmin() {
     VALUES (?, ?, ?, 'admin')
   `).run("admin", "admin@localhost", passwordHash);
 }
-```
 
-## 🔧 Próximos Passos
+export function findUserByUsernameOrEmail(usernameOrEmail) {
+  return db.prepare(`
+    SELECT * FROM users WHERE username = ? OR email = ?
+  `).get(usernameOrEmail, usernameOrEmail);
+}
 
-Você pode adicionar novas rotas ao arquivo `server/index.js`:
-
-```javascript
-app.post("/api/dados", (req, res) => {
-  res.json({ message: "Dados recebidos" });
-});
-
-app.get("/api/status", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date() });
-});
+export function validateLogin(usernameOrEmail, password) {
+  const user = findUserByUsernameOrEmail(usernameOrEmail);
+  
+  if (!user) {
+    return { success: false, user: null };
+  }
+  
+  const isPasswordValid = bcrypt.compareSync(password, user.password_hash);
+  
+  if (!isPasswordValid) {
+    return { success: false, user: null };
+  }
+  
+  return { 
+    success: true, 
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    }
+  };
+}
 ```
 
 ## ⚙️ Configurações
@@ -154,8 +240,18 @@ app.get("/api/status", (req, res) => {
 - ✅ JSON parser ativado
 - ✅ Porta 3000 (não bloqueada pelo Replit)
 - ✅ Bind em 0.0.0.0 (acessível externamente)
+- ✅ SQLite local em data/app.db
+- ✅ Senhas hasheadas com bcrypt
+- ✅ Admin criado automaticamente
+
+## 🔧 Próximos Passos
+
+1. **Adicionar mais usuários:** Implemente uma rota POST `/register` ou admin panel
+2. **Adicionar JWT/Sessões:** Para manter login entre requisições
+3. **Adicionar mais rotas:** Qualquer coisa que precisar autenticação
+4. **Validações:** Adicione mais validações nos campos (email format, etc)
 
 ---
 
 **Criado:** 18 de dezembro de 2024  
-**Stack:** Express.js (JavaScript puro)
+**Stack:** Express.js (JavaScript puro) + SQLite + bcrypt
