@@ -72,6 +72,28 @@ export default function LandingPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validar tamanho máximo de 500KB
+      const maxSizeInBytes = 500 * 1024; // 500KB
+      if (file.size > maxSizeInBytes) {
+        toast({
+          title: "Arquivo muito grande",
+          description: `A foto deve ter no máximo 500KB. Seu arquivo tem ${(file.size / 1024).toFixed(2)}KB.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validar tipos de arquivo
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast({
+          title: "Formato inválido",
+          description: "A foto deve estar em formato JPG, PNG, GIF ou WebP.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
