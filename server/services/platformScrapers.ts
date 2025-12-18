@@ -187,90 +187,109 @@ async function scrapeJupiterPortfolioNetWorth(
     page.close().catch(() => {});
   }, timeoutMs);
   
-  let capturedValue: string | null = null;
-  
   try {
-    console.log('[JupiterPortfolio] Starting network interception scraper for jup.ag/portfolio');
+    console.log('[JupiterPortfolio] Starting DOM scraper for positions (jup.ag/portfolio)');
     
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
-    // Register network interception listener
-    page.on('response', async (response) => {
-      try {
-        // Only check JSON responses
-        const contentType = response.headers()['content-type'] || '';
-        if (!contentType.includes('application/json')) return;
-        
-        // Get response body
-        const body = await response.text();
-        if (!body || body.length === 0) return;
-        
-        // Parse JSON
-        const data = JSON.parse(body) as any;
-        
-        // Log ALL API responses for debugging
-        const url = response.url();
-        console.log('[JupiterPortfolio] API Response from: ' + url.substring(0, 80));
-        
-        // Recursive search for numeric value fields related to portfolio/net worth
-        const searchForPortfolioValue = (obj: any, depth = 0): number | null => {
-          if (depth > 6) return null;
-          
-          if (typeof obj !== 'object' || obj === null) return null;
-          
-          // Direct field match - many variations
-          if (obj.netWorthUsd || obj.totalValueUsd || obj.portfolioValueUsd || 
-              obj.netWorth || obj.totalValue || obj.portfolioValue ||
-              obj.total_value_usd || obj.net_worth_usd ||
-              obj.balanceUsd || obj.totalBalanceUsd || obj.total_balance_usd ||
-              obj.value || obj.totalUsd || obj.total_usd) {
-            const val = obj.netWorthUsd || obj.totalValueUsd || obj.portfolioValueUsd ||
-                       obj.netWorth || obj.totalValue || obj.portfolioValue ||
-                       obj.total_value_usd || obj.net_worth_usd ||
-                       obj.balanceUsd || obj.totalBalanceUsd || obj.total_balance_usd ||
-                       (obj.value && typeof obj.value === 'number' ? obj.value : undefined) ||
-                       obj.totalUsd || obj.total_usd;
-            return typeof val === 'number' && val > 0 ? val : null;
-          }
-          
-          // Search nested objects
-          for (const key in obj) {
-            const result = searchForPortfolioValue(obj[key], depth + 1);
-            if (result !== null) return result;
-          }
-          
-          return null;
-        };
-        
-        const portfolioValue = searchForPortfolioValue(data);
-        
-        if (portfolioValue && portfolioValue > 0) {
-          console.log('[JupiterPortfolio] Found portfolio value in network response: $' + portfolioValue.toFixed(2));
-          capturedValue = '$' + portfolioValue.toFixed(2);
-        }
-      } catch (e) {
-        // Silently ignore parsing errors for non-JSON responses
-      }
-    });
-    
-    console.log('[JupiterPortfolio] Network listener registered, navigating to ' + walletLink);
-    
-    // Navigate and wait for network idle
+    // Navigate and wait
     await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 25000 }).catch(e => 
       console.log('[JupiterPortfolio] Navigation warning: ' + e.message)
     );
     
-    // Wait for responses to be processed
-    console.log('[JupiterPortfolio] Waiting for API responses...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('[JupiterPortfolio] Waiting 5 seconds for positions to fully load...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
-    if (capturedValue) {
-      console.log('[JupiterPortfolio] SUCCESS - Captured from network: ' + capturedValue);
-      return { value: capturedValue, success: true, platform: 'jupiter' };
+    // Extract all visible USD values from positions, filtering out Holdings, PnL, Claimable
+    const positionsTotal = await page.evaluate(() => {
+      const fullText = document.body.innerText;
+      const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      const values = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+        const contextBefore = i > 0 ? lines[i - 1].toLowerCase() : '';
+        const contextAfter = nextLine.toLowerCase();
+        
+        // Match dollar values: $1,234.56 or $1.234,56 (Brazilian format)
+        const dollarMatch = line.match(/\$[\d.,]+(?:\.\d{2})?/);
+        
+        if (!dollarMatch) continue;
+        
+        const rawValue = dollarMatch[0];
+        const lowerLine = line.toLowerCase() + ' ' + contextBefore + ' ' + contextAfter;
+        
+        // FILTER: Skip Holdings, PnL, Claimable
+        if (lowerLine.includes('holdings') || 
+            lowerLine.includes('pnl') || 
+            lowerLine.includes('claimable') ||
+            lowerLine.includes('your balance')) {
+          continue;
+        }
+        
+        // Skip if negative or preceded by minus
+        if (line.includes('−') || line.includes('-' + rawValue) || lowerLine.includes('−' + rawValue)) {
+          continue;
+        }
+        
+        // Normalize value: $1.486,87 → 1486.87
+        let normalized = rawValue.replace(/[\$\s]/g, '');
+        
+        // Check if format is $1.234,56 (European/Brazilian) or $1,234.56 (US)
+        if (normalized.includes('.') && normalized.includes(',')) {
+          // Has both . and , - determine which is thousand separator
+          const lastDot = normalized.lastIndexOf('.');
+          const lastComma = normalized.lastIndexOf(',');
+          
+          if (lastDot > lastComma) {
+            // $1.234.567,89 or $1,000.50 format - dot is thousand separator
+            normalized = normalized.replace(/\./g, '').replace(/,/g, '.');
+          } else {
+            // $1,234.56 format - comma is thousand separator
+            normalized = normalized.replace(/,/g, '');
+          }
+        } else if (normalized.includes(',')) {
+          // Only comma: $1.234,56 → 1234.56
+          normalized = normalized.replace(/\./g, '').replace(/,/g, '.');
+        }
+        // else: $1234.56 stays as is
+        
+        const numValue = parseFloat(normalized);
+        
+        if (!isNaN(numValue) && numValue > 0) {
+          values.push({
+            raw: rawValue,
+            normalized: numValue,
+            line: line
+          });
+        }
+      }
+      
+      // Sum all values
+      const total = values.reduce((sum, v) => sum + v.normalized, 0);
+      
+      return {
+        values: values,
+        total: total,
+        count: values.length
+      };
+    });
+    
+    console.log('[JupiterPortfolio] Found ' + positionsTotal.count + ' position values');
+    for (const v of positionsTotal.values) {
+      console.log('[JupiterPortfolio]   ' + v.raw + ' → $' + v.normalized.toFixed(2));
     }
     
-    console.log('[JupiterPortfolio] No portfolio value found in network responses');
-    return { value: null, success: false, platform: 'jupiter', error: 'Portfolio value not found in network responses' };
+    if (positionsTotal.total > 0) {
+      const formattedTotal = '$' + positionsTotal.total.toFixed(2);
+      console.log('[JupiterPortfolio] TOTAL Estimated Portfolio Value: ' + formattedTotal);
+      return { value: formattedTotal, success: true, platform: 'jupiter' };
+    }
+    
+    console.log('[JupiterPortfolio] No position values found');
+    return { value: null, success: false, platform: 'jupiter', error: 'No position values found' };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[JupiterPortfolio] Error:', msg);
