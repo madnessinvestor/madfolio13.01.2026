@@ -261,6 +261,21 @@ export function getDetailedBalances(): WalletBalance[] {
   return Array.from(balanceCache.values());
 }
 
+export function initializeWallet(wallet: WalletConfig): void {
+  if (!balanceCache.has(wallet.name)) {
+    balanceCache.set(wallet.name, {
+      id: wallet.id,
+      name: wallet.name,
+      link: wallet.link,
+      balance: 'Carregando...',
+      lastUpdated: new Date(),
+      status: 'unavailable',
+      error: 'Aguardando primeira coleta'
+    });
+    console.log(`[Init] Initialized wallet ${wallet.name} in cache`);
+  }
+}
+
 export function startStepMonitor(intervalMs: number): void {
   console.log(`[Step.finance] Starting monitor with ${intervalMs / 1000 / 60} minute interval`);
   

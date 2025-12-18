@@ -7,7 +7,7 @@ import { isAuthenticated } from "./replit_integrations/auth";
 import { fetchAssetPrice, updateAssetPrice, startPriceUpdater } from "./services/pricing";
 import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/exchangeRate";
 import { fetchWalletBalance } from "./services/walletBalance";
-import { getBalances, getDetailedBalances, startStepMonitor, forceRefresh, forceRefreshAndWait, setWallets, forceRefreshWallet } from "./services/debankScraper";
+import { getBalances, getDetailedBalances, startStepMonitor, forceRefresh, forceRefreshAndWait, setWallets, forceRefreshWallet, initializeWallet } from "./services/debankScraper";
 import { getWalletHistory, getAllHistory, getLatestByWallet, getWalletStats } from "./services/walletCache";
 import { insertWalletSchema } from "@shared/schema";
 import { fetchJupPortfolio } from "./services/jupAgScraper";
@@ -661,6 +661,9 @@ export async function registerRoutes(
       
       const allWallets = await storage.getWallets(userId);
       setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
+      
+      // Initialize the new wallet in cache so it appears immediately
+      initializeWallet({ id: wallet.id, name: validated.name, link: validated.link });
       
       // Se for um wallet blockchain, tenta buscar o saldo imediatamente
       if (platform === "starknet" || platform === "aptos" || platform === "sei") {
