@@ -1,0 +1,164 @@
+✅ TEXTO FINAL PARA COLAR NO REPLIT AI (AGENT)
+
+Quero que você reestruture completamente a lógica de coleta de saldos do meu Wallet Tracker para evitar Loading infinito e garantir que o maior valor de portfólio (Patrimônio Líquido / Net Worth) seja capturado corretamente em múltiplas blockchains, cada uma com sua estratégia correta.
+
+Problema atual:
+
+O sistema tenta usar a mesma lógica de scraping para todas as plataformas.
+
+Algumas plataformas não expõem o valor como texto no DOM (ex: Jupiter).
+
+Outras demoram muito para carregar e nunca “estabilizam”.
+
+Resultado: backend fica preso em estado de loading e o frontend nunca recebe resposta.
+
+Quero uma arquitetura por TIPO DE PLATAFORMA, com timeout e fallback obrigatórios.
+
+🔹 EVM / DEBANK (Patrimônio Líquido)
+
+Wallets:
+
+EVM-madnessmain → https://debank.com/profile/0x083c828b221b126965a146658d4e512337182df1
+
+EVM-madnesstrezor → https://debank.com/profile/0xb5a4bccc07c1f25f43c0215627853e39b6bd3ac7
+
+EVM-madnesstwo → https://debank.com/profile/0x0b2812ecda6ed953ff85db3c594efe42dfbdb84a
+
+Regras obrigatórias:
+
+Usar Puppeteer em modo headless.
+
+Esperar o elemento de Net Worth / Patrimônio Líquido do topo existir.
+
+Ler apenas esse valor específico (não varrer div/span).
+
+Normalizar para 2 casas decimais.
+
+Timeout máximo de 60 segundos.
+
+Se falhar, retornar último valor válido em cache, nunca travar.
+
+🔹 SOLANA / JUPITER (Net Worth)
+
+Wallets:
+
+SOL-madnessmain → https://jup.ag/portfolio/DyEWx33cWoBdGF1xmWckyhxEodzZUzuDcxR48S76Mswj
+
+SOL-madnesstwo → https://jup.ag/portfolio/AgB9wwGXpsXioXQ15vXXWYcDuz5NQbw6DTwDwjfVaQA6
+
+IMPORTANTE:
+
+O valor de Net Worth do Jupiter NÃO existe como texto no DOM.
+
+NÃO tentar scraping visual para Jupiter.
+
+Regras obrigatórias:
+
+Usar Puppeteer apenas para abrir a página.
+
+Interceptar requisições de rede (page.on("response")).
+
+Identificar a API interna que retorna os dados de portfolio em JSON.
+
+Extrair o Net Worth total diretamente do JSON.
+
+Timeout máximo de 45 segundos.
+
+Se falhar, retornar último valor válido em cache.
+
+🔹 STARKNET / READY
+
+Wallet:
+
+STARKNET-madness → https://portfolio.ready.co/overview/0x00debe613076fc8e271e717c5828c7aec498a64dd589e8b97746e2d659458d68
+
+Regras:
+
+Capturar o Total Portfolio Value exibido no overview.
+
+Usar seletor específico do valor total.
+
+Timeout máximo de 45 segundos.
+
+Fallback para último valor válido.
+
+🔹 APTOS / APTOSCAN
+
+Wallet:
+
+APTOS-madness → https://aptoscan.com/account/0xfddb8e3f927ce776bc82145b2df5c9f7d2f7d1fcd66e032a6b1e853231f7d9a6
+
+Regras:
+
+NÃO usar Puppeteer se possível.
+
+Preferir API pública do Aptoscan ou endpoint JSON se disponível.
+
+Extrair o Total Balance / Portfolio Value.
+
+Timeout máximo de 30 segundos.
+
+🔹 SEI / SEISCAN
+
+Wallet:
+
+SEI-madness → https://seiscan.io/address/0x712e1b166769b12b95eea57571e3d6fe14f73d9d
+
+Regras:
+
+Preferir API pública do Seiscan ou requisição JSON.
+
+Se usar Puppeteer, capturar apenas o Total Balance principal.
+
+Timeout máximo de 30 segundos.
+
+🔁 EXECUÇÃO E CONTROLE
+
+Atualizar wallets sempre de forma sequencial, nunca em paralelo.
+
+Aguardar 5 segundos entre cada wallet.
+
+Implementar cache persistente em memória.
+
+Nunca deixar uma wallet em estado “Loading” indefinidamente.
+
+Se uma atualização falhar, manter o último valor válido.
+
+🎯 OBJETIVO FINAL
+
+Cada wallet deve sempre mostrar o MAIOR valor de portfólio (Patrimônio Líquido / Net Worth) que o site exibe ao usuário.
+
+O dashboard nunca deve travar em Loading.
+
+Robustez e confiabilidade são mais importantes que velocidade.
+
+🧠 POR QUE ISSO VAI PARAR O “LOADING INFINITO”
+
+Cada site passa a ter sua própria estratégia correta
+
+Jupiter deixa de usar DOM (que nunca funcionou)
+
+Explorers usam API quando possível
+
+Todo fluxo tem timeout + fallback
+
+Cache impede “zerar” cards
+
+Não existe mais espera infinita
+
+✅ RESUMO HONESTO
+
+Você chegou no limite máximo do que dá para fazer corretamente com scraping multi-chain.
+O erro não era seu, era usar a mesma lógica para plataformas completamente diferentes.
+
+Com esse pedido, o Replit tem informação suficiente para corrigir tudo de forma definitiva.
+
+Se quiser, no próximo passo posso:
+
+te ajudar a validar se o JSON do Jupiter está certo
+
+revisar o código que o Replit gerar
+
+sugerir arquitetura sem Puppeteer para algumas chains
+
+Mas o texto acima é exatamente o que você deve pedir agora.
