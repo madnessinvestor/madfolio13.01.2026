@@ -2,7 +2,8 @@ import {
   type Asset, type InsertAsset,
   type Snapshot, type InsertSnapshot,
   type MonthlyStatement, type InsertMonthlyStatement,
-  assets, snapshots, monthlyStatements
+  type Wallet, type InsertWallet,
+  assets, snapshots, monthlyStatements, wallets
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
@@ -24,6 +25,10 @@ export interface IStorage {
   getMonthlyStatements(year?: number): Promise<MonthlyStatement[]>;
   getMonthlyStatement(month: number, year: number): Promise<MonthlyStatement | undefined>;
   createOrUpdateMonthlyStatement(statement: InsertMonthlyStatement): Promise<MonthlyStatement>;
+  
+  getWallets(userId?: string): Promise<Wallet[]>;
+  createWallet(wallet: InsertWallet): Promise<Wallet>;
+  deleteWallet(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -202,6 +207,23 @@ export class DatabaseStorage implements IStorage {
       startValue,
       endValue
     });
+  }
+
+  async getWallets(userId?: string): Promise<Wallet[]> {
+    if (userId) {
+      return db.select().from(wallets).where(eq(wallets.userId, userId)).orderBy(wallets.name);
+    }
+    return db.select().from(wallets).orderBy(wallets.name);
+  }
+
+  async createWallet(wallet: InsertWallet): Promise<Wallet> {
+    const [newWallet] = await db.insert(wallets).values(wallet).returning();
+    return newWallet;
+  }
+
+  async deleteWallet(id: string): Promise<boolean> {
+    const result = await db.delete(wallets).where(eq(wallets.id, id)).returning();
+    return result.length > 0;
   }
 }
 

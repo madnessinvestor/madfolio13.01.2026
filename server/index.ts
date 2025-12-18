@@ -63,6 +63,20 @@ app.use((req, res, next) => {
 (async () => {
   await setupAuth(app);
   registerAuthRoutes(app);
+  
+  // Initialize wallets from database on startup
+  try {
+    const { storage } = await import("./storage");
+    const allWallets = await storage.getWallets();
+    if (allWallets.length > 0) {
+      const { setWallets } = await import("./services/debankScraper");
+      setWallets(allWallets.map(w => ({ id: w.id, name: w.name, address: w.address })));
+      console.log(`[Init] Loaded ${allWallets.length} wallets from database`);
+    }
+  } catch (error) {
+    console.error("[Init] Error loading wallets from database:", error);
+  }
+  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

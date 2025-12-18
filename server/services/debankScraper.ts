@@ -1,15 +1,18 @@
 import puppeteer, { Browser } from 'puppeteer';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import type { Wallet } from '@shared/schema';
 
 const execAsync = promisify(exec);
 
 interface WalletConfig {
+  id?: string;
   name: string;
   address: string;
 }
 
 interface WalletBalance {
+  id?: string;
   name: string;
   address: string;
   balance: string;
@@ -17,11 +20,15 @@ interface WalletBalance {
   error?: string;
 }
 
-const WALLETS: WalletConfig[] = [
+let WALLETS: WalletConfig[] = [
   { name: "EVM-madnessmain", address: "0x083c828b221b126965a146658d4e512337182df1" },
   { name: "EVM-madnesstrezor", address: "0xb5a4bccc07c1f25f43c0215627853e39b6bd3ac7" },
   { name: "EVM-madnesstwo", address: "0x0b2812ecda6ed953ff85db3c594efe42dfbdb84a" },
 ];
+
+export function setWallets(newWallets: WalletConfig[]): void {
+  WALLETS = newWallets;
+}
 
 const balanceCache = new Map<string, WalletBalance>();
 let isUpdating = false;
@@ -185,11 +192,13 @@ export function getBalances(): Record<string, string> {
 export function getDetailedBalances(): WalletBalance[] {
   return WALLETS.map(wallet => {
     const cached = balanceCache.get(wallet.name);
-    return cached || {
+    return {
+      id: wallet.id,
       name: wallet.name,
       address: wallet.address,
-      balance: 'Loading...',
-      lastUpdated: new Date(),
+      balance: cached?.balance || 'Loading...',
+      lastUpdated: cached?.lastUpdated || new Date(),
+      error: cached?.error,
     };
   });
 }

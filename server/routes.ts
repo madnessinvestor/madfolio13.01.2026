@@ -7,7 +7,8 @@ import { isAuthenticated } from "./replit_integrations/auth";
 import { fetchAssetPrice, updateAssetPrice, startPriceUpdater } from "./services/pricing";
 import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/exchangeRate";
 import { fetchWalletBalance } from "./services/walletBalance";
-import { getBalances, getDetailedBalances, startDeBankMonitor, forceRefresh } from "./services/debankScraper";
+import { getBalances, getDetailedBalances, startDeBankMonitor, forceRefresh, setWallets } from "./services/debankScraper";
+import { insertWalletSchema } from "@shared/schema";
 
 const investmentSchema = z.object({
   name: z.string().min(1),
@@ -490,6 +491,58 @@ export async function registerRoutes(
       res.json({ message: "Balances refreshed", balances });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh DeBank balances" });
+    }
+  });
+
+  app.get("/api/wallets", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const userWallets = await storage.getWallets(userId);
+      res.json(userWallets);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch wallets" });
+    }
+  });
+
+  app.post("/api/wallets", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const validated = insertWalletSchema.parse(req.body);
+      const wallet = await storage.createWallet({ ...validated, userId });
+      
+      const allWallets = await storage.getWallets(userId);
+      setWallets(allWallets.map(w => ({ id: w.id, name: w.name, address: w.address })));
+      
+      res.status(201).json(wallet);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create wallet" });
+    }
+  });
+
+  app.delete("/api/wallets/:id", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const userWallets = await storage.getWallets(userId);
+      const walletExists = userWallets.some(w => w.id === req.params.id);
+      
+      if (!walletExists) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      const deleted = await storage.deleteWallet(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      const updatedWallets = await storage.getWallets(userId);
+      setWallets(updatedWallets.map(w => ({ id: w.id, name: w.name, address: w.address })));
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete wallet" });
     }
   });
 

@@ -52,3 +52,15 @@ export const monthlyStatements = pgTable("monthly_statements", {
 export const insertMonthlyStatementSchema = createInsertSchema(monthlyStatements).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertMonthlyStatement = z.infer<typeof insertMonthlyStatementSchema>;
 export type MonthlyStatement = typeof monthlyStatements.$inferSelect;
+
+export const wallets = pgTable("wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  name: text("name").notNull(),
+  address: text("address").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWalletSchema = createInsertSchema(wallets).omit({ id: true, createdAt: true });
+export type InsertWallet = z.infer<typeof insertWalletSchema>;
+export type Wallet = typeof wallets.$inferSelect;
