@@ -215,14 +215,14 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
     
     // Para cripto simplificado, renda fixa ou renda variável simplificada, validação simplificada
     if (market === "crypto_simplified") {
-      if (!cryptoValueBRL) return;
+      if (!walletName || !cryptoValueBRL) return;
       const priceString = cryptoValueBRL.replace(/[^\d.,]/g, "");
       const parsedPrice = parseFloat(priceString.replace(/\./g, "").replace(",", "."));
       if (isNaN(parsedPrice)) return;
 
       onAdd({
-        name: "Cripto",
-        symbol: `CRYPTO-${new Date().getTime()}`,
+        name: walletName,
+        symbol: walletName.substring(0, 20).toUpperCase(),
         category: "crypto",
         market: "crypto",
         quantity: 1,
