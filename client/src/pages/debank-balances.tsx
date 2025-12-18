@@ -178,7 +178,6 @@ export default function WalletTracker() {
                     variant="ghost"
                     onClick={() => deleteWalletMutation.mutate(wallet.id!)}
                     disabled={deleteWalletMutation.isPending}
-                    className="h-8 w-8"
                     data-testid={`button-delete-wallet-${wallet.id}`}
                   >
                     {deleteWalletMutation.isPending ? (
