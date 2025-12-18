@@ -39,6 +39,18 @@ async function getChromiumPath(): Promise<string> {
   }
 }
 
+async function extractAddressFromLink(link: string): Promise<string | null> {
+  // Extract Ethereum address from DeBank URL: https://debank.com/profile/0x...
+  // Or Solana address from Step.finance URL
+  const ethMatch = link.match(/0x[a-fA-F0-9]{40}/);
+  if (ethMatch) return ethMatch[0];
+  
+  const solanaMatch = link.match(/profile\/([A-Z0-9]{40,})/);
+  if (solanaMatch) return solanaMatch[1];
+  
+  return null;
+}
+
 async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Promise<WalletBalance> {
   const page = await browser.newPage();
   
@@ -47,18 +59,67 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
     
     console.log(`[Step.finance] Fetching balance for ${wallet.name} from ${wallet.link}`);
     
+    // Try API approach first if it's a DeBank link
+    if (wallet.link.includes('debank.com')) {
+      const address = await extractAddressFromLink(wallet.link);
+      if (address) {
+        console.log(`[Step.finance] Extracted address from DeBank URL: ${address}`);
+        try {
+          const apiUrl = `https://api.debank.com/v1/user/total_balance?id=${address}`;
+          console.log(`[Step.finance] Calling DeBank API: ${apiUrl}`);
+          
+          const response = await fetch(apiUrl, {
+            headers: { "Accept": "application/json" }
+          });
+
+          console.log(`[Step.finance] API response status: ${response.status}`);
+
+          if (response.ok) {
+            const data = await response.json() as any;
+            const balanceUSD = data.total_usd_value || 0;
+            const formatted = `$${balanceUSD.toFixed(2)}`;
+            console.log(`[Step.finance] Found API balance for ${wallet.name}: ${formatted}`);
+            return {
+              id: wallet.id,
+              name: wallet.name,
+              link: wallet.link,
+              balance: formatted,
+              lastUpdated: new Date(),
+            };
+          } else {
+            console.log(`[Step.finance] API returned status ${response.status} for ${wallet.name}`);
+          }
+        } catch (apiError) {
+          console.log(`[Step.finance] API call failed for ${wallet.name}: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
+        }
+      }
+    }
+
+    // Fallback to browser scraping (skip if already tried API)
+    if (wallet.link.includes('debank.com')) {
+      console.log(`[Step.finance] API failed, skipping web scraping for ${wallet.name}`);
+      return {
+        id: wallet.id,
+        name: wallet.name,
+        link: wallet.link,
+        balance: 'Verifique a wallet',
+        lastUpdated: new Date(),
+        error: 'API não encontrou dados para este endereço',
+      };
+    }
+
     await page.goto(wallet.link, { 
       waitUntil: 'networkidle2',
-      timeout: 60000 
+      timeout: 30000 
     });
 
     await page.waitForSelector('[class*="PortfolioValue"], [class*="portfolio"], [class*="total"]', { 
-      timeout: 30000 
+      timeout: 20000 
     }).catch(() => {
       console.log(`[Step.finance] Waiting for dynamic content for ${wallet.name}...`);
     });
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     const balance = await page.evaluate(() => {
       const selectors = [
@@ -84,18 +145,17 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
     if (balance) {
       console.log(`[Step.finance] Found balance for ${wallet.name}: ${balance}`);
     } else {
-      console.log(`[Step.finance] No balance found for ${wallet.name}, using fallback extraction`);
+      console.log(`[Step.finance] No balance found for ${wallet.name}`);
     }
 
     await page.screenshot({ path: `/tmp/step_${wallet.name}.png`, fullPage: false });
-
     await page.close();
 
     return {
       id: wallet.id,
       name: wallet.name,
       link: wallet.link,
-      balance: balance || 'N/A',
+      balance: balance || 'Indisponível',
       lastUpdated: new Date(),
     };
   } catch (error) {
@@ -106,7 +166,7 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
       id: wallet.id,
       name: wallet.name,
       link: wallet.link,
-      balance: 'Error',
+      balance: 'Erro ao carregar',
       lastUpdated: new Date(),
       error: error instanceof Error ? error.message : 'Unknown error',
     };
