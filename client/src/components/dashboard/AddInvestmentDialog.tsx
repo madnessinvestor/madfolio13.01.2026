@@ -103,6 +103,9 @@ interface ExistingAsset {
   name: string;
   market: string;
   category?: string;
+  quantity?: number;
+  acquisitionPrice?: number;
+  acquisitionDate?: string;
 }
 
 export function AddInvestmentDialog({ onAdd, onAddSnapshot, onEdit, isLoading, initialEditAssetId, existingAssets: providedAssets }: AddInvestmentDialogProps) {
@@ -812,12 +815,19 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, onEdit, isLoading, i
                     const asset = existingAssets.find(a => a.id === value);
                     if (asset) {
                       setSelectedAssetMarket((asset.market as MarketType) || "");
-                      // Pre-fill edit form with asset data if onEdit is available
                       if (onEdit) {
                         setName(asset.name);
                         setSymbol(asset.symbol);
                         setMarket((asset.market as MarketType) || "crypto");
                         setCategory((asset.category as AssetCategory) || "crypto");
+                        setQuantity(asset.quantity !== undefined ? asset.quantity.toString() : "1");
+                        const priceValue = asset.acquisitionPrice !== undefined ? asset.acquisitionPrice : 0;
+                        const formatted = priceValue.toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        });
+                        setAcquisitionPrice(`R$ ${formatted}`);
+                        setAcquisitionDate(asset.acquisitionDate || new Date().toISOString().split("T")[0]);
                       }
                     }
                   }}>
