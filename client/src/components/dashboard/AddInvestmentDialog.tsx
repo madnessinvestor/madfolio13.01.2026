@@ -803,44 +803,173 @@ export function AddInvestmentDialog({ onAdd, onAddSnapshot, isLoading, initialEd
                   </p>
                 )}
 
-                <div className="grid gap-2">
-                  <Label htmlFor="updateValue">
-                    {selectedAssetMarket === "crypto" || selectedAssetMarket === "crypto_simplified" ? "Valor Total (Reais)" : selectedAssetMarket === "fixed_income" ? "Valor Aportado" : "Valor Atual"}
-                  </Label>
-                  <Input
-                    id="updateValue"
-                    placeholder="R$ 0,00"
-                    value={updateValue}
-                    onChange={(e) => setUpdateValue(formatCurrency(e.target.value))}
-                    data-testid="input-update-value"
-                  />
-                </div>
+                {selectedAssetMarket && (
+                  <>
+                    {selectedAssetMarket === "crypto" || selectedAssetMarket === "crypto_simplified" ? (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateValue">Valor Total (Reais)</Label>
+                          <Input
+                            id="updateValue"
+                            placeholder="R$ 0,00"
+                            value={updateValue}
+                            onChange={(e) => setUpdateValue(formatCurrency(e.target.value))}
+                            data-testid="input-update-value"
+                          />
+                        </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="updateDate">Data</Label>
-                  <Input
-                    id="updateDate"
-                    type="date"
-                    value={updateDate}
-                    onChange={(e) => setUpdateDate(e.target.value)}
-                    data-testid="input-update-date"
-                  />
-                </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateDate">Data da Atualização (opcional)</Label>
+                          <Input
+                            id="updateDate"
+                            type="date"
+                            value={updateDate}
+                            onChange={(e) => setUpdateDate(e.target.value)}
+                            data-testid="input-update-date"
+                          />
+                        </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="updateNotes">Observações (opcional)</Label>
-                  <Input
-                    id="updateNotes"
-                    placeholder="Ex: Aporte mensal, rendimento"
-                    value={updateNotes}
-                    onChange={(e) => setUpdateNotes(e.target.value)}
-                    data-testid="input-update-notes"
-                  />
-                </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateNotes">Observações (opcional)</Label>
+                          <Input
+                            id="updateNotes"
+                            placeholder="Ex: Atualização de saldo"
+                            value={updateNotes}
+                            onChange={(e) => setUpdateNotes(e.target.value)}
+                            data-testid="input-update-notes"
+                          />
+                        </div>
 
-                <p className="text-sm text-muted-foreground">
-                  Use esta opção para atualizar manualmente o valor de ativos que não possuem cotação automática (ex: Renda Fixa, Caixa).
-                </p>
+                        <p className="text-sm text-muted-foreground">
+                          Atualize o valor total em Reais da sua carteira cripto.
+                        </p>
+                      </>
+                    ) : selectedAssetMarket === "fixed_income" ? (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateValue">Valor Aportado</Label>
+                          <Input
+                            id="updateValue"
+                            placeholder="R$ 0,00"
+                            value={updateValue}
+                            onChange={(e) => setUpdateValue(formatCurrency(e.target.value))}
+                            data-testid="input-update-value"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateDate">Data do Aporte *</Label>
+                          <Input
+                            id="updateDate"
+                            type="date"
+                            value={updateDate}
+                            onChange={(e) => setUpdateDate(e.target.value)}
+                            data-testid="input-update-date"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateNotes">Observações (opcional)</Label>
+                          <Input
+                            id="updateNotes"
+                            placeholder="Ex: Aporte mensal, tipo de investimento"
+                            value={updateNotes}
+                            onChange={(e) => setUpdateNotes(e.target.value)}
+                            data-testid="input-update-notes"
+                          />
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                          Registre o valor aportado em renda fixa com a data do aporte.
+                        </p>
+                      </>
+                    ) : selectedAssetMarket === "variable_income" || selectedAssetMarket === "variable_income_simplified" ? (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateValue">Valor Atual</Label>
+                          <Input
+                            id="updateValue"
+                            placeholder="R$ 0,00"
+                            value={updateValue}
+                            onChange={(e) => setUpdateValue(formatCurrency(e.target.value))}
+                            data-testid="input-update-value"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateDate">Data da Cotação *</Label>
+                          <Input
+                            id="updateDate"
+                            type="date"
+                            value={updateDate}
+                            onChange={(e) => setUpdateDate(e.target.value)}
+                            data-testid="input-update-date"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateNotes">Observações (opcional)</Label>
+                          <Input
+                            id="updateNotes"
+                            placeholder="Ex: Preço de fechamento, observações do dia"
+                            value={updateNotes}
+                            onChange={(e) => setUpdateNotes(e.target.value)}
+                            data-testid="input-update-notes"
+                          />
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                          Atualize o valor atual em renda variável com a data da cotação.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateValue">Valor Atual</Label>
+                          <Input
+                            id="updateValue"
+                            placeholder="R$ 0,00"
+                            value={updateValue}
+                            onChange={(e) => setUpdateValue(formatCurrency(e.target.value))}
+                            data-testid="input-update-value"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateDate">Data da Avaliação *</Label>
+                          <Input
+                            id="updateDate"
+                            type="date"
+                            value={updateDate}
+                            onChange={(e) => setUpdateDate(e.target.value)}
+                            data-testid="input-update-date"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="updateNotes">Observações (opcional)</Label>
+                          <Input
+                            id="updateNotes"
+                            placeholder="Ex: Avaliação profissional, atualizações"
+                            value={updateNotes}
+                            onChange={(e) => setUpdateNotes(e.target.value)}
+                            data-testid="input-update-notes"
+                          />
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                          Atualize o valor atual do ativo com a data da última avaliação.
+                        </p>
+                      </>
+                    )}
+                  </>
+                )}
+
+                {!selectedAssetMarket && (
+                  <p className="text-sm text-muted-foreground">
+                    Selecione um ativo para ver as opções de atualização.
+                  </p>
+                )}
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
