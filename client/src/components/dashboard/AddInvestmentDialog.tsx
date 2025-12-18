@@ -119,6 +119,7 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
   const [walletLink, setWalletLink] = useState("");
   const [network, setNetwork] = useState("");
   const [walletLoading, setWalletLoading] = useState(false);
+  const [investmentType, setInvestmentType] = useState<string>("outros");
 
   // Fetch existing assets
   const { data: fetchedAssets = [] } = useQuery<ExistingAsset[]>({
@@ -282,6 +283,7 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
     setWalletLink("");
     setNetwork("");
     setWalletLoading(false);
+    setInvestmentType("outros");
   };
 
   const parseWalletAddressFromLink = (link: string): { address: string | null; isDeBank: boolean; isPlatform: string } => {
@@ -559,7 +561,24 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="investment-value">Valor Inicial</Label>
+                  <Label htmlFor="investment-type">Tipo de Investimento</Label>
+                  <Select value={investmentType} onValueChange={(value) => setInvestmentType(value)}>
+                    <SelectTrigger data-testid="select-investment-type">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="caixinha-nubank">Caixinha Nubank</SelectItem>
+                      <SelectItem value="poupanca">Poupança</SelectItem>
+                      <SelectItem value="cdb-lci-lca">CDB | LCI | LCA | CRI | CRA</SelectItem>
+                      <SelectItem value="debentures">Debêntures</SelectItem>
+                      <SelectItem value="conta-rentavel">Conta Rentável</SelectItem>
+                      <SelectItem value="outros">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="investment-value">Valor Aplicado</Label>
                   <Input
                     id="investment-value"
                     placeholder="R$ 0,00"
@@ -598,7 +617,7 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="stock-value">Valor Atual</Label>
+                  <Label htmlFor="stock-value">Valor Aplicado</Label>
                   <Input
                     id="stock-value"
                     placeholder="R$ 0,00"
