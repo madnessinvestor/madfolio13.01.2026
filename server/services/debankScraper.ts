@@ -74,7 +74,8 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
         if (element) {
           const text = element.textContent?.trim();
           if (text && text.includes('$')) {
-            return text;
+            const match = text.match(/^\$[\d,]+(\.\d+)?/);
+            return match ? match[0] : text;
           }
         }
       }
@@ -83,8 +84,11 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
       for (let i = 0; i < allElements.length; i++) {
         const el = allElements[i];
         const text = el.textContent?.trim();
-        if (text && /^\$[\d,]+(\.\d+)?$/.test(text) && parseFloat(text.replace(/[$,]/g, '')) > 100) {
-          return text;
+        if (text) {
+          const match = text.match(/^\$[\d,]+(\.\d+)?/);
+          if (match && parseFloat(match[0].replace(/[$,]/g, '')) > 100) {
+            return match[0];
+          }
         }
       }
       
