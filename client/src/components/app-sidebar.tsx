@@ -19,6 +19,7 @@ import {
   Building2,
   History,
   FileText,
+  Wallet,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -57,6 +58,11 @@ const menuItems = [
     title: "Extratos",
     url: "/statements",
     icon: FileText,
+  },
+  {
+    title: "DeBank Saldos",
+    url: "/debank",
+    icon: Wallet,
   },
 ];
 

@@ -36,6 +36,7 @@ import RealEstatePage from "@/pages/real-estate";
 import HistoryPage from "@/pages/history";
 import StatementsPage from "@/pages/statements";
 import LandingPage from "@/pages/landing";
+import DeBankBalances from "@/pages/debank-balances";
 
 function Router() {
   return (
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/real-estate" component={RealEstatePage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/statements" component={StatementsPage} />
+      <Route path="/debank" component={DeBankBalances} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -7,6 +7,7 @@ import { isAuthenticated } from "./replit_integrations/auth";
 import { fetchAssetPrice, updateAssetPrice, startPriceUpdater } from "./services/pricing";
 import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/exchangeRate";
 import { fetchWalletBalance } from "./services/walletBalance";
+import { getBalances, getDetailedBalances, startDeBankMonitor, forceRefresh } from "./services/debankScraper";
 
 const investmentSchema = z.object({
   name: z.string().min(1),
@@ -24,6 +25,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   startPriceUpdater(5 * 60 * 1000);
+  startDeBankMonitor(15 * 60 * 1000);
 
   app.get("/api/assets", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
@@ -460,6 +462,34 @@ export async function registerRoutes(
       res.json(history);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch portfolio history" });
+    }
+  });
+
+  app.get("/api/saldo", async (req, res) => {
+    try {
+      const balances = getBalances();
+      res.json(balances);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch DeBank balances" });
+    }
+  });
+
+  app.get("/api/saldo/detailed", async (req, res) => {
+    try {
+      const balances = getDetailedBalances();
+      res.json(balances);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch DeBank balances" });
+    }
+  });
+
+  app.post("/api/saldo/refresh", async (req, res) => {
+    try {
+      await forceRefresh();
+      const balances = getBalances();
+      res.json({ message: "Balances refreshed", balances });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to refresh DeBank balances" });
     }
   });
 
