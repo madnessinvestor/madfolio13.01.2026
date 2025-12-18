@@ -99,14 +99,19 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
     console.log(`[Step.finance] Starting web scraping for ${wallet.name}`);
     
     await page.goto(wallet.link, { 
-      waitUntil: 'networkidle0',
-      timeout: 45000 
+      waitUntil: 'domcontentloaded',
+      timeout: 120000 
     }).catch((err) => {
       console.log(`[Step.finance] Page load warning for ${wallet.name}: ${err.message}`);
     });
 
-    // Wait for JavaScript to render
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // For Step.Finance, wait longer and try to find the "Patrimônio Líquido" element
+    if (wallet.link.includes('step.finance')) {
+      console.log(`[Step.finance] Waiting for Step.Finance page to render for ${wallet.name}`);
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
 
     // Try to find the balance text on the page
     const balance = await page.evaluate(() => {
@@ -114,10 +119,23 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
       
       // Check if it's Step.Finance (look for "Patrimônio Líquido" which means Net Worth in Portuguese)
       if (allText.includes('Patrimônio Líquido')) {
-        // For Step.Finance: look for the value right after "Patrimônio Líquido"
-        const stepMatch = allText.match(/Patrimônio\s+Líquido\s*\n\s*\$?([\d,]+\.?\d*)/i);
-        if (stepMatch) {
-          return stepMatch[1];
+        // Split by lines and find the line with "Patrimônio Líquido"
+        const lines = allText.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes('Patrimônio Líquido')) {
+            // The next lines should contain the value
+            for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+              const nextLine = lines[j].trim();
+              // Skip empty lines
+              if (!nextLine) continue;
+              
+              // Look for a line that matches currency format with numbers
+              const match = nextLine.match(/\$?([\d,]+\.?\d+)/);
+              if (match && !nextLine.includes('%') && !nextLine.includes('•') && nextLine.length < 50) {
+                return match[1];
+              }
+            }
+          }
         }
       }
       
@@ -179,10 +197,14 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
       return null;
     });
 
-    if (balance) {
-      console.log(`[Step.finance] Found balance via scraping for ${wallet.name}: ${balance}`);
+    // Clean up the balance - reject if it's empty, just a comma, or just whitespace
+    const cleanBalance = balance ? balance.trim() : null;
+    const isValidBalance = cleanBalance && cleanBalance !== ',' && cleanBalance.match(/[\d,]/);
+    
+    if (isValidBalance) {
+      console.log(`[Step.finance] Found balance via scraping for ${wallet.name}: ${cleanBalance}`);
     } else {
-      console.log(`[Step.finance] No balance found via scraping for ${wallet.name}, trying alternative method`);
+      console.log(`[Step.finance] No valid balance found via scraping for ${wallet.name}, trying alternative method`);
       
       // Try getting the page title or meta tags
       const alternativeBalance = await page.evaluate(() => {
@@ -201,7 +223,26 @@ async function scrapeWalletBalance(browser: Browser, wallet: WalletConfig): Prom
           lastUpdated: new Date(),
         };
       }
+      
+      // If still no balance, return "Indisponível" (Unavailable in Portuguese)
+      console.log(`[Step.finance] Balance unavailable for ${wallet.name}`);
+      return {
+        id: wallet.id,
+        name: wallet.name,
+        link: wallet.link,
+        balance: 'Indisponível',
+        lastUpdated: new Date(),
+      };
     }
+    
+    // Valid balance found
+    return cleanBalance ? {
+      id: wallet.id,
+      name: wallet.name,
+      link: wallet.link,
+      balance: cleanBalance,
+      lastUpdated: new Date(),
+    } : null;
 
     await page.screenshot({ path: `/tmp/step_${wallet.name}.png`, fullPage: false });
     await page.close();
