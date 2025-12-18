@@ -2,6 +2,7 @@ import puppeteer, { Browser } from 'puppeteer';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { addCacheEntry } from './walletCache';
+import { fetchJupPortfolio } from './jupAgScraper';
 
 const execAsync = promisify(exec);
 
@@ -121,6 +122,53 @@ async function extractDebankNetWorth(page: any, walletName: string, attempt: num
   return null;
 }
 
+// Extract Net Worth for Jup.Ag - looks for the Net Worth section
+async function extractJupAgNetWorth(page: any, walletName: string, attempt: number): Promise<string | null> {
+  console.log(`[Step.finance] [Attempt ${attempt}/3] Extracting Jup.Ag Net Worth for ${walletName}`);
+  
+  try {
+    const netWorth = await page.evaluate(() => {
+      try {
+        const pageText = document.body.innerText;
+        const lines = pageText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        // Look for "Net Worth" label and get the value after it
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].toLowerCase().includes('net worth')) {
+            // Check next few lines for the value
+            for (let j = i; j < Math.min(i + 3, lines.length); j++) {
+              const line = lines[j];
+              const match = line.match(/\$?\s*([\d,]+(?:\.\d{2})?)/);
+              if (match && !line.toLowerCase().includes('pnl')) {
+                const value = match[1];
+                const numValue = parseFloat(value.replace(/,/g, ''));
+                if (numValue > 0 && numValue < 100000000) {
+                  console.log('[Jup.Ag] Found Net Worth: ' + value);
+                  return value;
+                }
+              }
+            }
+          }
+        }
+        
+        return null;
+      } catch (error) {
+        console.log('[Jup.Ag] Extraction error: ' + error);
+        return null;
+      }
+    });
+
+    if (netWorth) {
+      console.log(`[Step.finance] [Attempt ${attempt}/3] Found Jup.Ag value: $${netWorth}`);
+      return `$${netWorth}`;
+    }
+  } catch (error) {
+    console.log(`[Step.finance] [Attempt ${attempt}/3] Error: ${error}`);
+  }
+  
+  return null;
+}
+
 // Extract portfolio value for Step.Finance
 async function extractStepFinancePortfolioValue(page: any, walletName: string, attempt: number): Promise<string | null> {
   console.log(`[Step.finance] [Attempt ${attempt}/3] Extracting Step.Finance Portfolio Value for ${walletName}`);
@@ -210,7 +258,37 @@ async function scrapeWalletBalanceWithRetry(
       
       console.log(`[Step.finance] [Attempt ${attempt}/${maxRetries}] Fetching balance for ${wallet.name}`);
       
-      // Try API first for DeBank
+      // Try API first for Jup.Ag
+      if (wallet.link.includes('jup.ag')) {
+        const portfolioMatch = wallet.link.match(/\/portfolio\/([a-zA-Z0-9]+)/);
+        if (portfolioMatch) {
+          const portfolioId = portfolioMatch[1];
+          try {
+            console.log(`[Step.finance] [Attempt ${attempt}/${maxRetries}] Trying Jup.Ag API for portfolio ${portfolioId}`);
+            
+            const portfolio = await fetchJupPortfolio(portfolioId);
+            if (portfolio && portfolio.netWorthUSD > 0) {
+              const formatted = `$${portfolio.netWorthUSD.toFixed(2)}`;
+              console.log(`[Step.finance] [Attempt ${attempt}/${maxRetries}] Success via Jup.Ag API: ${formatted}`);
+              
+              await page.close();
+              return {
+                id: wallet.id,
+                name: wallet.name,
+                link: wallet.link,
+                balance: formatted,
+                lastUpdated: new Date(),
+                status: 'success',
+                lastKnownValue: formatted
+              };
+            }
+          } catch (apiError) {
+            console.log(`[Step.finance] [Attempt ${attempt}/${maxRetries}] Jup.Ag API failed: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Try API for DeBank
       if (wallet.link.includes('debank.com')) {
         const address = await extractAddressFromLink(wallet.link);
         if (address) {
@@ -259,7 +337,9 @@ async function scrapeWalletBalanceWithRetry(
 
       let balance: string | null = null;
 
-      if (wallet.link.includes('step.finance')) {
+      if (wallet.link.includes('jup.ag')) {
+        balance = await extractJupAgNetWorth(page, wallet.name, attempt);
+      } else if (wallet.link.includes('step.finance')) {
         balance = await extractStepFinancePortfolioValue(page, wallet.name, attempt);
       } else if (wallet.link.includes('debank.com')) {
         balance = await extractDebankNetWorth(page, wallet.name, attempt);
@@ -278,7 +358,10 @@ async function scrapeWalletBalanceWithRetry(
         console.log(`[Step.finance] [Attempt ${attempt}/${maxRetries}] Success: ${cleanBalance}`);
         
         // Save to persistent cache
-        addCacheEntry(wallet.name, cleanBalance, wallet.link.includes('step.finance') ? 'step' : 'debank', 'success');
+        let platform = 'debank';
+        if (wallet.link.includes('step.finance')) platform = 'step';
+        if (wallet.link.includes('jup.ag')) platform = 'jup';
+        addCacheEntry(wallet.name, cleanBalance, platform, 'success');
         
         const cachedEntry = balanceCache.get(wallet.name);
         return {
@@ -317,7 +400,10 @@ async function scrapeWalletBalanceWithRetry(
     console.log(`[Step.finance] All retries failed for ${wallet.name}, using cached value: ${cachedEntry.lastKnownValue}`);
     
     // Save error attempt to persistent cache
-    addCacheEntry(wallet.name, cachedEntry.lastKnownValue, wallet.link.includes('step.finance') ? 'step' : 'debank', 'temporary_error');
+    let platform = 'debank';
+    if (wallet.link.includes('step.finance')) platform = 'step';
+    if (wallet.link.includes('jup.ag')) platform = 'jup';
+    addCacheEntry(wallet.name, cachedEntry.lastKnownValue, platform, 'temporary_error');
     
     return {
       id: wallet.id,
