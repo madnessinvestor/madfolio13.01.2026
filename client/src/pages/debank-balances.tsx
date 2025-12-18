@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Wallet, ExternalLink, Trash2, Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, RefreshCw, Wallet, ExternalLink, Trash2, Plus, TrendingUp, TrendingDown, Eye, EyeOff } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -33,6 +33,19 @@ export default function WalletTracker() {
   const [isAddingWallet, setIsAddingWallet] = useState(false);
   const [selectedWalletForHistory, setSelectedWalletForHistory] = useState<string | null>(null);
   const [updatingWallets, setUpdatingWallets] = useState<Set<string>>(new Set());
+  const [hiddenBalances, setHiddenBalances] = useState<Set<string>>(new Set());
+
+  const toggleBalanceVisibility = (walletName: string) => {
+    setHiddenBalances(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(walletName)) {
+        newSet.delete(walletName);
+      } else {
+        newSet.add(walletName);
+      }
+      return newSet;
+    });
+  };
 
   const { data: balances, isLoading, error } = useQuery<WalletBalance[]>({
     queryKey: ["/api/saldo/detailed"],
@@ -121,13 +134,13 @@ export default function WalletTracker() {
 
   const refreshWalletMutation = useMutation({
     mutationFn: async (walletName: string) => {
-      setUpdatingWallets(prev => new Set([...prev, walletName]));
+      setUpdatingWallets(prev => new Set([...Array.from(prev), walletName]));
       try {
         const response = await apiRequest("POST", `/api/saldo/refresh/${encodeURIComponent(walletName)}`, {});
         return response.json();
       } finally {
         setUpdatingWallets(prev => {
-          const newSet = new Set(prev);
+          const newSet = new Set(Array.from(prev));
           newSet.delete(walletName);
           return newSet;
         });
@@ -278,8 +291,23 @@ export default function WalletTracker() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid={`text-balance-${wallet.id || wallet.name}`}>
-                {wallet.balance}
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-2xl font-bold" data-testid={`text-balance-${wallet.id || wallet.name}`}>
+                  {hiddenBalances.has(wallet.name) ? '***' : wallet.balance}
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => toggleBalanceVisibility(wallet.name)}
+                  data-testid={`button-toggle-balance-${wallet.id || wallet.name}`}
+                  title={hiddenBalances.has(wallet.name) ? 'Mostrar saldo' : 'Ocultar saldo'}
+                >
+                  {hiddenBalances.has(wallet.name) ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
               <div className="flex items-center justify-between gap-2 mt-2">
                 <span className="text-xs text-muted-foreground">

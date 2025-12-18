@@ -10,6 +10,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/App";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
+import { useState } from "react";
 
 interface PortfolioSummary {
   totalValue: number;
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { displayCurrency } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
+  const [isBalanceHidden, setIsBalanceHidden] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
@@ -135,7 +137,7 @@ export default function Dashboard() {
 
   const isLoading = summaryLoading || historyLoading;
 
-  const format = (value: number) => formatCurrency(value, displayCurrency);
+  const format = (value: number) => isBalanceHidden ? '***' : formatCurrency(value, displayCurrency);
 
   return (
     <div className="p-6 space-y-6">
@@ -145,6 +147,23 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Visão geral do seu portfólio</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title={isBalanceHidden ? 'Mostrar saldos' : 'Ocultar saldos'}
+            data-testid="button-toggle-all-balances"
+          >
+            {isBalanceHidden ? (
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.604-1.888A3.375 3.375 0 1015.75 10.5M9.879 16.121A3 3 0 1015.75 10.5" />
+              </svg>
+            )}
+          </button>
           <AddInvestmentDialog onAdd={handleAddInvestment} onAddSnapshot={handleAddSnapshot} isLoading={createInvestmentMutation.isPending || createSnapshotMutation.isPending} />
         </div>
       </div>
