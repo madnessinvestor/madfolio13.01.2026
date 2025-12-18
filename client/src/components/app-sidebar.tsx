@@ -60,7 +60,7 @@ const menuItems = [
     icon: FileText,
   },
   {
-    title: "DeBank Saldos",
+    title: "Wallet Tracker",
     url: "/debank",
     icon: Wallet,
   },
