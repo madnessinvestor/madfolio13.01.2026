@@ -64,19 +64,18 @@ app.use((req, res, next) => {
   await setupAuth(app);
   registerAuthRoutes(app);
   
-  // Initialize wallets from database on startup (after schema migration)
-  // TODO: Load wallets from database after schema is updated
-  // try {
-  //   const { storage } = await import("./storage");
-  //   const allWallets = await storage.getWallets();
-  //   if (allWallets.length > 0) {
-  //     const { setWallets } = await import("./services/debankScraper");
-  //     setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
-  //     console.log(`[Init] Loaded ${allWallets.length} wallets from database`);
-  //   }
-  // } catch (error) {
-  //   console.error("[Init] Error loading wallets from database:", error);
-  // }
+  // Initialize wallets from database on startup
+  try {
+    const { storage } = await import("./storage");
+    const allWallets = await storage.getWallets();
+    if (allWallets.length > 0) {
+      const { setWallets } = await import("./services/debankScraper");
+      setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
+      console.log(`[Init] Loaded ${allWallets.length} wallets from database`);
+    }
+  } catch (error) {
+    console.error("[Init] Error loading wallets from database:", error);
+  }
   
   await registerRoutes(httpServer, app);
 
