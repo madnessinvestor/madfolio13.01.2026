@@ -132,22 +132,22 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
   console.log(`[Jup.Ag] [Attempt ${attempt}/3] Extracting Net Worth for ${walletName}`);
   
   try {
-    // Step 1: Wait for "Net Worth" element to appear in DOM (max 20 seconds)
-    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Waiting for Net Worth element to appear...`);
+    // Step 1: Wait for "Net Worth" element to appear with non-zero value (max 30 seconds)
+    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Waiting for Net Worth element with loaded value...`);
     try {
       await page.waitForFunction(() => {
         const allText = document.body.innerText;
-        return allText.includes('Net Worth');
-      }, { timeout: 20000 });
-      console.log(`[Jup.Ag] [Attempt ${attempt}/3] Net Worth element found in DOM`);
+        return allText.includes('Net Worth') && !allText.match(/Net Worth[\s\S]{0,100}\$0\.00/);
+      }, { timeout: 30000 });
+      console.log(`[Jup.Ag] [Attempt ${attempt}/3] Net Worth element found with value in DOM`);
     } catch (waitError) {
-      console.log(`[Jup.Ag] [Attempt ${attempt}/3] Timeout waiting for Net Worth element`);
-      return null;
+      console.log(`[Jup.Ag] [Attempt ${attempt}/3] Timeout waiting for Net Worth with value - trying extraction anyway`);
     }
 
     // Step 2: Extract Net Worth value with semantic selection
     const extractNetWorth = async (): Promise<string | null> => {
       const result = await page.evaluate(() => {
+        // Strategy 1: Try to find in visible text (innerText captures rendered content)
         const fullText = document.body.innerText;
         const lines = fullText.split('\n');
         
@@ -165,12 +165,12 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
             // Try to extract value from current line
             let valueMatch = line.match(/\$\s*([\d,.]+)/);
             
-            // If not in same line, check next few lines
+            // If not in same line, check next few lines (up to 5 lines for flexibility)
             if (!valueMatch) {
-              for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+              for (let j = i + 1; j < Math.min(i + 6, lines.length); j++) {
                 const nextLine = lines[j].trim();
-                // Skip lines with PnL or negative values
-                if (!/\bpnl\b|\bclaimable\b|−|^\-/i.test(nextLine)) {
+                // Skip empty lines and lines with disqualifying keywords
+                if (nextLine && !/\bpnl\b|\bclaimable\b|−|^\-/i.test(nextLine)) {
                   valueMatch = nextLine.match(/\$\s*([\d,.]+)/);
                   if (valueMatch) break;
                 }
@@ -178,7 +178,11 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
             }
             
             if (valueMatch) {
-              return { value: valueMatch[1], found: true };
+              const value = valueMatch[1];
+              // Skip if value is $0.00 or just 0
+              if (value !== '0.00' && value !== '0' && parseFloat(value.replace(/,/g, '')) > 0) {
+                return { value, found: true };
+              }
             }
           }
         }
@@ -193,19 +197,27 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
     };
 
     // Step 3: Get first reading
-    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Reading 1 of 2...`);
-    const reading1 = await extractNetWorth();
+    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Reading 1 of 3...`);
+    let reading1 = await extractNetWorth();
+    
+    // Step 3b: If first reading is null or $0.00, wait longer and retry
+    if (!reading1) {
+      console.log(`[Jup.Ag] [Attempt ${attempt}/3] First reading returned nothing, waiting 10 seconds and retrying...`);
+      await page.evaluate(() => new Promise(r => setTimeout(r, 10000)));
+      reading1 = await extractNetWorth();
+    }
     
     if (!reading1) {
       console.log(`[Jup.Ag] [Attempt ${attempt}/3] First reading failed - Net Worth not found`);
       return null;
     }
 
-    // Step 4: Wait 2 seconds for stabilization
-    await page.evaluate(() => new Promise(r => setTimeout(r, 2000)));
+    // Step 4: Wait 3 seconds for stabilization
+    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Waiting 3 seconds for value stabilization...`);
+    await page.evaluate(() => new Promise(r => setTimeout(r, 3000)));
 
     // Step 5: Get second reading to confirm value is stable
-    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Reading 2 of 2...`);
+    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Reading 2 of 3...`);
     const reading2 = await extractNetWorth();
     
     if (!reading2) {
@@ -213,12 +225,32 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
       return null;
     }
 
-    // Step 6: Verify readings match
-    if (reading1 === reading2) {
-      console.log(`[Jup.Ag] [Attempt ${attempt}/3] ✓ Value confirmed stable: ${reading1}`);
+    // Step 6: Wait another 3 seconds and get third reading
+    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Waiting 3 seconds for final confirmation...`);
+    await page.evaluate(() => new Promise(r => setTimeout(r, 3000)));
+    
+    console.log(`[Jup.Ag] [Attempt ${attempt}/3] Reading 3 of 3...`);
+    const reading3 = await extractNetWorth();
+    
+    if (!reading3) {
+      console.log(`[Jup.Ag] [Attempt ${attempt}/3] Third reading failed`);
+      return null;
+    }
+
+    // Step 7: Verify all three readings match
+    if (reading1 === reading2 && reading2 === reading3) {
+      console.log(`[Jup.Ag] [Attempt ${attempt}/3] ✓ Value confirmed stable across 3 readings: ${reading1}`);
       return reading1;
     } else {
-      console.log(`[Jup.Ag] [Attempt ${attempt}/3] ✗ Value mismatch - Reading 1: ${reading1}, Reading 2: ${reading2}`);
+      console.log(`[Jup.Ag] [Attempt ${attempt}/3] ✗ Value mismatch - Reading 1: ${reading1}, Reading 2: ${reading2}, Reading 3: ${reading3}`);
+      // Even if they don't all match, if 2 out of 3 match, use that value
+      if (reading1 === reading2) {
+        console.log(`[Jup.Ag] [Attempt ${attempt}/3] Using Reading 1 & 2 match: ${reading1}`);
+        return reading1;
+      } else if (reading2 === reading3) {
+        console.log(`[Jup.Ag] [Attempt ${attempt}/3] Using Reading 2 & 3 match: ${reading2}`);
+        return reading2;
+      }
       return null;
     }
 
