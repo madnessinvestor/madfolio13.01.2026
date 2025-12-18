@@ -1,8 +1,13 @@
-import puppeteer, { Browser } from 'puppeteer';
+import puppeteerExtra from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { Browser } from 'puppeteer';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { addCacheEntry } from './walletCache';
 import { fetchJupPortfolio } from './jupAgScraper';
+
+// Use stealth plugin to bypass anti-bot detection
+puppeteerExtra.use(StealthPlugin());
 
 const execAsync = promisify(exec);
 
@@ -127,18 +132,26 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
   console.log(`[Step.finance] [Attempt ${attempt}/3] Extracting Jup.Ag Net Worth for ${walletName}`);
   
   try {
-    const netWorth = await page.evaluate(() => {
+    const result = await page.evaluate(() => {
       const pageText = document.body.innerText;
+      
+      // Debug: log first 500 chars of page text
+      const preview = pageText.substring(0, 500);
       
       // Find all dollar amounts in the page
       const matches = pageText.match(/\$\s*([\d,.]+)/g);
-      if (!matches) return null;
+      
+      if (!matches) {
+        return { error: 'No dollar matches found', preview };
+      }
       
       let largestValue = null;
       let largestNum = 0;
+      const allValues: string[] = [];
       
       for (const match of matches) {
         const value = match.replace('$', '').trim();
+        allValues.push(value);
         let numValue: number;
         
         // Parse: handle "2.031,91" (European) or "2,031.91" (US)
@@ -155,19 +168,22 @@ async function extractJupAgNetWorth(page: any, walletName: string, attempt: numb
         }
         
         // Keep track of the largest value > 1000 (Net Worth)
-        // Ignores: $2.61, $529, -$529, $100
         if (numValue > 1000 && numValue < 100000000 && numValue > largestNum) {
           largestValue = value;
           largestNum = numValue;
         }
       }
       
-      return largestValue;
+      return { largestValue, largestNum, allValues, preview };
     });
 
-    if (netWorth) {
-      console.log(`[Step.finance] [Attempt ${attempt}/3] Found Jup.Ag Net Worth: $${netWorth}`);
-      return `$${netWorth}`;
+    console.log(`[Jup.Ag Debug] Page preview: ${result.preview?.substring(0, 200) || 'none'}`);
+    console.log(`[Jup.Ag Debug] All dollar values found: ${JSON.stringify(result.allValues || [])}`);
+    console.log(`[Jup.Ag Debug] Largest value: ${result.largestValue} (${result.largestNum})`);
+
+    if (result.largestValue) {
+      console.log(`[Step.finance] [Attempt ${attempt}/3] Found Jup.Ag Net Worth: $${result.largestValue}`);
+      return `$${result.largestValue}`;
     }
   } catch (error) {
     console.log(`[Step.finance] [Attempt ${attempt}/3] Jup.Ag extraction error: ${error}`);
@@ -442,7 +458,7 @@ async function updateWalletBalanceSequential(wallets: WalletConfig[]): Promise<v
   try {
     const chromiumPath = await getChromiumPath();
     
-    browser = await puppeteer.launch({
+    browser = await puppeteerExtra.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -522,7 +538,7 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
   try {
     const chromiumPath = await getChromiumPath();
     
-    browser = await puppeteer.launch({
+    browser = await puppeteerExtra.launch({
       headless: true,
       args: [
         '--no-sandbox',
