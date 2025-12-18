@@ -68,43 +68,66 @@ async function extractDebankNetWorth(page: any, walletName: string, attempt: num
   try {
     const netWorth = await page.evaluate(() => {
       try {
-        // Strategy 1: Look for top-right corner value (large number with percentage)
-        // Usually appears as: $16 -1.34% or similar
         const pageText = document.body.innerText;
         const lines = pageText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         
-        // Find lines with $ followed by a number and then a percentage
-        // This pattern typically matches the portfolio total value in the top right
-        for (let i = 0; i < lines.length; i++) {
-          // Look for pattern like: $16 -1.34% or $1,234.56 +2.5%
-          const match = lines[i].match(/^\$\s*([\d,]+\.?\d*)\s+[-+][\d.]+%/);
+        console.log('[Debank] Analyzing ' + lines.length + ' lines of text');
+        
+        // Strategy 1: Look for the portfolio total - usually appears early on the page with decimals
+        // The main portfolio value typically has format: $X,XXX.XX or $XX.XX
+        const portfolioValues: Array<{value: number, text: string, index: number}> = [];
+        
+        for (let i = 0; i < Math.min(lines.length, 50); i++) { // Check first 50 lines (top of page)
+          const line = lines[i];
+          
+          // Skip lines with % (percentage changes)
+          if (line.includes('%')) continue;
+          
+          // Skip lines that are clearly labels or text
+          if (line.toLowerCase().includes('portfolio') || 
+              line.toLowerCase().includes('total value') ||
+              line.toLowerCase().includes('net worth') ||
+              line.toLowerCase().includes('change') ||
+              line.toLowerCase().includes('followers') ||
+              line.toLowerCase().includes('earnings')) continue;
+          
+          // Look for $ followed by number with decimal points (usually the real total)
+          const match = line.match(/^\$\s*([\d,]+\.\d{2})/);
           if (match) {
-            console.log('[Debank] Found top-right format: ' + lines[i]);
-            return match[1];
+            const numValue = parseFloat(match[1].replace(/,/g, ''));
+            if (numValue > 0 && numValue < 10000000) {
+              console.log('[Debank] Found portfolio value at line ' + i + ': ' + match[1]);
+              portfolioValues.push({ value: numValue, text: match[1], index: i });
+            }
           }
         }
         
-        // Strategy 2: Look for any line starting with $ and a large number (likely total)
-        // Process lines to find USD values, prioritizing larger amounts
-        const potentialValues: Array<{value: number, text: string}> = [];
+        // Return the first one found (earliest on page = most prominent = portfolio total)
+        if (portfolioValues.length > 0) {
+          portfolioValues.sort((a, b) => a.index - b.index);
+          console.log('[Debank] Selected first portfolio value: ' + portfolioValues[0].text);
+          return portfolioValues[0].text;
+        }
+        
+        // Strategy 2: Fallback - look for any $ value starting a line (priority to larger values)
+        const anyValues: Array<{value: number, text: string}> = [];
         
         for (const line of lines) {
           if (line.startsWith('$')) {
             const match = line.match(/^\$\s*([\d,]+\.?\d*)/);
             if (match) {
               const numValue = parseFloat(match[1].replace(/,/g, ''));
-              if (numValue > 0 && numValue < 10000000) { // Reasonable wallet range
-                potentialValues.push({ value: numValue, text: match[1] });
+              if (numValue > 0 && numValue < 10000000) {
+                anyValues.push({ value: numValue, text: match[1] });
               }
             }
           }
         }
         
-        // Return the largest value found (usually the total portfolio value)
-        if (potentialValues.length > 0) {
-          potentialValues.sort((a, b) => b.value - a.value);
-          console.log('[Debank] Top value candidates: ' + potentialValues.slice(0, 3).map(v => v.text).join(', '));
-          return potentialValues[0].text;
+        if (anyValues.length > 0) {
+          anyValues.sort((a, b) => b.value - a.value);
+          console.log('[Debank] Fallback - selected largest value: ' + anyValues[0].text);
+          return anyValues[0].text;
         }
         
         return null;
