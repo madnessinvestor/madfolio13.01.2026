@@ -197,9 +197,7 @@ function App() {
   }
 
   return (
-    <CurrencyProvider>
-      <AuthenticatedApp />
-    </CurrencyProvider>
+    <AuthenticatedApp />
   );
 }
 
