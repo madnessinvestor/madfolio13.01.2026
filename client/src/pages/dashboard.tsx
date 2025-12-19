@@ -58,11 +58,19 @@ export default function Dashboard() {
     queryKey: ["/api/portfolio/history"],
   });
 
-  // Calculate variations for history - show all available data from 2025 onwards
+  // Calculate variations for history - show monthly data from December 2025 onwards
   const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   
   const historyWithVariations: HistoryPoint[] = [...history]
-    .filter((point) => point.year >= 2025) // Show all data from 2025 onwards
+    .filter((point) => {
+      // Start from December 2025 onwards
+      if (point.year > 2025) return true;
+      if (point.year === 2025) {
+        const month = parseInt(point.month) || 0;
+        return month >= 12;
+      }
+      return false;
+    })
     .sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
       // Parse month string to number for proper sorting
