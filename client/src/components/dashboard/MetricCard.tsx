@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useDisplayCurrency } from "@/App";
+import { useDisplayCurrency } from "@/hooks/use-currency";
 
 interface MetricCardProps {
   title: string;

@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
-import { useDisplayCurrency } from "@/App";
+import { useDisplayCurrency } from "@/hooks/use-currency";
 
 export default function HistoryPage() {
   const { displayCurrency } = useDisplayCurrency();
