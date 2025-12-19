@@ -11,7 +11,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/hooks/use-currency";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 
 interface PortfolioSummary {
@@ -49,6 +49,20 @@ export default function Dashboard() {
   const { displayCurrency, isBalanceHidden } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
   const [, navigate] = useLocation();
+  
+  // State for selected year in chart
+  const [selectedChartYear, setSelectedChartYear] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dashboard_selectedYear");
+      return saved ? parseInt(saved) : new Date().getFullYear();
+    }
+    return new Date().getFullYear();
+  });
+  
+  // Persist year selection
+  useEffect(() => {
+    localStorage.setItem("dashboard_selectedYear", selectedChartYear.toString());
+  }, [selectedChartYear]);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
@@ -60,7 +74,7 @@ export default function Dashboard() {
 
   const currentYear = new Date().getFullYear().toString();
   const { data: monthStatus = {} } = useQuery<Record<number, boolean>>({
-    queryKey: ["/api/snapshots/month-status", currentYear],
+    queryKey: ["/api/snapshots/month-status", selectedChartYear.toString()],
   });
 
   // Calculate variations for history
@@ -72,11 +86,8 @@ export default function Dashboard() {
     return index >= 0 ? index : parseInt(monthName) - 1;
   };
   
-  // Get unique years from history
-  const uniqueYears = Array.from(new Set(history.map((h) => h.year)))
-    .sort((a, b) => a - b);
-  
-  const selectedYear = uniqueYears.length > 0 ? uniqueYears[uniqueYears.length - 1] : new Date().getFullYear();
+  // Available years: 2025-2030
+  const availableYears = [2025, 2026, 2027, 2028, 2029, 2030];
   
   // Create a map of year/month to history point for quick lookup
   const historyMap = new Map<string, any>();
@@ -88,11 +99,11 @@ export default function Dashboard() {
   
   // Generate 12 months for selected year
   const selectedYearData = monthNames.map((monthName, monthIndex) => {
-    const key = `${selectedYear}-${monthIndex}`;
+    const key = `${selectedChartYear}-${monthIndex}`;
     const point = historyMap.get(key);
     return {
       month: monthName,
-      year: selectedYear,
+      year: selectedChartYear,
       value: point?.totalValue || 0,
       isLocked: point ? (point.isLocked === 1 || true) : false,
     };
@@ -258,8 +269,9 @@ export default function Dashboard() {
             data={performanceData}
             monthStatus={monthStatus}
             onViewDetails={() => navigate("/monthly-snapshots")}
-            availableYears={uniqueYears}
-            selectedYear={selectedYear}
+            availableYears={availableYears}
+            selectedYear={selectedChartYear}
+            onYearChange={setSelectedChartYear}
           />
         ) : (
           <div className="h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
