@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { createContext, useContext, useState } from "react";
+import { useContext, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,23 +15,7 @@ import { LogOut, Loader2, Save, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-
-interface CurrencyContextType {
-  displayCurrency: DisplayCurrency;
-  setDisplayCurrency: (currency: DisplayCurrency) => void;
-  isBalanceHidden: boolean;
-  setIsBalanceHidden: (hidden: boolean) => void;
-}
-
-const CurrencyContext = createContext<CurrencyContextType | null>(null);
-
-export function useDisplayCurrency() {
-  const context = useContext(CurrencyContext);
-  if (!context) {
-    throw new Error("useDisplayCurrency must be used within a CurrencyProvider");
-  }
-  return context;
-}
+import { CurrencyProvider, useDisplayCurrency } from "@/hooks/use-currency";
 
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
@@ -65,18 +49,8 @@ function Router() {
 function AuthenticatedApp() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const context = useContext(CurrencyContext);
+  const { displayCurrency, setDisplayCurrency, isBalanceHidden, setIsBalanceHidden } = useDisplayCurrency();
   const [isSaved, setIsSaved] = useState(false);
-
-  if (!context) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  const { displayCurrency, setDisplayCurrency, isBalanceHidden, setIsBalanceHidden } = context;
   
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -179,17 +153,6 @@ function AuthenticatedApp() {
     </SidebarProvider>
   );
 }
-
-const CurrencyProvider = ({ children }: { children: React.ReactNode }) => {
-  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>("BRL");
-  const [isBalanceHidden, setIsBalanceHidden] = useState(false);
-
-  return (
-    <CurrencyContext.Provider value={{ displayCurrency, setDisplayCurrency, isBalanceHidden, setIsBalanceHidden }}>
-      {children}
-    </CurrencyContext.Provider>
-  );
-};
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth();
