@@ -1,22 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Calendar } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Asset {
   id: string;
@@ -42,14 +46,17 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
+const monthShortNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
 export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) {
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth();
+  const debounceTimerRef = useRef<Record<string, NodeJS.Timeout>>({});
   
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [monthDates, setMonthDates] = useState<Record<string, string>>({});
   const [monthUpdates, setMonthUpdates] = useState<Record<string, Record<string, string>>>({});
+  const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
 
   const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
     queryKey: ["/api/assets"],
@@ -58,13 +65,13 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
 
   useEffect(() => {
     if (assets.length > 0) {
-      // Initialize dates and updates for all months
+      const year = parseInt(selectedYear);
       const newMonthDates: Record<string, string> = {};
       const newMonthUpdates: Record<string, Record<string, string>> = {};
       
       for (let month = 0; month < 12; month++) {
         const monthKey = month.toString();
-        const lastDayOfMonth = new Date(currentYear, month + 1, 0);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
         newMonthDates[monthKey] = lastDayOfMonth.toISOString().split("T")[0];
         
         newMonthUpdates[monthKey] = {};
@@ -76,7 +83,7 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
       setMonthDates(newMonthDates);
       setMonthUpdates(newMonthUpdates);
     }
-  }, [assets, open]);
+  }, [assets, open, selectedYear]);
 
   const formatCurrencyInput = (value: number): string => {
     return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -89,7 +96,7 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    return `R$ ${formatted}`;
+    return formatted;
   };
 
   const parseCurrencyValue = (val: string): number => {
@@ -97,36 +104,61 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
     return parseFloat(num.replace(/\./g, "").replace(",", ".")) || 0;
   };
 
-  const bulkUpdateMutation = useMutation({
-    mutationFn: async (snapshotUpdates: SnapshotUpdate[]) => {
-      const promises = snapshotUpdates.map((update) =>
-        apiRequest("POST", "/api/snapshots", {
-          assetId: update.assetId,
-          value: update.value,
-          date: update.date,
-        })
-      );
-      return Promise.all(promises);
+  const updateSnapshotMutation = useMutation({
+    mutationFn: async (update: SnapshotUpdate) => {
+      return apiRequest("POST", "/api/snapshots", update);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
-      toast({
-        title: "Snapshots salvos",
-        description: "Todos os meses foram atualizados com sucesso.",
-      });
-      onOpenChange(false);
     },
     onError: () => {
       toast({
-        title: "Erro",
-        description: "Não foi possível atualizar os snapshots.",
+        title: "Erro ao salvar",
+        description: "Não foi possível atualizar o valor.",
         variant: "destructive",
       });
     },
   });
+
+  const handleUpdate = (month: string, assetId: string, value: string) => {
+    const displayValue = formatCurrencyDisplay(value);
+    setMonthUpdates((prev) => ({
+      ...prev,
+      [month]: {
+        ...prev[month],
+        [assetId]: displayValue,
+      },
+    }));
+
+    // Debounce the save
+    const cellKey = `${month}-${assetId}`;
+    if (debounceTimerRef.current[cellKey]) {
+      clearTimeout(debounceTimerRef.current[cellKey]);
+    }
+
+    setSavingCells((prev) => new Set(prev).add(cellKey));
+
+    debounceTimerRef.current[cellKey] = setTimeout(() => {
+      const parsedValue = parseCurrencyValue(displayValue);
+      const date = monthDates[month];
+      
+      if (parsedValue > 0 && date) {
+        updateSnapshotMutation.mutate({
+          assetId,
+          value: parsedValue,
+          date,
+        });
+      }
+      
+      setSavingCells((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(cellKey);
+        return newSet;
+      });
+    }, 800);
+  };
 
   const handleMonthDateChange = (month: string, date: string) => {
     setMonthDates((prev) => ({
@@ -135,177 +167,143 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
     }));
   };
 
-  const handleUpdate = (month: string, assetId: string, value: string) => {
-    setMonthUpdates((prev) => ({
-      ...prev,
-      [month]: {
-        ...prev[month],
-        [assetId]: value,
-      },
-    }));
-  };
-
-  const handleSaveAll = () => {
-    const allUpdates: SnapshotUpdate[] = [];
-
-    for (let month = 0; month < 12; month++) {
-      const monthKey = month.toString();
-      const updates = monthUpdates[monthKey] || {};
-      const date = monthDates[monthKey];
-
-      assets
-        .filter((asset) => updates[asset.id])
-        .forEach((asset) => {
-          const value = parseCurrencyValue(updates[asset.id]);
-          if (value > 0) {
-            allUpdates.push({
-              assetId: asset.id,
-              value,
-              date,
-            });
-          }
-        });
-    }
-
-    if (allUpdates.length === 0) {
-      toast({
-        title: "Nenhum dado para atualizar",
-        description: "Insira valores maiores que zero em pelo menos um mês.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    bulkUpdateMutation.mutate(allUpdates);
-  };
-
-  const handlePreviousMonth = () => {
-    const current = parseInt(selectedMonth);
-    setSelectedMonth(((current - 1 + 12) % 12).toString());
-  };
-
-  const handleNextMonth = () => {
-    const current = parseInt(selectedMonth);
-    setSelectedMonth(((current + 1) % 12).toString());
-  };
-
-  const currentMonthUpdates = monthUpdates[selectedMonth] || {};
-  const currentMonthDate = monthDates[selectedMonth] || "";
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-full h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Registrar Snapshots Mensais
+            Atualizar Investimentos
           </DialogTitle>
           <DialogDescription>
-            Atualize o valor de todos os seus investimentos para cada mês. Visualize a evolução do seu patrimônio.
+            Atualize os valores de todos os seus investimentos mês a mês. Os dados são salvos automaticamente.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col gap-4">
-          {/* Month Navigation */}
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handlePreviousMonth}
-              data-testid="button-previous-month"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            <div className="flex-1 text-center">
-              <h3 className="text-lg font-semibold">
-                {monthNames[parseInt(selectedMonth)]}
-              </h3>
-            </div>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleNextMonth}
-              data-testid="button-next-month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Date Input */}
-          <div className="grid gap-2">
-            <Label htmlFor={`month-date-${selectedMonth}`}>
-              Data de Atualização - {monthNames[parseInt(selectedMonth)]}
+        <div className="flex-1 overflow-hidden flex flex-col px-6 gap-4">
+          {/* Year Selector */}
+          <div className="flex items-center gap-4">
+            <Label htmlFor="year-select" className="font-medium">
+              Ano:
             </Label>
-            <Input
-              id={`month-date-${selectedMonth}`}
-              type="date"
-              value={currentMonthDate}
-              onChange={(e) => handleMonthDateChange(selectedMonth, e.target.value)}
-              data-testid={`input-month-date-${selectedMonth}`}
-            />
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Assets List */}
-          <div className="grid gap-2 flex-1 overflow-hidden flex flex-col">
-            <Label>Investimentos ({assets.length})</Label>
-            {assetsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
+          {/* Table */}
+          {assetsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : assets.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhum investimento cadastrado.</p>
+          ) : (
+            <ScrollArea className="flex-1 border rounded-lg">
+              <div className="inline-block min-w-full">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-background border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold min-w-[200px] border-r sticky left-0 bg-background">
+                        Investimento
+                      </th>
+                      {monthNames.map((_, idx) => (
+                        <th key={idx} className="px-2 py-3 text-center font-semibold min-w-[90px] border-r">
+                          <div className="text-xs">{monthShortNames[idx]}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assets.map((asset) => (
+                      <tr key={asset.id} className="border-b hover:bg-muted/50 transition-colors">
+                        <td className="px-4 py-3 font-medium min-w-[200px] border-r sticky left-0 bg-background hover:bg-muted/50">
+                          <div className="text-sm font-semibold">{asset.name}</div>
+                          <div className="text-xs text-muted-foreground">{asset.symbol}</div>
+                        </td>
+                        {Array.from({ length: 12 }).map((_, monthIdx) => {
+                          const monthKey = monthIdx.toString();
+                          const cellKey = `${monthKey}-${asset.id}`;
+                          const value = monthUpdates[monthKey]?.[asset.id] || "";
+                          const isSaving = savingCells.has(cellKey);
+                          
+                          return (
+                            <td key={monthIdx} className="px-2 py-3 border-r">
+                              <div className="relative">
+                                <Input
+                                  value={value}
+                                  onChange={(e) => handleUpdate(monthKey, asset.id, e.target.value)}
+                                  placeholder="R$ 0,00"
+                                  className="text-right text-sm w-full"
+                                  data-testid={`input-snapshot-${monthKey}-${asset.id}`}
+                                />
+                                {isSaving && (
+                                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ) : assets.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Nenhum investimento cadastrado.</p>
-            ) : (
-              <ScrollArea className="flex-1 pr-4">
-                <div className="space-y-3">
-                  {assets.map((asset) => (
-                    <Card key={asset.id} className="border">
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{asset.name}</p>
-                            <p className="text-xs text-muted-foreground">{asset.symbol}</p>
-                          </div>
-                          <Input
-                            value={currentMonthUpdates[asset.id] || ""}
-                            onChange={(e) => 
-                              handleUpdate(selectedMonth, asset.id, formatCurrencyDisplay(e.target.value))
-                            }
-                            placeholder="R$ 0,00"
-                            className="w-40 text-right text-sm"
-                            data-testid={`input-snapshot-${selectedMonth}-${asset.id}`}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
+            </ScrollArea>
+          )}
+
+          {/* Date Row */}
+          {!assetsLoading && assets.length > 0 && (
+            <div className="grid grid-cols-12 gap-2 border-t pt-4">
+              <div className="col-span-full">
+                <Label className="text-xs font-semibold text-muted-foreground mb-2 block">
+                  Data de Atualização para cada mês:
+                </Label>
+              </div>
+              {monthNames.map((_, monthIdx) => {
+                const monthKey = monthIdx.toString();
+                const date = monthDates[monthKey] || "";
+                
+                return (
+                  <div key={monthIdx} className="flex flex-col gap-1">
+                    <label className="text-xs font-medium">{monthShortNames[monthIdx]}</label>
+                    <Input
+                      type="date"
+                      value={date}
+                      onChange={(e) => handleMonthDateChange(monthKey, e.target.value)}
+                      className="text-xs"
+                      data-testid={`input-month-date-${monthKey}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <DialogFooter>
+        <div className="px-6 py-4 border-t flex justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            data-testid="button-cancel-bulk-update"
+            data-testid="button-close-bulk-update"
           >
-            Cancelar
+            Fechar
           </Button>
-          <Button
-            onClick={handleSaveAll}
-            disabled={bulkUpdateMutation.isPending || assetsLoading}
-            data-testid="button-save-all-snapshots"
-          >
-            {bulkUpdateMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            Salvar Todos os Meses
-          </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
