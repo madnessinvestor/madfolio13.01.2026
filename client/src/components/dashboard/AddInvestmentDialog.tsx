@@ -22,11 +22,14 @@ import { Plus, Loader2, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface WalletBalance {
+  id?: string;
   name: string;
-  address: string;
+  link: string;
   balance: string;
   lastUpdated: string;
   error?: string;
+  status?: 'success' | 'temporary_error' | 'unavailable';
+  lastKnownValue?: string;
 }
 
 export type AssetCategory = "crypto" | "stocks" | "fixed_income" | "cash" | "fii" | "etf" | "real_estate" | "others";
@@ -424,12 +427,12 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
               <>
                 <div className="grid gap-2">
                   <Label htmlFor="wallet-select">Selecionar Wallet</Label>
-                  <Select value={walletAddress} onValueChange={(value) => {
-                    setWalletAddress(value);
-                    const selectedWallet = debankWallets.find(w => w.address === value);
+                  <Select value={walletName} onValueChange={(value) => {
+                    const selectedWallet = debankWallets.find(w => w.name === value);
                     if (selectedWallet) {
                       setWalletName(selectedWallet.name);
-                      const balanceValue = selectedWallet.balance.replace(/[$,]/g, '');
+                      setWalletAddress(selectedWallet.name);
+                      const balanceValue = selectedWallet.balance.replace(/[$,\s]/g, '');
                       setCryptoValueUSD(balanceValue);
                       
                       const parsedUSD = parseFloat(balanceValue);
@@ -448,7 +451,7 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
                     </SelectTrigger>
                     <SelectContent>
                       {debankWallets.map((wallet) => (
-                        <SelectItem key={wallet.address} value={wallet.address}>
+                        <SelectItem key={wallet.name} value={wallet.name}>
                           <div className="flex items-center gap-2">
                             <Wallet className="h-4 w-4" />
                             {wallet.name} - {wallet.balance}
