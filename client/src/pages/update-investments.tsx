@@ -42,11 +42,21 @@ export default function UpdateInvestmentsPage() {
   const [monthUpdateDates, setMonthUpdateDates] = useState<Record<string, string>>({});
   const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
 
-  // Generate month sequence starting from current month
+  // Generate month sequence starting from December 2025
   const getMonthSequence = () => {
+    const year = parseInt(selectedYear);
     const sequence = [];
-    for (let i = 0; i < 12; i++) {
-      sequence.push((currentMonth + i) % 12);
+    
+    if (year === 2025) {
+      // For 2025, start from December (month 11)
+      for (let i = 11; i < 12; i++) {
+        sequence.push(i);
+      }
+    } else {
+      // For 2026 and onwards, show all 12 months
+      for (let i = 0; i < 12; i++) {
+        sequence.push(i);
+      }
     }
     return sequence;
   };
@@ -192,7 +202,7 @@ export default function UpdateInvestmentsPage() {
     return `${day}/${month}/${year}`;
   };
 
-  const years = Array.from({ length: 5 }, (_, i) => (currentYear - 4 + i).toString());
+  const years = Array.from({ length: 5 }, (_, i) => (2025 + i).toString());
 
   return (
     <div className="space-y-6 p-6">
