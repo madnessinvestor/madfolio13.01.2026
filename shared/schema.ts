@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, timestamp, date } from "drizzle-orm/pg-core";
+import { sqliteTable, text, varchar, integer, real, timestamp } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export * from "./models/auth";
 
-export const assets = pgTable("assets", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const assets = sqliteTable("assets", {
+  id: varchar("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
   userId: varchar("user_id"),
   symbol: text("symbol").notNull(),
   name: text("name").notNull(),
@@ -15,7 +15,7 @@ export const assets = pgTable("assets", {
   currency: text("currency").notNull().default("BRL"),
   quantity: real("quantity").notNull().default(0),
   acquisitionPrice: real("acquisition_price").notNull().default(0),
-  acquisitionDate: date("acquisition_date"),
+  acquisitionDate: varchar("acquisition_date"),
   currentPrice: real("current_price"),
   lastPriceUpdate: timestamp("last_price_update"),
   isDeleted: integer("is_deleted").default(0),
@@ -26,13 +26,13 @@ export const insertAssetSchema = createInsertSchema(assets).omit({ id: true });
 export type InsertAsset = z.infer<typeof insertAssetSchema>;
 export type Asset = typeof assets.$inferSelect;
 
-export const snapshots = pgTable("snapshots", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const snapshots = sqliteTable("snapshots", {
+  id: varchar("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
   assetId: varchar("asset_id").notNull().references(() => assets.id, { onDelete: "cascade" }),
   value: real("value").notNull(),
   amount: real("amount"),
   unitPrice: real("unit_price"),
-  date: date("date").notNull(),
+  date: varchar("date").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -41,8 +41,8 @@ export const insertSnapshotSchema = createInsertSchema(snapshots).omit({ id: tru
 export type InsertSnapshot = z.infer<typeof insertSnapshotSchema>;
 export type Snapshot = typeof snapshots.$inferSelect;
 
-export const monthlyStatements = pgTable("monthly_statements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const monthlyStatements = sqliteTable("monthly_statements", {
+  id: varchar("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   startValue: real("start_value").notNull().default(0),
@@ -55,12 +55,12 @@ export const insertMonthlyStatementSchema = createInsertSchema(monthlyStatements
 export type InsertMonthlyStatement = z.infer<typeof insertMonthlyStatementSchema>;
 export type MonthlyStatement = typeof monthlyStatements.$inferSelect;
 
-export const wallets = pgTable("wallets", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const wallets = sqliteTable("wallets", {
+  id: varchar("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
   userId: varchar("user_id"),
   name: text("name").notNull(),
   link: text("link").notNull(),
-  platform: text("platform").notNull().default("debank"), // debank, step
+  platform: text("platform").notNull().default("debank"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -68,13 +68,13 @@ export const insertWalletSchema = createInsertSchema(wallets).omit({ id: true, c
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
 export type Wallet = typeof wallets.$inferSelect;
 
-export const portfolioHistory = pgTable("portfolio_history", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const portfolioHistory = sqliteTable("portfolio_history", {
+  id: varchar("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
   userId: varchar("user_id"),
   totalValue: real("total_value").notNull(),
   month: integer("month").notNull(),
   year: integer("year").notNull(),
-  date: date("date").notNull(),
+  date: varchar("date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -82,16 +82,16 @@ export const insertPortfolioHistorySchema = createInsertSchema(portfolioHistory)
 export type InsertPortfolioHistory = z.infer<typeof insertPortfolioHistorySchema>;
 export type PortfolioHistory = typeof portfolioHistory.$inferSelect;
 
-export const activityLogs = pgTable("activity_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const activityLogs = sqliteTable("activity_logs", {
+  id: varchar("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
   userId: varchar("user_id"),
-  type: text("type").notNull(), // create, update, delete, snapshot
-  category: text("category").notNull(), // asset, snapshot, etc
+  type: text("type").notNull(),
+  category: text("category").notNull(),
   assetId: varchar("asset_id"),
   assetName: text("asset_name"),
   assetSymbol: text("asset_symbol"),
-  action: text("action").notNull(), // detailed action description
-  details: text("details"), // JSON details of the change
+  action: text("action").notNull(),
+  details: text("details"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
