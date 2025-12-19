@@ -1,16 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  LineChart,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
   Bar,
+  Legend,
 } from "recharts";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PerformanceDataPoint {
   month: string;
@@ -67,73 +66,47 @@ export function PerformanceChart({ data, title = "Evolução do Portfólio" }: P
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="line" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="line" data-testid="tab-line-chart">Linha</TabsTrigger>
-            <TabsTrigger value="bar" data-testid="tab-bar-chart">Barras</TabsTrigger>
-          </TabsList>
-          <TabsContent value="line">
-            <div className="h-96">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    className="text-muted-foreground"
-                  />
-                  <YAxis
-                    tickFormatter={formatCurrency}
-                    tick={{ fontSize: 12 }}
-                    className="text-muted-foreground"
-                    width={60}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </TabsContent>
-          <TabsContent value="bar">
-            <div className="h-96">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    className="text-muted-foreground"
-                  />
-                  <YAxis
-                    tickFormatter={formatCurrency}
-                    tick={{ fontSize: 12 }}
-                    className="text-muted-foreground"
-                    width={60}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar
-                    dataKey="value"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </TabsContent>
-        </Tabs>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                className="text-muted-foreground"
+              />
+              <YAxis
+                tickFormatter={formatCurrency}
+                tick={{ fontSize: 12 }}
+                className="text-muted-foreground"
+                width={60}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ paddingTop: "20px" }}
+                iconType="line"
+              />
+              <Bar
+                dataKey="value"
+                fill="hsl(var(--primary) / 0.3)"
+                radius={[4, 4, 0, 0]}
+                name="Valor do Portfólio"
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+                name="Evolução"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

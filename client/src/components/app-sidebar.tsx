@@ -17,7 +17,6 @@ import {
   Landmark,
   BarChart3,
   Building2,
-  History,
   FileText,
   Wallet,
   RefreshCw,
@@ -49,11 +48,6 @@ const menuItems = [
     title: "Imóveis",
     url: "/real-estate",
     icon: Building2,
-  },
-  {
-    title: "Evolução do Portfólio",
-    url: "/history",
-    icon: History,
   },
   {
     title: "Lançamentos",
