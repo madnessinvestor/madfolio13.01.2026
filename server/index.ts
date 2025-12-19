@@ -73,6 +73,45 @@ app.use((req, res, next) => {
     console.error("[SQLite] Error initializing database:", error);
   }
 
+  // Seed admin users from admin-seed.json
+  try {
+    const bcrypt = await import("bcrypt");
+    const fs = await import("fs");
+    const path = await import("path");
+    const { db } = await import("./db");
+    const { users } = await import("@shared/models/auth");
+    const { eq } = await import("drizzle-orm");
+
+    const seedFilePath = path.default.join(process.cwd(), "admin-seed.json");
+    if (fs.default.existsSync(seedFilePath)) {
+      const seedData = JSON.parse(fs.default.readFileSync(seedFilePath, "utf-8"));
+      
+      for (const seedUser of seedData) {
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, seedUser.email));
+
+        if (existingUser.length === 0) {
+          const hashedPassword = await bcrypt.default.hash(seedUser.password, 10);
+          await db.insert(users).values({
+            id: seedUser.id,
+            email: seedUser.email,
+            username: seedUser.username,
+            passwordHash: hashedPassword,
+            profileImageUrl: seedUser.profileImageUrl,
+            authProvider: "local",
+          });
+          log(`[Seed] Admin user "${seedUser.username}" created successfully`);
+        } else {
+          log(`[Seed] User "${seedUser.email}" already exists, skipping`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[Seed] Error seeding admin users:", error);
+  }
+
   await setupAuth(app);
   setupCredentialAuth(app);
   registerAuthRoutes(app);
