@@ -29,7 +29,7 @@ export function initializeDatabase() {
   // Create default admin user if it doesn't exist
   const adminUsername = "madnessinvestor";
   const adminEmail = "madnessinvestor@yahoo.com";
-  const adminPassword = "admin123"; // Default password
+  const adminPassword = "123456"; // Default password
 
   const existingAdmin = sqliteDb
     .prepare("SELECT id FROM users WHERE username = ?")
