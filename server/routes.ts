@@ -773,21 +773,20 @@ export async function registerRoutes(
   app.get("/api/portfolio/history", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     try {
-      const history = await storage.getPortfolioHistory(userId);
+      // Get history from snapshots (this includes ALL investments: cripto, renda fixa, renda variável, imóveis)
+      const historyByMonth = await storage.getPortfolioHistoryByMonth(userId);
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
       
-      const formattedHistory = history
-        .sort((a, b) => {
-          if (a.year !== b.year) return a.year - b.year;
-          return a.month - b.month;
-        })
+      const formattedHistory = historyByMonth
         .map((h, index, array) => {
-          const prevValue = index > 0 ? array[index - 1].totalValue : 0;
+          const prevValue = index > 0 ? array[index - 1].value : 0;
           return {
             month: `${monthNames[h.month - 1]}`,
             year: h.year,
-            value: h.totalValue,
-            variation: prevValue > 0 ? ((h.totalValue - prevValue) / prevValue) * 100 : 0
+            value: h.value,
+            totalValue: h.value,
+            variation: prevValue > 0 ? ((h.value - prevValue) / prevValue) * 100 : 0,
+            variationPercent: prevValue > 0 ? ((h.value - prevValue) / prevValue) * 100 : 0
           };
         });
       

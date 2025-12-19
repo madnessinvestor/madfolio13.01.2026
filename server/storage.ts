@@ -35,6 +35,8 @@ export interface IStorage {
   
   getPortfolioHistory(userId?: string): Promise<PortfolioHistory[]>;
   createPortfolioHistory(history: InsertPortfolioHistory): Promise<PortfolioHistory>;
+  getPortfolioHistoryBySnapshots(userId?: string): Promise<Array<{date: string; totalValue: number; month: number; year: number}>>;
+  getPortfolioHistoryByMonth(userId?: string): Promise<Array<{month: number; year: number; value: number}>>;
 
   getActivities(userId?: string): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
@@ -264,6 +266,67 @@ export class DatabaseStorage implements IStorage {
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
     const [newLog] = await db.insert(activityLogs).values(log).returning();
     return newLog;
+  }
+
+  async getPortfolioHistoryBySnapshots(userId?: string): Promise<Array<{date: string; totalValue: number; month: number; year: number}>> {
+    const allAssets = await this.getAssets(userId);
+    const allSnapshots = await this.getSnapshots();
+    
+    // Group snapshots by date
+    const snapshotsByDate: Record<string, Snapshot[]> = {};
+    allSnapshots.forEach(snapshot => {
+      if (!snapshotsByDate[snapshot.date]) {
+        snapshotsByDate[snapshot.date] = [];
+      }
+      snapshotsByDate[snapshot.date].push(snapshot);
+    });
+    
+    // Calculate portfolio value for each date
+    const portfolioHistory: Array<{date: string; totalValue: number; month: number; year: number}> = [];
+    
+    Object.entries(snapshotsByDate).forEach(([date, dateSnapshots]) => {
+      let totalValue = 0;
+      dateSnapshots.forEach(snapshot => {
+        totalValue += snapshot.value;
+      });
+      
+      const dateObj = new Date(date);
+      portfolioHistory.push({
+        date,
+        totalValue,
+        month: dateObj.getMonth() + 1,
+        year: dateObj.getFullYear()
+      });
+    });
+    
+    // Sort by date
+    return portfolioHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
+
+  async getPortfolioHistoryByMonth(userId?: string): Promise<Array<{month: number; year: number; value: number}>> {
+    const history = await this.getPortfolioHistoryBySnapshots(userId);
+    
+    // Group by month and get the last value for each month
+    const byMonth: Record<string, {month: number; year: number; value: number; lastDate: string}> = {};
+    
+    history.forEach(item => {
+      const key = `${item.year}-${item.month}`;
+      if (!byMonth[key] || new Date(item.date) > new Date(byMonth[key].lastDate)) {
+        byMonth[key] = {
+          month: item.month,
+          year: item.year,
+          value: item.totalValue,
+          lastDate: item.date
+        };
+      }
+    });
+    
+    return Object.values(byMonth)
+      .map(({ month, year, value }) => ({ month, year, value }))
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+      });
   }
 }
 
