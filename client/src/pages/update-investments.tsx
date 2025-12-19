@@ -268,6 +268,27 @@ export default function UpdateInvestmentsPage() {
     }
   };
 
+  const handleEditMonth = async (month: number) => {
+    setSavingMonths((prev) => new Set(prev).add(month));
+
+    try {
+      const year = parseInt(selectedYear);
+      lockMonthMutation.mutate({ year, month, locked: false });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao desbloquear mês para edição",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingMonths((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(month);
+        return newSet;
+      });
+    }
+  };
+
   const formatDateBR = (dateStr: string): string => {
     if (!dateStr) return "";
     const [year, month, day] = dateStr.split("-");
@@ -413,14 +434,18 @@ export default function UpdateInvestmentsPage() {
                       return (
                         <td key={displayIdx} className="border-r px-2 py-2">
                           <div className="space-y-2 text-center">
-                            <div className="text-sm font-semibold">
+                            <div className={`text-sm font-semibold transition-colors ${
+                              isMonthLocked ? "text-gray-400 dark:text-gray-500" : ""
+                            }`}>
                               {formatCurrencyDisplay(currentTotal)}
                             </div>
                             {displayIdx > 0 && (
                               <>
                                 <div
-                                  className={`text-xs font-medium ${
-                                    evolution.value > 0
+                                  className={`text-xs font-medium transition-colors ${
+                                    isMonthLocked 
+                                      ? "text-gray-400 dark:text-gray-500"
+                                      : evolution.value > 0
                                       ? "text-green-600 dark:text-green-400"
                                       : evolution.value < 0
                                         ? "text-red-600 dark:text-red-400"
@@ -430,8 +455,10 @@ export default function UpdateInvestmentsPage() {
                                   {evolution.value > 0 ? "+" : ""}{formatCurrencyDisplay(evolution.value)}
                                 </div>
                                 <div
-                                  className={`text-xs font-medium ${
-                                    evolution.value > 0
+                                  className={`text-xs font-medium transition-colors ${
+                                    isMonthLocked
+                                      ? "text-gray-400 dark:text-gray-500"
+                                      : evolution.value > 0
                                       ? "text-green-600 dark:text-green-400"
                                       : evolution.value < 0
                                         ? "text-red-600 dark:text-red-400"
@@ -442,31 +469,52 @@ export default function UpdateInvestmentsPage() {
                                 </div>
                               </>
                             )}
-                            <Button
-                              onClick={() => handleSaveMonth(actualMonth)}
-                              disabled={isMonthLocked || savingMonths.has(actualMonth)}
-                              size="sm"
-                              variant={isMonthLocked ? "secondary" : "default"}
-                              className="w-full gap-1"
-                              data-testid={`button-save-month-${actualMonth}`}
-                            >
-                              {isMonthLocked ? (
-                                <>
-                                  <Lock className="w-3 h-3" />
-                                  Bloqueado
-                                </>
-                              ) : savingMonths.has(actualMonth) ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  Salvando
-                                </>
+                            <div className="flex gap-2">
+                              {!isMonthLocked ? (
+                                <Button
+                                  onClick={() => handleSaveMonth(actualMonth)}
+                                  disabled={savingMonths.has(actualMonth)}
+                                  size="sm"
+                                  variant="default"
+                                  className="flex-1 gap-1"
+                                  data-testid={`button-save-month-${actualMonth}`}
+                                >
+                                  {savingMonths.has(actualMonth) ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      Salvando
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Save className="w-3 h-3" />
+                                      Salvar
+                                    </>
+                                  )}
+                                </Button>
                               ) : (
                                 <>
-                                  <Save className="w-3 h-3" />
-                                  Salvar
+                                  <Button
+                                    onClick={() => handleEditMonth(actualMonth)}
+                                    disabled={savingMonths.has(actualMonth)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 gap-1"
+                                    data-testid={`button-edit-month-${actualMonth}`}
+                                  >
+                                    {savingMonths.has(actualMonth) ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Lock className="w-3 h-3" />
+                                        Editar
+                                      </>
+                                    )}
+                                  </Button>
                                 </>
                               )}
-                            </Button>
+                            </div>
                           </div>
                         </td>
                       );
