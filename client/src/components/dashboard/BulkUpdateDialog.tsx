@@ -137,6 +137,7 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       toast({
         title: "Valor atualizado",
         description: "O lançamento foi registrado no histórico.",

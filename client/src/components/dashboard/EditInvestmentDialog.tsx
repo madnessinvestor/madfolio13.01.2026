@@ -97,6 +97,7 @@ export function EditInvestmentDialog({ assetId, open, onOpenChange }: EditInvest
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/snapshots", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       toast({
         title: "Investimento atualizado",
         description: "As alterações foram salvas com sucesso.",
@@ -123,6 +124,7 @@ export function EditInvestmentDialog({ assetId, open, onOpenChange }: EditInvest
       queryClient.invalidateQueries({ queryKey: ["/api/assets", assetId] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       toast({
         title: "Valor atualizado",
         description: "O valor do investimento foi registrado com sucesso.",
@@ -160,10 +162,19 @@ export function EditInvestmentDialog({ assetId, open, onOpenChange }: EditInvest
     return parseFloat(num.replace(/\./g, "").replace(",", ".")) || 0;
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     const parsedQuantity = parseFloat(quantity.replace(",", ".")) || 1;
     const parsedAcquisitionPrice = parseCurrencyValue(acquisitionPrice);
     const parsedCurrentValue = parseCurrencyValue(currentValue);
+
+    await apiRequest("POST", "/api/activities", {
+      type: "update",
+      category: "asset",
+      assetName: name,
+      assetSymbol: symbol.toUpperCase(),
+      action: `Editado investimento`,
+      details: `Quantidade: ${parsedQuantity}, Valor: R$ ${parsedCurrentValue.toFixed(2)}`,
+    }).catch(() => {});
 
     updateAssetMutation.mutate({
       name,
@@ -175,10 +186,19 @@ export function EditInvestmentDialog({ assetId, open, onOpenChange }: EditInvest
     });
   };
 
-  const handleCreateSnapshot = () => {
+  const handleCreateSnapshot = async () => {
     const parsedQuantity = parseFloat(updateQuantity.replace(",", ".")) || 1;
     const parsedPrice = parseCurrencyValue(updatePrice);
     const totalValue = parsedQuantity * parsedPrice;
+
+    await apiRequest("POST", "/api/activities", {
+      type: "snapshot",
+      category: "asset",
+      assetName: asset?.name,
+      assetSymbol: asset?.symbol,
+      action: `Valor atualizado`,
+      details: `Quantidade: ${parsedQuantity}, Valor Total: R$ ${totalValue.toFixed(2)}`,
+    }).catch(() => {});
 
     createSnapshotMutation.mutate({
       assetId,
