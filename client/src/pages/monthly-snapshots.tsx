@@ -226,10 +226,18 @@ export default function MonthlySnapshotsPage() {
         }
       }
 
-      if (updates.length > 0) {
-        for (const update of updates) {
-          await apiRequest("POST", "/api/snapshots", update);
-        }
+      if (updates.length === 0) {
+        toast({
+          title: "Aviso",
+          description: "Nenhum valor foi informado para este mês",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Save all snapshots
+      for (const update of updates) {
+        await apiRequest("POST", "/api/snapshots", update);
       }
 
       const year = parseInt(selectedYear);
@@ -244,11 +252,27 @@ export default function MonthlySnapshotsPage() {
         });
       }
       
-      lockMonthMutation.mutate({ year, month: month + 1, locked: true });
+      // Lock the month after all snapshots are saved
+      await new Promise((resolve, reject) => {
+        lockMonthMutation.mutate(
+          { year, month: month + 1, locked: true },
+          {
+            onSuccess: () => resolve(true),
+            onError: () => reject(new Error("Falha ao bloquear mês")),
+          }
+        );
+      });
+
+      // Show success message
+      toast({
+        title: "Sucesso",
+        description: `${monthShortNames[month]} ${year} foi salvo e bloqueado`,
+      });
     } catch (error) {
+      console.error("Error saving month:", error);
       toast({
         title: "Erro",
-        description: "Falha ao salvar mês",
+        description: error instanceof Error ? error.message : "Falha ao salvar mês",
         variant: "destructive",
       });
     } finally {
