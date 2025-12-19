@@ -53,6 +53,14 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/debug/user-info", isAuthenticated, async (req: any, res) => {
+    res.json({
+      userId: req.user?.claims?.sub,
+      user: req.user,
+      claims: req.user?.claims
+    });
+  });
+
   app.post("/login", (req, res) => {
     const { usernameOrEmail, password } = req.body;
     const result = validateCredentials(usernameOrEmail, password);
@@ -65,7 +73,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/assets", isAuthenticated, async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = req.session?.userId || req.user?.claims?.sub;
     try {
       const market = req.query.market as string | undefined;
       const assets = market 
@@ -90,8 +98,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/assets", isAuthenticated, async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = req.session?.userId || req.user?.claims?.sub;
     try {
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
       const validated = insertAssetSchema.parse(req.body);
       const asset = await storage.createAsset({ ...validated, userId });
       
@@ -123,7 +134,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/assets/:id", isAuthenticated, async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = req.session?.userId || req.user?.claims?.sub;
     try {
       const oldAsset = await storage.getAsset(req.params.id);
       const validated = insertAssetSchema.partial().parse(req.body);
