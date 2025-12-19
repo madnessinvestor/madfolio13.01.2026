@@ -207,23 +207,47 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col px-6 gap-4">
-          {/* Year Selector */}
-          <div className="flex items-center gap-4">
-            <Label htmlFor="year-select" className="font-medium">
-              Ano:
-            </Label>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Year and Global Date Selectors */}
+          <div className="flex items-center gap-8 bg-muted/30 p-4 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Label htmlFor="year-select" className="font-semibold text-sm">
+                Ano:
+              </Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[120px] bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Label className="font-semibold text-sm flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Data da Atualização Geral:
+              </Label>
+              <Input
+                type="date"
+                className="w-[180px] bg-background"
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  const newMonthDates = { ...monthDates };
+                  Object.keys(newMonthDates).forEach(key => {
+                    newMonthDates[key] = newDate;
+                  });
+                  setMonthDates(newMonthDates);
+                }}
+              />
+              <span className="text-xs text-muted-foreground">
+                (Aplica esta data a todos os lançamentos abaixo)
+              </span>
+            </div>
           </div>
 
           {/* Table */}
@@ -269,13 +293,6 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                         return (
                           <th key={idx} className="px-2 py-2 text-center font-semibold min-w-[110px] border-r">
                             <div className="text-xs font-medium mb-1">{monthShortNames[idx]}</div>
-                            <Input
-                              type="date"
-                              value={date}
-                              onChange={(e) => handleMonthDateChange(monthKey, e.target.value)}
-                              className="text-xs h-7"
-                              data-testid={`input-month-date-${monthKey}`}
-                            />
                             <div className="text-xs text-muted-foreground mt-1">{formattedDate}</div>
                             <div className="text-xs font-semibold mt-2 text-foreground">{formatCurrencyValue(monthTotal)}</div>
                             {idx > 0 && (
