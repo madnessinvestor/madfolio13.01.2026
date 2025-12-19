@@ -235,28 +235,24 @@ export default function UpdateInvestmentsPage() {
             <div className="overflow-x-auto border rounded-lg">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="sticky left-0 z-20 bg-muted/50 border-r px-4 py-3 text-left font-semibold min-w-40">
+                  <tr className="border-b bg-background">
+                    <th className="sticky left-0 z-20 bg-background border-r px-4 py-3 text-left font-semibold min-w-40">
                       Investimento
                     </th>
                     {monthSequence.map((actualMonth, displayIdx) => (
-                      <th key={displayIdx} className="border-r px-3 py-3 text-center font-semibold min-w-32">
-                        <div className="flex flex-col gap-1">
-                          <span>{monthShortNames[actualMonth]}</span>
-                          <span className="text-xs font-normal text-muted-foreground">
-                            Data da Amortização
-                          </span>
-                        </div>
+                      <th key={displayIdx} className="border-r px-2 py-2 text-center font-semibold min-w-28">
+                        <div className="text-xs font-medium">{monthShortNames[actualMonth]}</div>
+                        <div className="text-xs text-muted-foreground font-normal">Data da Amortização</div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Header row with dates */}
-                  <tr className="border-b bg-background">
-                    <td className="sticky left-0 z-20 bg-background border-r px-4 py-2"></td>
+                  {/* Date input row */}
+                  <tr className="border-b bg-muted/20">
+                    <td className="sticky left-0 z-10 bg-muted/20 border-r px-4 py-2"></td>
                     {monthSequence.map((actualMonth, displayIdx) => (
-                      <td key={displayIdx} className="border-r px-3 py-2 text-center">
+                      <td key={displayIdx} className="border-r px-2 py-2">
                         <input
                           type="date"
                           value={monthDates[actualMonth] || ""}
@@ -266,7 +262,7 @@ export default function UpdateInvestmentsPage() {
                               [actualMonth]: e.target.value,
                             }));
                           }}
-                          className="w-24 px-2 py-1 text-xs border rounded text-center"
+                          className="w-full px-2 py-1 text-xs border rounded bg-background"
                           data-testid={`input-month-date-${actualMonth}`}
                         />
                       </td>
@@ -275,31 +271,33 @@ export default function UpdateInvestmentsPage() {
 
                   {/* Asset rows */}
                   {assets.map((asset) => (
-                    <tr key={asset.id} className="border-b hover:bg-muted/30">
-                      <td className="sticky left-0 z-10 bg-background hover:bg-muted/30 border-r px-4 py-3">
-                        <div>
-                          <p className="font-semibold">{asset.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{asset.name}</p>
-                        </div>
+                    <tr key={asset.id} className="border-b hover:bg-muted/50">
+                      <td className="sticky left-0 z-10 bg-background hover:bg-muted/50 border-r px-4 py-3">
+                        <p className="font-semibold text-sm">{asset.symbol}</p>
+                        <p className="text-xs text-muted-foreground">{asset.name}</p>
                       </td>
                       {monthSequence.map((actualMonth, displayIdx) => {
                         const cellKey = `${asset.id}-${actualMonth}`;
                         const isSaving = savingCells.has(cellKey);
-                        const currentValue = getMonthValue(asset.id, actualMonth);
                         return (
-                          <td key={displayIdx} className="border-r px-3 py-2 text-center">
-                            <input
-                              type="text"
-                              value={monthUpdates[actualMonth]?.[asset.id] || ""}
-                              onChange={(e) =>
-                                handleValueChange(asset.id, actualMonth.toString(), e.target.value)
-                              }
-                              placeholder="0,00"
-                              className={`w-full px-2 py-1 text-xs border rounded text-right ${
-                                isSaving ? "bg-blue-50 dark:bg-blue-950/30" : ""
-                              }`}
-                              data-testid={`input-value-${asset.id}-${actualMonth}`}
-                            />
+                          <td key={displayIdx} className="border-r px-2 py-2">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={monthUpdates[actualMonth]?.[asset.id] || ""}
+                                onChange={(e) =>
+                                  handleValueChange(asset.id, actualMonth.toString(), e.target.value)
+                                }
+                                placeholder="0,00"
+                                className={`w-full px-2 py-1 text-xs border rounded text-right bg-background transition-colors ${
+                                  isSaving ? "bg-blue-50 dark:bg-blue-950/30 border-blue-300" : ""
+                                }`}
+                                data-testid={`input-value-${asset.id}-${actualMonth}`}
+                              />
+                              {isSaving && (
+                                <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
                           </td>
                         );
                       })}
@@ -308,8 +306,8 @@ export default function UpdateInvestmentsPage() {
 
                   {/* Total row */}
                   <tr className="bg-muted/50 border-t-2 font-semibold">
-                    <td className="sticky left-0 z-10 bg-muted/50 border-r px-4 py-3">
-                      <span>Soma dos Investimentos</span>
+                    <td className="sticky left-0 z-10 bg-muted/50 border-r px-4 py-3 text-sm">
+                      Soma dos Investimentos
                     </td>
                     {monthSequence.map((actualMonth, displayIdx) => {
                       const currentTotal = getMonthTotalValue(actualMonth);
@@ -317,15 +315,15 @@ export default function UpdateInvestmentsPage() {
                       const evolution = calculateEvolution(currentTotal, previousTotal);
 
                       return (
-                        <td key={displayIdx} className="border-r px-3 py-3 text-center">
-                          <div className="space-y-1">
+                        <td key={displayIdx} className="border-r px-2 py-2">
+                          <div className="space-y-1 text-center">
                             <div className="text-sm font-semibold">
                               {formatCurrencyDisplay(currentTotal)}
                             </div>
                             {displayIdx > 0 && (
                               <>
                                 <div
-                                  className={`text-xs font-semibold ${
+                                  className={`text-xs font-medium ${
                                     evolution.value > 0
                                       ? "text-green-600 dark:text-green-400"
                                       : evolution.value < 0
@@ -333,11 +331,10 @@ export default function UpdateInvestmentsPage() {
                                         : "text-muted-foreground"
                                   }`}
                                 >
-                                  {evolution.value > 0 ? "+" : ""}
-                                  {formatCurrencyDisplay(evolution.value)}
+                                  {evolution.value > 0 ? "+" : ""}{formatCurrencyDisplay(evolution.value)}
                                 </div>
                                 <div
-                                  className={`text-xs font-semibold ${
+                                  className={`text-xs font-medium ${
                                     evolution.value > 0
                                       ? "text-green-600 dark:text-green-400"
                                       : evolution.value < 0
@@ -345,8 +342,7 @@ export default function UpdateInvestmentsPage() {
                                         : "text-muted-foreground"
                                   }`}
                                 >
-                                  {evolution.percentage > 0 ? "+" : ""}
-                                  {evolution.percentage.toFixed(2)}%
+                                  {evolution.percentage > 0 ? "+" : ""}{evolution.percentage.toFixed(2)}%
                                 </div>
                               </>
                             )}
