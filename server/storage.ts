@@ -322,15 +322,14 @@ export class DatabaseStorage implements IStorage {
         }
       });
       
-      if (totalValue > 0) {
-        const dateStr = lastDayOfMonth.toISOString().split('T')[0];
-        portfolioHistory.push({
-          date: dateStr,
-          totalValue,
-          month,
-          year
-        });
-      }
+      // Always add entry for each month, even if value is 0
+      const dateStr = lastDayOfMonth.toISOString().split('T')[0];
+      portfolioHistory.push({
+        date: dateStr,
+        totalValue,
+        month,
+        year
+      });
       
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
