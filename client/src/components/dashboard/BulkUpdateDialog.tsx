@@ -218,11 +218,23 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                       <th className="px-4 py-3 text-left font-semibold min-w-[200px] border-r sticky left-0 bg-background">
                         Investimento
                       </th>
-                      {monthNames.map((_, idx) => (
-                        <th key={idx} className="px-2 py-3 text-center font-semibold min-w-[90px] border-r">
-                          <div className="text-xs">{monthShortNames[idx]}</div>
-                        </th>
-                      ))}
+                      {monthNames.map((_, idx) => {
+                        const monthKey = idx.toString();
+                        const date = monthDates[monthKey] || "";
+                        
+                        return (
+                          <th key={idx} className="px-2 py-2 text-center font-semibold min-w-[110px] border-r">
+                            <div className="text-xs font-medium mb-1">{monthShortNames[idx]}</div>
+                            <Input
+                              type="date"
+                              value={date}
+                              onChange={(e) => handleMonthDateChange(monthKey, e.target.value)}
+                              className="text-xs h-7"
+                              data-testid={`input-month-date-${monthKey}`}
+                            />
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -263,34 +275,6 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                 </table>
               </div>
             </ScrollArea>
-          )}
-
-          {/* Date Row */}
-          {!assetsLoading && assets.length > 0 && (
-            <div className="grid grid-cols-12 gap-2 border-t pt-4">
-              <div className="col-span-full">
-                <Label className="text-xs font-semibold text-muted-foreground mb-2 block">
-                  Data de Atualização para cada mês:
-                </Label>
-              </div>
-              {monthNames.map((_, monthIdx) => {
-                const monthKey = monthIdx.toString();
-                const date = monthDates[monthKey] || "";
-                
-                return (
-                  <div key={monthIdx} className="flex flex-col gap-1">
-                    <label className="text-xs font-medium">{monthShortNames[monthIdx]}</label>
-                    <Input
-                      type="date"
-                      value={date}
-                      onChange={(e) => handleMonthDateChange(monthKey, e.target.value)}
-                      className="text-xs"
-                      data-testid={`input-month-date-${monthKey}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
           )}
         </div>
 
