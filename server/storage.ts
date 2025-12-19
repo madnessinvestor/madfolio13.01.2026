@@ -269,12 +269,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPortfolioHistoryBySnapshots(userId?: string): Promise<Array<{date: string; totalValue: number; month: number; year: number}>> {
-    const allAssets = await this.getAssets(userId);
+    // Get user's assets first
+    const userAssets = await this.getAssets(userId);
+    const assetIds = new Set(userAssets.map(a => a.id));
+    
+    // Get all snapshots, then filter by user's assets
     const allSnapshots = await this.getSnapshots();
+    const userSnapshots = allSnapshots.filter(s => assetIds.has(s.assetId));
     
     // Group snapshots by date
     const snapshotsByDate: Record<string, Snapshot[]> = {};
-    allSnapshots.forEach(snapshot => {
+    userSnapshots.forEach(snapshot => {
       if (!snapshotsByDate[snapshot.date]) {
         snapshotsByDate[snapshot.date] = [];
       }
@@ -304,29 +309,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPortfolioHistoryByMonth(userId?: string): Promise<Array<{month: number; year: number; value: number}>> {
-    const history = await this.getPortfolioHistoryBySnapshots(userId);
+    // Get user's assets first
+    const userAssets = await this.getAssets(userId);
+    const assetIds = new Set(userAssets.map(a => a.id));
     
-    // Group by month and get the last value for each month
-    const byMonth: Record<string, {month: number; year: number; value: number; lastDate: string}> = {};
+    // Get all snapshots, then filter by user's assets
+    const allSnapshots = await this.getSnapshots();
+    const userSnapshots = allSnapshots.filter(s => assetIds.has(s.assetId));
     
-    history.forEach(item => {
-      const key = `${item.year}-${item.month}`;
-      if (!byMonth[key] || new Date(item.date) > new Date(byMonth[key].lastDate)) {
-        byMonth[key] = {
-          month: item.month,
-          year: item.year,
-          value: item.totalValue,
-          lastDate: item.date
-        };
+    // Group snapshots by asset ID
+    const snapshotsByAsset: Record<string, Snapshot[]> = {};
+    userSnapshots.forEach(snapshot => {
+      if (!snapshotsByAsset[snapshot.assetId]) {
+        snapshotsByAsset[snapshot.assetId] = [];
       }
+      snapshotsByAsset[snapshot.assetId].push(snapshot);
     });
     
-    return Object.values(byMonth)
-      .map(({ month, year, value }) => ({ month, year, value }))
-      .sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return a.month - b.month;
+    // Sort snapshots by date for each asset
+    Object.keys(snapshotsByAsset).forEach(assetId => {
+      snapshotsByAsset[assetId].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    });
+    
+    // Get all unique months from user's snapshots
+    const monthsSet = new Set<string>();
+    userSnapshots.forEach(snapshot => {
+      const date = new Date(snapshot.date);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      monthsSet.add(key);
+    });
+    
+    // For each month, sum the latest snapshot value of each asset
+    const byMonth: Record<string, {month: number; year: number; value: number}> = {};
+    
+    monthsSet.forEach(monthKey => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const endOfMonth = new Date(year, month, 0); // Last day of month
+      
+      let totalValue = 0;
+      
+      // For each asset, find the latest snapshot up to end of this month
+      Object.keys(snapshotsByAsset).forEach(assetId => {
+        const assetSnapshots = snapshotsByAsset[assetId];
+        // Find latest snapshot where date <= end of month, working backwards
+        for (let i = assetSnapshots.length - 1; i >= 0; i--) {
+          if (new Date(assetSnapshots[i].date) <= endOfMonth) {
+            totalValue += assetSnapshots[i].value;
+            break;
+          }
+        }
       });
+      
+      byMonth[monthKey] = { month, year, value: totalValue };
+    });
+    
+    return Object.values(byMonth).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
   }
 }
 
