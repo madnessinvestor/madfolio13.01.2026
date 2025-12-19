@@ -914,6 +914,8 @@ export async function registerRoutes(
           const monthIndex = Math.max(0, Math.min(11, h.month - 1));
           const prevValue = index > 0 ? array[index - 1].totalValue : 0;
           return {
+            id: h.id || `${h.year}-${h.month}`,
+            date: h.date,
             month: `${monthNames[monthIndex]}`,
             year: h.year,
             value: h.totalValue || 0,
