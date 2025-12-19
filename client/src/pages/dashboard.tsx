@@ -66,13 +66,19 @@ export default function Dashboard() {
   // Calculate variations for history - show all available data (at least 36 months)
   const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   
+  // Map month name to index (for when month is stored as string)
+  const monthNameToIndex = (monthName: string): number => {
+    const index = monthNames.indexOf(monthName);
+    return index >= 0 ? index : parseInt(monthName) - 1;
+  };
+  
   const historyWithVariations: HistoryPoint[] = [...history]
     .filter((point) => point.year >= 2022) // Show all data from 2022 onwards to ensure at least 36 months
     .sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
-      // Parse month string to number for proper sorting
-      const monthA = parseInt(a.month) || 0;
-      const monthB = parseInt(b.month) || 0;
+      // Get month index from either name or number
+      const monthA = monthNameToIndex(a.month.toString());
+      const monthB = monthNameToIndex(b.month.toString());
       return monthA - monthB;
     })
     .map((point, index, array) => {
@@ -94,11 +100,11 @@ export default function Dashboard() {
   // Show only locked/blocked months from backend - format as "Jan/25", "Fev/25", etc.
   const performanceData = historyWithVariations
     .filter((h) => {
-      const monthIndex = parseInt(h.month) - 1;
+      const monthIndex = monthNameToIndex(h.month);
       return monthStatus[monthIndex] === true; // Only include locked months
     })
     .map((h) => {
-      const monthIndex = parseInt(h.month) - 1;
+      const monthIndex = monthNameToIndex(h.month);
       const monthName = monthIndex >= 0 && monthIndex < 12 ? monthNames[monthIndex] : h.month;
       const isLocked = monthStatus[monthIndex] || false;
       return {
