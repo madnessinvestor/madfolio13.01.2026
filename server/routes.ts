@@ -890,33 +890,40 @@ export async function registerRoutes(
   app.get("/api/portfolio/history", async (req: any, res) => {
     const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
-      // Get history from snapshots (this includes ALL investments: cripto, renda fixa, renda variável, imóveis)
-      const historyByMonth = await storage.getPortfolioHistoryByMonth(userId);
+      // Get saved portfolio history records (from monthly snapshots)
+      const savedHistory = await storage.getPortfolioHistory(userId);
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
       
-      // Handle empty history gracefully
-      if (!historyByMonth || historyByMonth.length === 0) {
-        return res.json([]);
-      }
+      // Also get month lock status to filter only locked months
+      const historyByMonth = await storage.getPortfolioHistoryByMonth(userId);
+      const lockedMonths = new Set(historyByMonth
+        .filter(h => h.isLocked === 1)
+        .map(h => `${h.year}-${h.month}`)
+      );
       
-      const formattedHistory = historyByMonth
-        .filter(h => h && typeof h.month === 'number' && typeof h.year === 'number')
+      // Filter saved history to only include data from locked months (confirmed/saved months)
+      const formattedHistory = savedHistory
+        .filter(h => h && h.year && h.month && lockedMonths.has(`${h.year}-${h.month}`))
+        .sort((a, b) => {
+          if (a.year !== b.year) return a.year - b.year;
+          return a.month - b.month;
+        })
         .map((h, index, array) => {
           // Ensure month is within valid range (1-12)
           const monthIndex = Math.max(0, Math.min(11, h.month - 1));
-          const prevValue = index > 0 ? array[index - 1].value : 0;
+          const prevValue = index > 0 ? array[index - 1].totalValue : 0;
           return {
             month: `${monthNames[monthIndex]}`,
             year: h.year,
-            value: h.value || 0,
-            totalValue: h.value || 0,
-            isLocked: h.isLocked || 0,
-            variation: prevValue > 0 ? ((h.value - prevValue) / prevValue) * 100 : 0,
-            variationPercent: prevValue > 0 ? ((h.value - prevValue) / prevValue) * 100 : 0
+            value: h.totalValue || 0,
+            totalValue: h.totalValue || 0,
+            isLocked: 1,
+            variation: prevValue > 0 ? ((h.totalValue - prevValue) / prevValue) * 100 : 0,
+            variationPercent: prevValue > 0 ? ((h.totalValue - prevValue) / prevValue) * 100 : 0
           };
         });
       
-      res.json(formattedHistory);
+      res.json(formattedHistory.length > 0 ? formattedHistory : []);
     } catch (error) {
       console.error("[Portfolio History Error]", error);
       res.status(500).json({ error: "Failed to fetch portfolio history", details: String(error) });

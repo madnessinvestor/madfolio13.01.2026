@@ -206,9 +206,11 @@ export default function UpdateInvestmentsPage() {
     try {
       const monthData = monthUpdates[month];
       const updates: SnapshotUpdate[] = [];
+      let monthTotal = 0;
 
       for (const assetId of Object.keys(monthData)) {
         const value = parseCurrencyValue(monthData[assetId]);
+        monthTotal += value;
         if (value > 0 && monthDates[month]) {
           updates.push({
             assetId,
@@ -225,6 +227,17 @@ export default function UpdateInvestmentsPage() {
       }
 
       const year = parseInt(selectedYear);
+      
+      // Save monthly portfolio total to portfolio history
+      if (monthTotal > 0 && monthDates[month]) {
+        await apiRequest("POST", "/api/portfolio/history", {
+          totalValue: monthTotal,
+          month: month + 1,
+          year,
+          date: monthDates[month],
+        });
+      }
+      
       lockMonthMutation.mutate({ year, month, locked: true });
     } catch (error) {
       toast({
