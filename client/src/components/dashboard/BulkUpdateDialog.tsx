@@ -239,16 +239,16 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
           ) : (
             <ScrollArea className="flex-1 border rounded-lg scrollbar-visible" style={{ maxHeight: "calc(90vh - 300px)" }}>
               <div className="inline-block min-w-full">
-                <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
                   <thead>
                     <tr className="border-b bg-background">
-                      <th className="sticky left-0 z-20 bg-background border-r px-4 py-3 text-left font-semibold min-w-40">
+                      <th className="sticky left-0 z-20 bg-background border-r px-2 py-1 text-left font-semibold min-w-28">
                         Investimento
                       </th>
                       {monthNames.map((_, idx) => (
-                        <th key={idx} className="border-r px-2 py-2 text-center font-semibold min-w-28">
+                        <th key={idx} className="border-r px-1 py-1 text-center font-semibold min-w-20">
                           <div className="text-xs font-medium">{monthShortNames[idx]}</div>
-                          <div className="text-xs text-muted-foreground font-normal">Data da Atualização</div>
+                          <div className="text-2xs text-muted-foreground font-normal">Atualizar</div>
                         </th>
                       ))}
                     </tr>
@@ -256,14 +256,14 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                   <tbody>
                     {/* Date input row */}
                     <tr className="border-b bg-muted/20">
-                      <td className="sticky left-0 z-10 bg-muted/20 border-r px-4 py-2"></td>
+                      <td className="sticky left-0 z-10 bg-muted/20 border-r px-2 py-1"></td>
                       {monthNames.map((_, idx) => (
-                        <td key={idx} className="border-r px-2 py-2">
+                        <td key={idx} className="border-r px-1 py-1">
                           <Input
                             type="date"
                             value={monthDates[idx.toString()] || ""}
                             onChange={(e) => handleMonthDateChange(idx.toString(), e.target.value)}
-                            className="w-full px-2 py-1 text-xs border rounded bg-background"
+                            className="w-full px-1 py-0.5 text-2xs border rounded bg-background"
                             data-testid={`input-month-date-${idx}`}
                           />
                         </td>
@@ -273,9 +273,9 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                     {/* Asset rows */}
                     {assets.map((asset) => (
                       <tr key={asset.id} className="border-b hover:bg-muted/50">
-                        <td className="sticky left-0 z-10 bg-background hover:bg-muted/50 border-r px-4 py-3">
-                          <p className="font-semibold text-sm">{asset.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{asset.name}</p>
+                        <td className="sticky left-0 z-10 bg-background hover:bg-muted/50 border-r px-2 py-1">
+                          <p className="font-semibold text-xs">{asset.symbol}</p>
+                          <p className="text-2xs text-muted-foreground">{asset.name}</p>
                         </td>
                         {Array.from({ length: 12 }).map((_, monthIdx) => {
                           const monthKey = monthIdx.toString();
@@ -284,14 +284,14 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                           const value = monthUpdates[monthKey]?.[asset.id] || "";
                           
                           return (
-                            <td key={monthIdx} className="border-r px-2 py-2">
+                            <td key={monthIdx} className="border-r px-1 py-1">
                               <div className="relative">
                                 <Input
                                   type="text"
                                   value={value}
                                   onChange={(e) => handleUpdate(monthKey, asset.id, e.target.value)}
                                   placeholder="0,00"
-                                  className={`w-full px-2 py-1 text-xs border rounded text-right bg-background transition-colors ${
+                                  className={`w-full px-1 py-0.5 text-2xs border rounded text-right bg-background transition-colors ${
                                     isSaving ? "bg-blue-50 dark:bg-blue-950/30 border-blue-300" : ""
                                   }`}
                                   data-testid={`input-snapshot-${monthKey}-${asset.id}`}
@@ -307,8 +307,8 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                     ))}
                     {/* Total row */}
                     <tr className="bg-muted/50 border-t-2 font-semibold">
-                      <td className="sticky left-0 z-10 bg-muted/50 border-r px-4 py-3 text-sm">
-                        Soma dos Investimentos
+                      <td className="sticky left-0 z-10 bg-muted/50 border-r px-2 py-1 text-xs">
+                        Soma
                       </td>
                       {monthNames.map((_, idx) => {
                         const monthKey = idx.toString();
@@ -327,18 +327,18 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                         const variationPercent = prevMonthTotal > 0 ? ((variation / prevMonthTotal) * 100).toFixed(2) : "0.00";
                         
                         const formatCurrencyValue = (val: number) =>
-                          `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                          `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
                         return (
-                          <td key={idx} className="border-r px-2 py-2">
-                            <div className="space-y-1 text-center">
-                              <div className="text-sm font-semibold">
+                          <td key={idx} className="border-r px-1 py-1">
+                            <div className="space-y-0 text-center">
+                              <div className="text-2xs font-semibold">
                                 {formatCurrencyValue(currentTotal)}
                               </div>
                               {idx > 0 && (
                                 <>
                                   <div
-                                    className={`text-xs font-medium ${
+                                    className={`text-2xs font-medium ${
                                       variation >= 0
                                         ? "text-green-600 dark:text-green-400"
                                         : "text-red-600 dark:text-red-400"
@@ -347,7 +347,7 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                                     {variation >= 0 ? "+" : ""}{formatCurrencyValue(variation)}
                                   </div>
                                   <div
-                                    className={`text-xs font-medium ${
+                                    className={`text-2xs font-medium ${
                                       variation >= 0
                                         ? "text-green-600 dark:text-green-400"
                                         : "text-red-600 dark:text-red-400"
