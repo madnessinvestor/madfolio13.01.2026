@@ -12,6 +12,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { Asset } from "@shared/schema";
 
 interface SnapshotUpdate {
@@ -76,6 +77,34 @@ export default function MonthlySnapshotsPage() {
       }
     }
     return sequence;
+  };
+
+  const getChartData = () => {
+    // Start from December 2025 and include all months with data
+    const chartData: Array<{ month: string; value: number; date: string }> = [];
+    
+    // Start from December 2025
+    let currentDate = new Date(2025, 11, 31); // December 31, 2025
+    
+    while (currentDate <= new Date()) {
+      const month = currentDate.getMonth();
+      const year = currentDate.getFullYear();
+      const monthTotal = getMonthTotalValue(month);
+      
+      // Only add to chart if there's data for this month
+      if (monthTotal > 0 || chartData.length > 0) {
+        chartData.push({
+          month: `${monthShortNames[month]} ${year}`,
+          value: monthTotal,
+          date: currentDate.toISOString().split('T')[0],
+        });
+      }
+      
+      // Move to next month
+      currentDate = new Date(year, month + 2, 0);
+    }
+    
+    return chartData;
   };
 
   const monthSequence = getMonthSequence();
@@ -319,6 +348,47 @@ export default function MonthlySnapshotsPage() {
         <h1 className="text-3xl font-bold">Evolução do Portfólio</h1>
         <p className="text-secondary mt-2">Atualize valores por mês. Clique em "Salvar" para bloquear o mês no gráfico</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Evolução do Patrimônio
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {assetsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : getChartData().length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Registre meses na tabela abaixo para visualizar o gráfico
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={getChartData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Patrimônio"]}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="hsl(var(--primary))" 
+                  dot={{ fill: "hsl(var(--primary))", r: 5 }}
+                  activeDot={{ r: 7 }}
+                  name="Patrimônio Total"
+                  isAnimationActive={true}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
