@@ -18,6 +18,8 @@ export const assets = pgTable("assets", {
   acquisitionDate: date("acquisition_date"),
   currentPrice: real("current_price"),
   lastPriceUpdate: timestamp("last_price_update"),
+  isDeleted: integer("is_deleted").default(0),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const insertAssetSchema = createInsertSchema(assets).omit({ id: true });

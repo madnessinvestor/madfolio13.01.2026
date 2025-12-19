@@ -31,6 +31,14 @@ interface HistoryPoint {
   variation: number;
 }
 
+interface AssetHistory {
+  id: string;
+  name: string;
+  symbol: string;
+  market: string;
+  isDeleted: number;
+}
+
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
@@ -52,6 +60,10 @@ export default function StatementsPage() {
 
   const { data: history = [], isLoading: historyLoading } = useQuery<HistoryPoint[]>({
     queryKey: ["/api/portfolio/history"],
+  });
+
+  const { data: assetHistory = [] } = useQuery<AssetHistory[]>({
+    queryKey: ["/api/assets/history/all"],
   });
 
   const handleExport = (format: "csv" | "pdf") => {
@@ -212,6 +224,44 @@ export default function StatementsPage() {
           </Card>
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Histórico de Investimentos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {assetHistory.length === 0 ? (
+            <p className="text-muted-foreground">Nenhum investimento cadastrado</p>
+          ) : (
+            <div className="space-y-2">
+              {assetHistory.map((asset) => (
+                <div
+                  key={asset.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    asset.isDeleted
+                      ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+                      : "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+                  }`}
+                  data-testid={`asset-history-${asset.id}`}
+                >
+                  <div>
+                    <p className={`font-medium ${asset.isDeleted ? "text-red-700 dark:text-red-400 line-through" : "text-green-700 dark:text-green-400"}`}>
+                      {asset.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{asset.symbol}</p>
+                  </div>
+                  <Badge
+                    variant={asset.isDeleted ? "destructive" : "secondary"}
+                    className="whitespace-nowrap"
+                  >
+                    {asset.isDeleted ? "Excluído" : "Ativo"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <Skeleton className="h-80 rounded-lg" />

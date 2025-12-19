@@ -12,6 +12,7 @@ export interface IStorage {
   getAssets(userId?: string): Promise<Asset[]>;
   getAssetsByMarket(market: string, userId?: string): Promise<Asset[]>;
   getAsset(id: string): Promise<Asset | undefined>;
+  getAllAssetsIncludingDeleted(userId?: string): Promise<Asset[]>;
   createAsset(asset: InsertAsset): Promise<Asset>;
   updateAsset(id: string, asset: Partial<InsertAsset>): Promise<Asset | undefined>;
   deleteAsset(id: string): Promise<boolean>;
@@ -49,6 +50,13 @@ export class DatabaseStorage implements IStorage {
   async getAsset(id: string): Promise<Asset | undefined> {
     const [asset] = await db.select().from(assets).where(eq(assets.id, id));
     return asset;
+  }
+
+  async getAllAssetsIncludingDeleted(userId?: string): Promise<Asset[]> {
+    if (userId) {
+      return db.select().from(assets).where(eq(assets.userId, userId)).orderBy(assets.symbol);
+    }
+    return db.select().from(assets).orderBy(assets.symbol);
   }
 
   async createAsset(asset: InsertAsset): Promise<Asset> {

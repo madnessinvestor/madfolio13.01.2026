@@ -112,13 +112,24 @@ export async function registerRoutes(
 
   app.delete("/api/assets/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const deleted = await storage.deleteAsset(req.params.id);
-      if (!deleted) {
+      const asset = await storage.getAsset(req.params.id);
+      if (!asset) {
         return res.status(404).json({ error: "Asset not found" });
       }
+      const updated = await storage.updateAsset(req.params.id, { isDeleted: 1, deletedAt: new Date() });
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete asset" });
+    }
+  });
+
+  app.get("/api/assets/history/all", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const allAssets = await storage.getAllAssetsIncludingDeleted(userId);
+      res.json(allAssets);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch assets history" });
     }
   });
 
