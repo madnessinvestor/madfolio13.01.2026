@@ -113,6 +113,16 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
     return parseFloat(num.replace(/\./g, "").replace(",", ".")) || 0;
   };
 
+  const calculateMonthTotal = (monthKey: string) => {
+    return Object.keys(monthUpdates[monthKey] || {}).reduce((sum, assetId) => {
+      const value = monthUpdates[monthKey]?.[assetId] || "0";
+      return sum + parseCurrencyValue(value);
+    }, 0);
+  };
+
+  const formatCurrencyValue = (val: number) =>
+    `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const updateSnapshotMutation = useMutation({
     mutationFn: async (update: SnapshotUpdate) => {
       return apiRequest("POST", "/api/snapshots", update);
@@ -237,6 +247,25 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                         const date = monthDates[monthKey] || "";
                         const formattedDate = date ? new Date(date + "T00:00:00").toLocaleDateString("pt-BR") : "-";
                         
+                        // Calculate month total
+                        const monthTotal = Object.keys(monthUpdates[monthKey] || {}).reduce((sum, assetId) => {
+                          const value = monthUpdates[monthKey]?.[assetId] || "0";
+                          return sum + parseCurrencyValue(value);
+                        }, 0);
+                        
+                        // Calculate variation from previous month
+                        const prevMonthKey = (idx - 1).toString();
+                        const prevMonthTotal = idx > 0 ? Object.keys(monthUpdates[prevMonthKey] || {}).reduce((sum, assetId) => {
+                          const value = monthUpdates[prevMonthKey]?.[assetId] || "0";
+                          return sum + parseCurrencyValue(value);
+                        }, 0) : 0;
+                        
+                        const variation = monthTotal - prevMonthTotal;
+                        const variationPercent = prevMonthTotal > 0 ? ((variation / prevMonthTotal) * 100).toFixed(2).replace('.', ',') : "0,00";
+                        
+                        const formatCurrencyValue = (val: number) =>
+                          `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        
                         return (
                           <th key={idx} className="px-2 py-2 text-center font-semibold min-w-[110px] border-r">
                             <div className="text-xs font-medium mb-1">{monthShortNames[idx]}</div>
@@ -248,6 +277,17 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
                               data-testid={`input-month-date-${monthKey}`}
                             />
                             <div className="text-xs text-muted-foreground mt-1">{formattedDate}</div>
+                            <div className="text-xs font-semibold mt-2 text-foreground">{formatCurrencyValue(monthTotal)}</div>
+                            {idx > 0 && (
+                              <>
+                                <div className={`text-xs mt-1 ${variation >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {variation >= 0 ? '+' : ''}{formatCurrencyValue(variation)}
+                                </div>
+                                <div className={`text-xs ${variation >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {variation >= 0 ? '+' : ''}{variationPercent}%
+                                </div>
+                              </>
+                            )}
                           </th>
                         );
                       })}
