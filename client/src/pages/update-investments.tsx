@@ -309,8 +309,35 @@ export default function UpdateInvestmentsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="border rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 250px)" }}>
-                <div className="overflow-x-auto overflow-y-auto scrollbar-visible" style={{ scrollBehavior: "smooth" }}>
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold mb-3">Salvar dados por mês:</p>
+                <div className="flex flex-wrap gap-2">
+                  {monthSequence.map((actualMonth, idx) => (
+                    <Button
+                      key={idx}
+                      onClick={() => handleSaveMonth(actualMonth)}
+                      disabled={savingMonths.has(actualMonth)}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      data-testid={`button-save-month-${actualMonth}`}
+                    >
+                      {savingMonths.has(actualMonth) ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                          Salvando
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-3 h-3 mr-1" />
+                          {monthShortNames[actualMonth]}
+                        </>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="border rounded-lg overflow-hidden flex flex-col">
+                <div className="overflow-x-auto overflow-y-visible scrollbar-visible" style={{ scrollBehavior: "smooth" }}>
                   <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b bg-background">
