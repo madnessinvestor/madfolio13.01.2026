@@ -10,7 +10,9 @@ export const sessions = sqliteTable(
     sess: text("sess").notNull(),
     expire: integer("expire", { mode: "timestamp" }).notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)]
+  (table) => ({
+    expireIdx: index("IDX_session_expire").on(table.expire),
+  })
 );
 
 // User storage table.
@@ -24,6 +26,7 @@ export const users = sqliteTable("users", {
   lastName: text("last_name"),
   profileImageUrl: text("profile_image_url"),
   authProvider: text("auth_provider").default("local"),
+  role: text("role").default("admin"),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
