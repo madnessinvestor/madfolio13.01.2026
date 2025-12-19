@@ -6,19 +6,22 @@
 
 This file contains a backup of all admin accounts for recovery purposes. The complete database backup is stored in `app.db` (SQLite).
 
-### Admin Users
+### 🔐 Primary Admin Account
 
-1. **Original Admin**
-   - Username: `madnessinvestor`
-   - Email: `madnessinvestor@yahoo.com`
-   - Role: admin
-   - Created: 2025-12-18
+- **Username:** `madnessinvestor`
+- **Email:** `madnessinvestor@yahoo.com`
+- **Password:** `2512pcxm` ⭐
+- **Role:** admin
+- **Created:** 2025-12-18
+- **Status:** ✅ Active
 
-2. **Backup Admin**
-   - Username: `admin`
-   - Email: `admin@portfoliotracker.local`
-   - Role: admin
-   - Created: 2025-12-19
+### Backup Admin Account
+
+- **Username:** `admin`
+- **Email:** `admin@portfoliotracker.local`
+- **Role:** admin
+- **Created:** 2025-12-19
+- **Status:** For recovery only
 
 ## Database Location
 
