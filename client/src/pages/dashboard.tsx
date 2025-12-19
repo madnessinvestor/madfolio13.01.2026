@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/hooks/use-currency";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 interface PortfolioSummary {
   totalValue: number;
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { displayCurrency, isBalanceHidden } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
+  const [, navigate] = useLocation();
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
@@ -234,7 +236,20 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold">Evolução do Portfólio</h2>
+          <Button
+            onClick={() => navigate("/monthly-snapshots")}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            data-testid="button-view-portfolio-evolution"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Ver Detalhes
+          </Button>
+        </div>
         {historyLoading ? (
           <Skeleton className="h-96 rounded-lg" />
         ) : performanceData.length > 0 ? (
