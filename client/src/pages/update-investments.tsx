@@ -233,8 +233,8 @@ export default function UpdateInvestmentsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="border rounded-lg overflow-hidden flex flex-col max-h-[75vh]">
-                <div className="overflow-x-auto overflow-y-auto">
+              <div className="border rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 250px)" }}>
+                <div className="overflow-x-auto overflow-y-auto scrollbar-visible" style={{ scrollBehavior: "smooth" }}>
                   <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b bg-background">
