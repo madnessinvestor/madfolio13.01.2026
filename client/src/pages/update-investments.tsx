@@ -112,7 +112,8 @@ export default function UpdateInvestmentsPage() {
         newMonthUpdates[monthKey] = {};
         assets.forEach((asset) => {
           const monthData = yearSnapshots[asset.id]?.[month];
-          const value = monthData?.value || ((asset.quantity || 0) * (asset.currentPrice || 0)) || 0;
+          const price = asset.currentPrice || asset.acquisitionPrice || 0;
+          const value = monthData?.value || ((asset.quantity || 0) * price) || 0;
           newMonthUpdates[monthKey][asset.id] = formatCurrencyInput(value);
         });
 
