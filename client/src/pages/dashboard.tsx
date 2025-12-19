@@ -234,7 +234,6 @@ export default function Dashboard() {
         variableIncomeValue={variableIncomeValue}
         realEstateValue={realEstateValue}
         formatCurrency={format}
-        categoryData={categoryData}
       />
 
       <PortfolioHoldings

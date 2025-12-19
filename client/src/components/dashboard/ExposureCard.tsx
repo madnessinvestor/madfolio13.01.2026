@@ -9,10 +9,9 @@ interface ExposureCardProps {
   variableIncomeValue: number;
   realEstateValue?: number;
   formatCurrency?: (value: number) => string;
-  categoryData?: Array<{ name: string; value: number; color: string }>;
 }
 
-export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValue, realEstateValue = 0, formatCurrency: customFormat, categoryData = [] }: ExposureCardProps) {
+export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValue, realEstateValue = 0, formatCurrency: customFormat }: ExposureCardProps) {
   const total = cryptoValue + fixedIncomeValue + variableIncomeValue + realEstateValue;
   const cryptoPercent = total > 0 ? (cryptoValue / total) * 100 : 0;
   const fixedIncomePercent = total > 0 ? (fixedIncomeValue / total) * 100 : 0;
@@ -24,7 +23,13 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
 
   const format = customFormat || formatDefault;
 
-  const categoryTotal = categoryData.reduce((sum, item) => sum + item.value, 0);
+  // Create market exposure data for pie chart
+  const exposureData = [
+    { name: "Mercado Cripto", value: cryptoValue, color: "hsl(var(--chart-1))" },
+    { name: "Renda Fixa", value: fixedIncomeValue, color: "hsl(var(--chart-2))" },
+    { name: "Renda Variável", value: variableIncomeValue, color: "hsl(var(--chart-3))" },
+    { name: "Imóveis", value: realEstateValue, color: "hsl(var(--chart-4))" },
+  ].filter(item => item.value > 0);
 
   const renderCustomLabel = ({ percent }: { percent: number }) => {
     if (percent < 0.05) return null;
@@ -34,11 +39,11 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Exposição por Mercado e Distribuição por Categoria</CardTitle>
+        <CardTitle className="text-lg font-semibold">Exposição por Mercado</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Exposição por Mercado */}
+          {/* Exposição por Mercado - Left Column */}
           <div className="space-y-4">
             <h3 className="font-semibold text-sm">Exposição por Mercado</h3>
             <div className="space-y-2">
@@ -129,15 +134,15 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
             </div>
           </div>
 
-          {/* Distribuição por Categoria - Gráfico Pizza */}
-          {categoryData.length > 0 && (
+          {/* Exposição por Mercado - Gráfico Pizza */}
+          {exposureData.length > 0 && (
             <div>
-              <h3 className="font-semibold text-sm mb-4">Distribuição por Categoria</h3>
+              <h3 className="font-semibold text-sm mb-4">Distribuição de Exposição</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={categoryData}
+                      data={exposureData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -147,13 +152,13 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {categoryData.map((entry, index) => (
+                      {exposureData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(value: number) => [
-                        `${format(value)} (${((value / categoryTotal) * 100).toFixed(1)}%)`,
+                        `${format(value)} (${((value / total) * 100).toFixed(1)}%)`,
                         "Valor"
                       ]}
                       contentStyle={{
@@ -172,7 +177,7 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
                 </ResponsiveContainer>
               </div>
               <div className="mt-4 space-y-1">
-                {categoryData.map((item, index) => (
+                {exposureData.map((item, index) => (
                   <div key={index} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <div
