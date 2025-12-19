@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
     "seed:admin": "tsx scripts/create-admin.js",
     "setup-env": "node setup-env.js"
   },

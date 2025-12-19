@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -54,16 +54,38 @@ function AuthenticatedApp() {
   const { displayCurrency, setDisplayCurrency, isBalanceHidden, setIsBalanceHidden } = useDisplayCurrency();
   const [isSaved, setIsSaved] = useState(false);
   
+  // Sincronizar dados automaticamente ao carregar
+  useEffect(() => {
+    if (user) {
+      const syncData = async () => {
+        try {
+          const response = await apiRequest("POST", "/api/sync") as any;
+          if (response?.success) {
+            queryClient.invalidateQueries();
+          }
+        } catch (error) {
+          console.error("Auto-sync failed:", error);
+        }
+      };
+      
+      syncData();
+      // Sincronizar a cada 5 minutos
+      const interval = setInterval(syncData, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+  
   const saveMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/sync");
-      return true;
+      const response = await apiRequest("POST", "/api/sync") as any;
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       setIsSaved(true);
+      queryClient.invalidateQueries();
       toast({
         title: "Dados salvos com sucesso!",
-        description: "Todas as suas alterações foram sincronizadas no servidor.",
+        description: `${response?.stats?.assets || 0} ativos, ${response?.stats?.wallets || 0} carteiras sincronizadas.`,
       });
       setTimeout(() => setIsSaved(false), 3000);
     },
