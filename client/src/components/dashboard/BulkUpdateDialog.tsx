@@ -227,27 +227,6 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
               </Select>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Label className="font-semibold text-sm flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Data da Atualização Geral:
-              </Label>
-              <Input
-                type="date"
-                className="w-[180px] bg-background"
-                onChange={(e) => {
-                  const newDate = e.target.value;
-                  const newMonthDates = { ...monthDates };
-                  Object.keys(newMonthDates).forEach(key => {
-                    newMonthDates[key] = newDate;
-                  });
-                  setMonthDates(newMonthDates);
-                }}
-              />
-              <span className="text-xs text-muted-foreground">
-                (Aplica esta data a todos os lançamentos abaixo)
-              </span>
-            </div>
           </div>
 
           {/* Table */}

@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Asset } from "@shared/schema";
 
 interface SnapshotUpdate {
@@ -46,6 +47,7 @@ export default function UpdateInvestmentsPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [monthDates, setMonthDates] = useState<Record<string, string>>({});
   const [monthUpdates, setMonthUpdates] = useState<Record<string, Record<string, string>>>({});
+  const [monthUpdateDates, setMonthUpdateDates] = useState<Record<string, string>>({});
   const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
 
   const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
@@ -61,6 +63,7 @@ export default function UpdateInvestmentsPage() {
       const year = parseInt(selectedYear);
       const newMonthDates: Record<string, string> = {};
       const newMonthUpdates: Record<string, Record<string, string>> = {};
+      const newMonthUpdateDates: Record<string, string> = {};
 
       for (let month = 0; month < 12; month++) {
         const monthKey = month.toString();
@@ -73,10 +76,24 @@ export default function UpdateInvestmentsPage() {
           const value = monthData?.value || ((asset.quantity || 0) * (asset.currentPrice || 0)) || 0;
           newMonthUpdates[monthKey][asset.id] = formatCurrencyInput(value);
         });
+
+        // Get the most recent update date for this month across all assets
+        let latestDate = "";
+        for (const asset of assets) {
+          const monthData = yearSnapshots[asset.id]?.[month];
+          if (monthData?.createdAt) {
+            const date = new Date(monthData.createdAt);
+            if (!latestDate || date > new Date(latestDate)) {
+              latestDate = monthData.createdAt;
+            }
+          }
+        }
+        newMonthUpdateDates[monthKey] = latestDate ? new Date(latestDate).toLocaleDateString("pt-BR") : "";
       }
 
       setMonthDates(newMonthDates);
       setMonthUpdates(newMonthUpdates);
+      setMonthUpdateDates(newMonthUpdateDates);
     }
   }, [assets, selectedYear, yearSnapshots]);
 
@@ -104,27 +121,12 @@ export default function UpdateInvestmentsPage() {
     return parseCurrencyValue(monthUpdates[month]?.[assetId] || "0");
   };
 
-  const getLastUpdateDate = (assetId: string): string => {
-    // Find the most recent snapshot for this asset in the selected year
-    for (let month = 11; month >= 0; month--) {
-      const monthData = yearSnapshots[assetId]?.[month];
-      if (monthData?.createdAt) {
-        return new Date(monthData.createdAt).toLocaleDateString("pt-BR");
-      }
+  const getMonthTotalValue = (month: number): number => {
+    let total = 0;
+    for (const asset of assets) {
+      total += getMonthValue(asset.id, month);
     }
-    const asset = assets.find((a) => a.id === assetId);
-    if (asset?.lastPriceUpdate) {
-      return new Date(asset.lastPriceUpdate).toLocaleDateString("pt-BR");
-    }
-    return "Não atualizado";
-  };
-
-  const getMonthUpdateDate = (assetId: string, month: number): string => {
-    const monthData = yearSnapshots[assetId]?.[month];
-    if (monthData?.createdAt) {
-      return new Date(monthData.createdAt).toLocaleDateString("pt-BR");
-    }
-    return "Sem data";
+    return total;
   };
 
   const updateSnapshotMutation = useMutation({
@@ -195,7 +197,7 @@ export default function UpdateInvestmentsPage() {
           <div className="flex items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Valores por Mês - {selectedYear}
+              Investimentos - {selectedYear}
             </CardTitle>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
               <SelectTrigger className="w-40" data-testid="select-year">
@@ -221,117 +223,185 @@ export default function UpdateInvestmentsPage() {
               Adicione investimentos para começar a atualizar valores
             </div>
           ) : (
-            <>
-              <div className="overflow-x-auto mb-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[180px]">Ativo</TableHead>
-                      {monthShortNames.map((month, idx) => (
-                        <TableHead key={`${month}-${idx}`} className="text-right min-w-[130px]">
-                          {month}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {assets.map((asset) => (
-                      <TableRow key={asset.id} data-testid={`row-asset-${asset.id}`}>
-                        <TableCell className="font-medium">
-                          <div>
-                            <p className="font-semibold">{asset.symbol}</p>
-                            <p className="text-xs text-muted-foreground">{asset.name}</p>
-                          </div>
-                        </TableCell>
-                        {Array.from({ length: 12 }).map((_, monthIdx) => {
-                          const cellKey = `${asset.id}-${monthIdx}`;
-                          const isSaving = savingCells.has(cellKey);
-                          const currentValue = getMonthValue(asset.id, monthIdx);
-                          const previousValue = monthIdx > 0 ? getMonthValue(asset.id, monthIdx - 1) : 0;
-                          const evolution = monthIdx > 0 ? calculateEvolution(currentValue, previousValue) : null;
-                          const updateDate = getMonthUpdateDate(asset.id, monthIdx);
+            <Tabs defaultValue="investments" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="investments" data-testid="tab-investments">Investimentos</TabsTrigger>
+                <TabsTrigger value="results" data-testid="tab-results">Resultados</TabsTrigger>
+              </TabsList>
 
-                          return (
-                            <TableCell key={monthIdx} className="text-right align-top p-2">
-                              <div className="flex flex-col gap-1.5">
-                                <Input
-                                  type="text"
-                                  value={monthUpdates[monthIdx]?.[asset.id] || ""}
-                                  onChange={(e) =>
-                                    handleValueChange(asset.id, monthIdx.toString(), e.target.value)
-                                  }
-                                  placeholder="R$ 0,00"
-                                  className={`text-right text-sm h-7 ${
-                                    isSaving ? "bg-blue-50 dark:bg-blue-950/30" : ""
-                                  }`}
-                                  data-testid={`input-value-${asset.id}-${monthIdx}`}
-                                />
-                                <div className="text-xs text-muted-foreground">
-                                  {updateDate}
-                                </div>
-                                {evolution && (
-                                  <div
-                                    className={`text-xs font-semibold flex items-center justify-end gap-1 ${
-                                      evolution.value > 0
-                                        ? "text-green-600 dark:text-green-400"
-                                        : evolution.value < 0
-                                          ? "text-red-600 dark:text-red-400"
-                                          : "text-muted-foreground"
-                                    }`}
-                                  >
-                                    {evolution.value > 0 && (
-                                      <>
-                                        <TrendingUp className="w-3 h-3" />
-                                        +{evolution.percentage.toFixed(1)}%
-                                      </>
-                                    )}
-                                    {evolution.value < 0 && (
-                                      <>
-                                        <TrendingDown className="w-3 h-3" />
-                                        {evolution.percentage.toFixed(1)}%
-                                      </>
-                                    )}
-                                    {evolution.value === 0 && (
-                                      <span>0%</span>
-                                    )}
+              <TabsContent value="investments" className="space-y-4">
+                {Array.from({ length: 12 }).map((_, monthIdx) => (
+                  <Card key={monthIdx} className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">{monthShortNames[monthIdx]}</h3>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Data de atualização:</Label>
+                        <Input
+                          type="date"
+                          value={monthDates[monthIdx] || ""}
+                          onChange={(e) => {
+                            setMonthDates((prev) => ({
+                              ...prev,
+                              [monthIdx]: e.target.value,
+                            }));
+                          }}
+                          className="w-48"
+                          data-testid={`input-month-date-${monthIdx}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Ativo</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                            <TableHead className="text-right">Variação</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {assets.map((asset) => {
+                            const cellKey = `${asset.id}-${monthIdx}`;
+                            const isSaving = savingCells.has(cellKey);
+                            const currentValue = getMonthValue(asset.id, monthIdx);
+                            const previousValue = monthIdx > 0 ? getMonthValue(asset.id, monthIdx - 1) : 0;
+                            const evolution = monthIdx > 0 ? calculateEvolution(currentValue, previousValue) : null;
+
+                            return (
+                              <TableRow key={asset.id} data-testid={`row-asset-${asset.id}`}>
+                                <TableCell className="font-medium">
+                                  <div>
+                                    <p className="font-semibold">{asset.symbol}</p>
+                                    <p className="text-xs text-muted-foreground">{asset.name}</p>
                                   </div>
-                                )}
-                                {evolution && (
-                                  <div
-                                    className={`text-xs ${
-                                      evolution.value > 0
-                                        ? "text-green-600 dark:text-green-400"
-                                        : evolution.value < 0
-                                          ? "text-red-600 dark:text-red-400"
-                                          : "text-muted-foreground"
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Input
+                                    type="text"
+                                    value={monthUpdates[monthIdx]?.[asset.id] || ""}
+                                    onChange={(e) =>
+                                      handleValueChange(asset.id, monthIdx.toString(), e.target.value)
+                                    }
+                                    placeholder="R$ 0,00"
+                                    className={`text-right text-sm h-8 ${
+                                      isSaving ? "bg-blue-50 dark:bg-blue-950/30" : ""
                                     }`}
-                                  >
-                                    {evolution.value > 0 ? "+" : ""}
-                                    {formatCurrencyDisplay(evolution.value)}
-                                  </div>
-                                )}
+                                    data-testid={`input-value-${asset.id}-${monthIdx}`}
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {evolution && (
+                                    <div className="space-y-1">
+                                      <div
+                                        className={`text-xs font-semibold flex items-center justify-end gap-1 ${
+                                          evolution.value > 0
+                                            ? "text-green-600 dark:text-green-400"
+                                            : evolution.value < 0
+                                              ? "text-red-600 dark:text-red-400"
+                                              : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {evolution.value > 0 && (
+                                          <>
+                                            <TrendingUp className="w-3 h-3" />
+                                            +{evolution.percentage.toFixed(1)}%
+                                          </>
+                                        )}
+                                        {evolution.value < 0 && (
+                                          <>
+                                            <TrendingDown className="w-3 h-3" />
+                                            {evolution.percentage.toFixed(1)}%
+                                          </>
+                                        )}
+                                        {evolution.value === 0 && <span>0%</span>}
+                                      </div>
+                                      <div
+                                        className={`text-xs ${
+                                          evolution.value > 0
+                                            ? "text-green-600 dark:text-green-400"
+                                            : evolution.value < 0
+                                              ? "text-red-600 dark:text-red-400"
+                                              : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {evolution.value > 0 ? "+" : ""}
+                                        {formatCurrencyDisplay(evolution.value)}
+                                      </div>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                ))}
+              </TabsContent>
+
+              <TabsContent value="results" className="space-y-4">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mês</TableHead>
+                        <TableHead className="text-right">Valor Total do Portfólio</TableHead>
+                        <TableHead className="text-right">Variação R$</TableHead>
+                        <TableHead className="text-right">Variação %</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 12 }).map((_, monthIdx) => {
+                        const currentTotal = getMonthTotalValue(monthIdx);
+                        const previousTotal = monthIdx > 0 ? getMonthTotalValue(monthIdx - 1) : currentTotal;
+                        const evolution = calculateEvolution(currentTotal, previousTotal);
+
+                        return (
+                          <TableRow key={monthIdx}>
+                            <TableCell className="font-semibold">{monthShortNames[monthIdx]}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrencyDisplay(currentTotal)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div
+                                className={`text-sm font-semibold ${
+                                  evolution.value > 0
+                                    ? "text-green-600 dark:text-green-400"
+                                    : evolution.value < 0
+                                      ? "text-red-600 dark:text-red-400"
+                                      : "text-muted-foreground"
+                                }`}
+                              >
+                                {evolution.value > 0 ? "+" : ""}
+                                {formatCurrencyDisplay(evolution.value)}
                               </div>
                             </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/30 rounded-md border border-slate-200 dark:border-slate-800">
-                <p className="text-sm text-secondary mb-2">
-                  💡 <strong>Como usar:</strong>
-                </p>
-                <ul className="text-sm text-secondary space-y-1">
-                  <li>• Clique em qualquer célula e digite o valor em R$ para atualizar</li>
-                  <li>• A evolução mostra a mudança percentual e em valor do mês anterior</li>
-                  <li>• As mudanças são salvas automaticamente</li>
-                  <li>• Verde = aumento, Vermelho = queda</li>
-                </ul>
-              </div>
-            </>
+                            <TableCell className="text-right">
+                              <div
+                                className={`text-sm font-semibold flex items-center justify-end gap-1 ${
+                                  evolution.value > 0
+                                    ? "text-green-600 dark:text-green-400"
+                                    : evolution.value < 0
+                                      ? "text-red-600 dark:text-red-400"
+                                      : "text-muted-foreground"
+                                }`}
+                              >
+                                {evolution.value > 0 && <TrendingUp className="w-4 h-4" />}
+                                {evolution.value < 0 && <TrendingDown className="w-4 h-4" />}
+                                {evolution.percentage > 0 ? "+" : ""}
+                                {evolution.percentage.toFixed(2)}%
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>

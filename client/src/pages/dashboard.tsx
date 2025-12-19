@@ -81,12 +81,15 @@ export default function Dashboard() {
       };
     });
 
-  const performanceData = historyWithVariations.map((h) => ({
-    month: `${h.month}/${h.year.toString().slice(-2)}`,
-    value: h.value,
-    variation: h.variation,
-    variationPercent: h.variationPercent,
-  }));
+  // Get last 24 months of data
+  const performanceData = historyWithVariations
+    .slice(Math.max(0, historyWithVariations.length - 24))
+    .map((h) => ({
+      month: `${h.month}/${h.year.toString().slice(-2)}`,
+      value: h.value,
+      variation: h.variation,
+      variationPercent: h.variationPercent,
+    }));
 
   const createInvestmentMutation = useMutation({
     mutationFn: async (investment: Omit<Investment, "id" | "currentPrice">) => {
@@ -145,6 +148,13 @@ export default function Dashboard() {
   const fixedIncomeValue = summary?.fixedIncomeValue || 0;
   const variableIncomeValue = summary?.variableIncomeValue || 0;
   const realEstateValue = summary?.realEstateValue || 0;
+
+  // Calculate initial and current portfolio values
+  const initialPortfolioValue = performanceData.length > 0 ? performanceData[0].value : 0;
+  const currentPortfolioValue = performanceData.length > 0 ? performanceData[performanceData.length - 1].value : 0;
+  const portfolioVariation = currentPortfolioValue - initialPortfolioValue;
+  const portfolioVariationPercent = initialPortfolioValue !== 0 ? (portfolioVariation / initialPortfolioValue) * 100 : 0;
+  const isVariationPositive = portfolioVariation >= 0;
 
   const categoryTotals: Record<string, number> = {};
   summary?.holdings.forEach((h) => {
@@ -224,16 +234,60 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div>
-        {historyLoading ? (
-          <Skeleton className="h-96 rounded-lg" />
-        ) : performanceData.length > 0 ? (
-          <PerformanceChart data={performanceData} />
-        ) : (
-          <div className="h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
-            Adicione lançamentos para ver o gráfico de evolução
-          </div>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          {historyLoading ? (
+            <Skeleton className="h-96 rounded-lg" />
+          ) : performanceData.length > 0 ? (
+            <PerformanceChart data={performanceData} />
+          ) : (
+            <div className="h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
+              Adicione lançamentos para ver o gráfico de evolução
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-1">
+          {historyLoading ? (
+            <Skeleton className="h-96 rounded-lg" />
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-card border rounded-lg p-4">
+                <p className="text-sm text-muted-foreground mb-2">Patrimônio Inicial</p>
+                <p className="text-2xl font-bold">{format(initialPortfolioValue)}</p>
+              </div>
+
+              <div className="bg-card border rounded-lg p-4">
+                <p className="text-sm text-muted-foreground mb-2">Patrimônio do Mês Atual</p>
+                <p className="text-2xl font-bold">{format(currentPortfolioValue)}</p>
+              </div>
+
+              <div className={`border rounded-lg p-4 ${
+                isVariationPositive 
+                  ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900" 
+                  : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
+              }`}>
+                <p className="text-sm text-muted-foreground mb-2">Variação do Patrimônio</p>
+                <div className="space-y-1">
+                  <p className={`text-2xl font-bold ${
+                    isVariationPositive 
+                      ? "text-green-600 dark:text-green-400" 
+                      : "text-red-600 dark:text-red-400"
+                  }`}>
+                    {isVariationPositive ? "+" : ""}{format(portfolioVariation)}
+                  </p>
+                  <p className={`text-sm font-semibold ${
+                    isVariationPositive 
+                      ? "text-green-600 dark:text-green-400" 
+                      : "text-red-600 dark:text-red-400"
+                  }`}>
+                    {isVariationPositive ? "+" : ""}{portfolioVariationPercent.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <ExposureCard 
