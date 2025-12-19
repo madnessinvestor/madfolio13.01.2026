@@ -234,23 +234,13 @@ export default function Dashboard() {
       )}
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Evolução do Portfólio</h2>
-          <Button
-            onClick={() => navigate("/monthly-snapshots")}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            data-testid="button-view-portfolio-evolution"
-          >
-            <TrendingUp className="h-4 w-4" />
-            Ver Detalhes
-          </Button>
-        </div>
         {historyLoading ? (
           <Skeleton className="h-96 rounded-lg" />
         ) : performanceData.length > 0 ? (
-          <PerformanceChart data={performanceData} />
+          <PerformanceChart 
+            data={performanceData} 
+            onViewDetails={() => navigate("/monthly-snapshots")}
+          />
         ) : (
           <div className="h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
             Adicione lançamentos para ver o gráfico de evolução

@@ -11,6 +11,8 @@ import {
   Bar,
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { TrendingUp } from "lucide-react";
 import { useState } from "react";
 
 interface PerformanceDataPoint {
@@ -23,9 +25,10 @@ interface PerformanceDataPoint {
 interface PerformanceChartProps {
   data: PerformanceDataPoint[];
   title?: string;
+  onViewDetails?: () => void;
 }
 
-export function PerformanceChart({ data, title = "Evolução do Portfólio" }: PerformanceChartProps) {
+export function PerformanceChart({ data, title = "Evolução do Portfólio", onViewDetails }: PerformanceChartProps) {
   const [chartType, setChartType] = useState<"line" | "bar">("line");
 
   const formatCurrency = (value: number) => {
@@ -71,8 +74,20 @@ export function PerformanceChart({ data, title = "Evolução do Portfólio" }: P
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+        {onViewDetails && (
+          <Button
+            onClick={onViewDetails}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            data-testid="button-view-portfolio-evolution"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Ver Detalhes
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <Tabs value={chartType} onValueChange={(v) => setChartType(v as "line" | "bar")} className="w-full">
