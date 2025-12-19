@@ -12,7 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/hooks/use-currency";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface PortfolioSummary {
   totalValue: number;
@@ -49,6 +49,7 @@ export default function Dashboard() {
   const { displayCurrency, isBalanceHidden } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+  const historyGeneratedRef = useRef(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
@@ -59,18 +60,16 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    if (history.length === 0 && summary && summary.holdings && summary.holdings.length > 0 && !historyLoading) {
+    if (history.length === 0 && summary && summary.holdings && summary.holdings.length > 0 && !historyLoading && !historyGeneratedRef.current) {
+      historyGeneratedRef.current = true;
       fetch("/api/portfolio/history/generate", { method: "POST" })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
-        })
         .catch(console.error);
     }
-  }, [summary?.holdings.length, history.length, historyLoading]);
+  }, [summary?.holdings.length, historyLoading]);
 
-  // Calculate variations for history - filter to show only 2025 onwards AND only locked months
+  // Calculate variations for history - show all available data from 2025 onwards (no isLocked filter)
   const historyWithVariations: HistoryPoint[] = [...history]
-    .filter((point) => point.year >= 2025 && (point.isLocked === 1 || point.isLocked === true)) // Only locked data from 2025 onwards
+    .filter((point) => point.year >= 2025) // Show all data from 2025 onwards
     .sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
