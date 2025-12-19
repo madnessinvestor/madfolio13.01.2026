@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -28,6 +28,12 @@ interface SnapshotUpdate {
   assetId: string;
   value: number;
   date: string;
+}
+
+interface SnapshotData {
+  value: number;
+  date: string;
+  createdAt: string;
 }
 
 const monthShortNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -46,7 +52,7 @@ export default function UpdateInvestmentsPage() {
     queryKey: ["/api/assets"],
   });
 
-  const { data: yearSnapshots = {} } = useQuery<Record<string, Record<number, { value: number; date: string }>>>({
+  const { data: yearSnapshots = {} } = useQuery<Record<string, Record<number, SnapshotData>>>({
     queryKey: ["/api/snapshots/year", selectedYear],
   });
 
@@ -78,9 +84,39 @@ export default function UpdateInvestmentsPage() {
     return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  const formatCurrencyDisplay = (value: number): string => {
+    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const parseCurrencyValue = (val: string): number => {
     const num = val.replace(/[^\d.,]/g, "");
     return parseFloat(num.replace(/\./g, "").replace(",", ".")) || 0;
+  };
+
+  const calculateEvolution = (currentValue: number, previousValue: number) => {
+    if (previousValue === 0) return { percentage: 0, value: 0 };
+    const valueDiff = currentValue - previousValue;
+    const percentageDiff = (valueDiff / previousValue) * 100;
+    return { percentage: percentageDiff, value: valueDiff };
+  };
+
+  const getMonthValue = (assetId: string, month: number): number => {
+    return parseCurrencyValue(monthUpdates[month]?.[assetId] || "0");
+  };
+
+  const getLastUpdateDate = (assetId: string): string => {
+    // Find the most recent snapshot for this asset in the selected year
+    for (let month = 11; month >= 0; month--) {
+      const monthData = yearSnapshots[assetId]?.[month];
+      if (monthData?.createdAt) {
+        return new Date(monthData.createdAt).toLocaleDateString("pt-BR");
+      }
+    }
+    const asset = assets.find((a) => a.id === assetId);
+    if (asset?.lastPriceUpdate) {
+      return new Date(asset.lastPriceUpdate).toLocaleDateString("pt-BR");
+    }
+    return "Não atualizado";
   };
 
   const updateSnapshotMutation = useMutation({
@@ -143,15 +179,15 @@ export default function UpdateInvestmentsPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Atualizar Investimentos</h1>
-        <p className="text-secondary mt-2">Atualize valores por mês para cada investimento</p>
+        <p className="text-secondary mt-2">Atualize valores por mês e acompanhe a evolução do seu patrimônio</p>
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Valores por Mês
+              Valores por Mês - {selectedYear}
             </CardTitle>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
               <SelectTrigger className="w-40" data-testid="select-year">
@@ -177,59 +213,123 @@ export default function UpdateInvestmentsPage() {
               Adicione investimentos para começar a atualizar valores
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[150px]">Ativo</TableHead>
-                    {monthShortNames.map((month) => (
-                      <TableHead key={month} className="text-right min-w-[120px]">
-                        {month}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {assets.map((asset) => (
-                    <TableRow key={asset.id} data-testid={`row-asset-${asset.id}`}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <p className="font-semibold">{asset.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{asset.name}</p>
-                        </div>
-                      </TableCell>
-                      {Array.from({ length: 12 }).map((_, monthIdx) => {
-                        const cellKey = `${asset.id}-${monthIdx}`;
-                        const isSaving = savingCells.has(cellKey);
-                        return (
-                          <TableCell key={monthIdx} className="text-right">
-                            <Input
-                              type="text"
-                              value={monthUpdates[monthIdx]?.[asset.id] || ""}
-                              onChange={(e) =>
-                                handleValueChange(asset.id, monthIdx.toString(), e.target.value)
-                              }
-                              placeholder="R$ 0,00"
-                              className={`text-right text-sm h-8 ${
-                                isSaving ? "bg-blue-50 dark:bg-blue-950/30" : ""
-                              }`}
-                              data-testid={`input-value-${asset.id}-${monthIdx}`}
-                            />
-                          </TableCell>
-                        );
-                      })}
+            <>
+              <div className="overflow-x-auto mb-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[180px]">Ativo</TableHead>
+                      <TableHead className="min-w-[120px]">Última Atualização</TableHead>
+                      {monthShortNames.map((month, idx) => (
+                        <TableHead key={`${month}-${idx}`} className="text-right min-w-[140px]">
+                          <div className="flex flex-col items-end gap-1">
+                            <span>{month}</span>
+                            {idx > 0 && (
+                              <span className="text-xs text-muted-foreground">Evolução</span>
+                            )}
+                          </div>
+                        </TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {assets.map((asset) => (
+                      <TableRow key={asset.id} data-testid={`row-asset-${asset.id}`}>
+                        <TableCell className="font-medium">
+                          <div>
+                            <p className="font-semibold">{asset.symbol}</p>
+                            <p className="text-xs text-muted-foreground">{asset.name}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {getLastUpdateDate(asset.id)}
+                        </TableCell>
+                        {Array.from({ length: 12 }).map((_, monthIdx) => {
+                          const cellKey = `${asset.id}-${monthIdx}`;
+                          const isSaving = savingCells.has(cellKey);
+                          const currentValue = getMonthValue(asset.id, monthIdx);
+                          const previousValue = monthIdx > 0 ? getMonthValue(asset.id, monthIdx - 1) : 0;
+                          const evolution = monthIdx > 0 ? calculateEvolution(currentValue, previousValue) : null;
 
-          <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/30 rounded-md border border-slate-200 dark:border-slate-800">
-            <p className="text-sm text-secondary">
-              💡 Clique em qualquer célula e digite o valor em R$ para atualizar. As mudanças são salvas automaticamente.
-            </p>
-          </div>
+                          return (
+                            <TableCell key={monthIdx} className="text-right align-top">
+                              <div className="flex flex-col gap-2">
+                                <Input
+                                  type="text"
+                                  value={monthUpdates[monthIdx]?.[asset.id] || ""}
+                                  onChange={(e) =>
+                                    handleValueChange(asset.id, monthIdx.toString(), e.target.value)
+                                  }
+                                  placeholder="R$ 0,00"
+                                  className={`text-right text-sm h-8 ${
+                                    isSaving ? "bg-blue-50 dark:bg-blue-950/30" : ""
+                                  }`}
+                                  data-testid={`input-value-${asset.id}-${monthIdx}`}
+                                />
+                                {evolution && (
+                                  <div
+                                    className={`text-xs font-semibold flex items-center justify-end gap-1 ${
+                                      evolution.value > 0
+                                        ? "text-green-600 dark:text-green-400"
+                                        : evolution.value < 0
+                                          ? "text-red-600 dark:text-red-400"
+                                          : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {evolution.value > 0 && (
+                                      <>
+                                        <TrendingUp className="w-3 h-3" />
+                                        +{evolution.percentage.toFixed(1)}%
+                                      </>
+                                    )}
+                                    {evolution.value < 0 && (
+                                      <>
+                                        <TrendingDown className="w-3 h-3" />
+                                        {evolution.percentage.toFixed(1)}%
+                                      </>
+                                    )}
+                                    {evolution.value === 0 && (
+                                      <span className="text-xs">0%</span>
+                                    )}
+                                  </div>
+                                )}
+                                {evolution && (
+                                  <div
+                                    className={`text-xs ${
+                                      evolution.value > 0
+                                        ? "text-green-600 dark:text-green-400"
+                                        : evolution.value < 0
+                                          ? "text-red-600 dark:text-red-400"
+                                          : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {evolution.value > 0 ? "+" : ""}
+                                    {formatCurrencyDisplay(evolution.value)}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/30 rounded-md border border-slate-200 dark:border-slate-800">
+                <p className="text-sm text-secondary mb-2">
+                  💡 <strong>Como usar:</strong>
+                </p>
+                <ul className="text-sm text-secondary space-y-1">
+                  <li>• Clique em qualquer célula e digite o valor em R$ para atualizar</li>
+                  <li>• A evolução mostra a mudança percentual e em valor do mês anterior</li>
+                  <li>• As mudanças são salvas automaticamente</li>
+                  <li>• Verde = aumento, Vermelho = queda</li>
+                </ul>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
