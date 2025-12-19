@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,24 +79,23 @@ export default function MonthlySnapshotsPage() {
     return sequence;
   };
 
-  const getChartData = () => {
-    // Start from December 2025 and include all months with data
-    const chartData: Array<{ month: string; value: number; date: string }> = [];
+  // Memoized chart data calculation to prevent infinite loops
+  const chartData = useMemo(() => {
+    const data: Array<{ month: string; value: number }> = [];
     
-    // Start from December 2025
+    // Start from December 2025 (month 11)
     let currentDate = new Date(2025, 11, 31); // December 31, 2025
     
     while (currentDate <= new Date()) {
       const month = currentDate.getMonth();
       const year = currentDate.getFullYear();
-      const monthTotal = getMonthTotalValue(month);
       
-      // Only add to chart if there's data for this month
-      if (monthTotal > 0 || chartData.length > 0) {
-        chartData.push({
+      // Only add to chart if month is registered (locked)
+      if (monthLockedStatus[month] === true) {
+        const monthTotal = getMonthTotalValue(month);
+        data.push({
           month: `${monthShortNames[month]} ${year}`,
           value: monthTotal,
-          date: currentDate.toISOString().split('T')[0],
         });
       }
       
@@ -104,8 +103,8 @@ export default function MonthlySnapshotsPage() {
       currentDate = new Date(year, month + 2, 0);
     }
     
-    return chartData;
-  };
+    return data;
+  }, [monthLockedStatus, monthUpdates]);
 
   const monthSequence = getMonthSequence();
 
@@ -361,13 +360,13 @@ export default function MonthlySnapshotsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : getChartData().length === 0 ? (
+          ) : chartData.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               Registre meses na tabela abaixo para visualizar o gráfico
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={getChartData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
