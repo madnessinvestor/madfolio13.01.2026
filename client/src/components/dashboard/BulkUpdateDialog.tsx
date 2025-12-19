@@ -195,7 +195,7 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-full flex flex-col p-0" style={{ height: "90vh", maxHeight: "90vh" }}>
         <DialogHeader className="p-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -237,9 +237,9 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
           ) : assets.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Nenhum investimento cadastrado.</p>
           ) : (
-            <ScrollArea className="flex-1 border rounded-lg">
+            <ScrollArea className="flex-1 border rounded-lg scrollbar-visible" style={{ maxHeight: "calc(90vh - 300px)" }}>
               <div className="inline-block min-w-full">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                   <thead>
                     <tr className="border-b bg-background">
                       <th className="sticky left-0 z-20 bg-background border-r px-4 py-3 text-left font-semibold min-w-40">
