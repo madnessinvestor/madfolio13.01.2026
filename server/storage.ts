@@ -26,6 +26,7 @@ export interface IStorage {
   getLatestSnapshots(): Promise<Snapshot[]>;
   createSnapshot(snapshot: InsertSnapshot): Promise<Snapshot>;
   updateSnapshot(id: string, snapshot: Partial<Snapshot>): Promise<Snapshot | undefined>;
+  upsertSnapshot(snapshot: InsertSnapshot): Promise<Snapshot>;
   deleteSnapshot(id: string): Promise<boolean>;
   
   getMonthlyStatements(year?: number): Promise<MonthlyStatement[]>;
@@ -177,6 +178,44 @@ export class DatabaseStorage implements IStorage {
       return updated;
     } catch (error) {
       console.error(`[SQLite] ✗ Error updating snapshot:`, error);
+      throw error;
+    }
+  }
+
+  async upsertSnapshot(snapshot: InsertSnapshot): Promise<Snapshot> {
+    console.log(`[SQLite] Upserting snapshot for asset ${snapshot.assetId} on ${snapshot.date}`);
+    try {
+      // Find existing snapshot for this asset on this date
+      const [existing] = await db.select().from(snapshots)
+        .where(and(
+          eq(snapshots.assetId, snapshot.assetId),
+          eq(snapshots.date, snapshot.date)
+        ));
+      
+      let result: Snapshot;
+      if (existing) {
+        // Update existing snapshot
+        const [updated] = await db.update(snapshots)
+          .set(snapshot)
+          .where(eq(snapshots.id, existing.id))
+          .returning();
+        console.log(`[SQLite] ✓ Snapshot updated (upsert): ${existing.id}`);
+        result = updated;
+      } else {
+        // Create new snapshot
+        const [newSnapshot] = await db.insert(snapshots).values(snapshot).returning();
+        console.log(`[SQLite] ✓ Snapshot created (upsert): ${newSnapshot.id}`);
+        result = newSnapshot;
+      }
+      
+      const date = new Date(snapshot.date);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      await this.updateMonthlyStatementFromSnapshots(month, year);
+      await autoCommit(`feat: Upsert snapshot for ${date.toISOString().split('T')[0]}`);
+      return result;
+    } catch (error) {
+      console.error(`[SQLite] ✗ Error upserting snapshot:`, error);
       throw error;
     }
   }

@@ -563,7 +563,7 @@ export async function registerRoutes(
     const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const validated = insertSnapshotSchema.parse(req.body);
-      const snapshot = await storage.createSnapshot(validated);
+      const snapshot = await storage.upsertSnapshot(validated);
       
       const asset = await storage.getAsset(validated.assetId);
       if (asset) {
