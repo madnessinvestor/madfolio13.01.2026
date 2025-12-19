@@ -60,13 +60,17 @@ export default function Dashboard() {
     queryKey: ["/api/portfolio/history"],
   });
 
-  // Calculate variations for history - show all available data from 2025 onwards (no isLocked filter)
+  // Calculate variations for history - show all available data from 2025 onwards
+  const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  
   const historyWithVariations: HistoryPoint[] = [...history]
     .filter((point) => point.year >= 2025) // Show all data from 2025 onwards
     .sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateA - dateB;
+      if (a.year !== b.year) return a.year - b.year;
+      // Parse month string to number for proper sorting
+      const monthA = parseInt(a.month) || 0;
+      const monthB = parseInt(b.month) || 0;
+      return monthA - monthB;
     })
     .map((point, index, array) => {
       const prevPoint = array[index - 1];
@@ -84,14 +88,18 @@ export default function Dashboard() {
       };
     });
 
-  // Show all available history from backend (2025 onwards from Atualizar Investimentos snapshots)
+  // Show all available history from backend (2025 onwards) - format as "Jan/25", "Fev/25", etc.
   const performanceData = historyWithVariations
-    .map((h) => ({
-      month: `${h.month}/${h.year.toString().slice(-2)}`,
-      value: h.value,
-      variation: h.variation,
-      variationPercent: h.variationPercent,
-    }));
+    .map((h) => {
+      const monthIndex = parseInt(h.month) - 1;
+      const monthName = monthIndex >= 0 && monthIndex < 12 ? monthNames[monthIndex] : h.month;
+      return {
+        month: `${monthName}/${h.year.toString().slice(-2)}`,
+        value: h.value,
+        variation: h.variation,
+        variationPercent: h.variationPercent,
+      };
+    });
 
   const createInvestmentMutation = useMutation({
     mutationFn: async (investment: Omit<Investment, "id" | "currentPrice">) => {
