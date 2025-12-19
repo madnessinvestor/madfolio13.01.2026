@@ -232,8 +232,9 @@ export default function UpdateInvestmentsPage() {
               Adicione investimentos para começar a atualizar valores
             </div>
           ) : (
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="w-full border-collapse text-sm">
+            <div className="border rounded-lg overflow-hidden flex flex-col h-[calc(100vh-300px)]">
+              <div className="overflow-x-auto overflow-y-auto flex-1">
+                <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b bg-background">
                     <th className="sticky left-0 z-20 bg-background border-r px-4 py-3 text-left font-semibold min-w-40">
@@ -353,6 +354,7 @@ export default function UpdateInvestmentsPage() {
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </CardContent>
