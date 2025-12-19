@@ -42,12 +42,13 @@ export function setupCredentialAuth(app: Express) {
         profileImageUrl: validated.profileImage || null,
       }).returning();
 
-      (req as any).login({
-        claims: { sub: newUser.id, email: newUser.email },
-        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
-      }, (err: any) => {
+      // Store user info directly in session
+      (req as any).session.userId = newUser.id;
+      (req as any).session.userEmail = newUser.email;
+      
+      (req as any).session.save((err: any) => {
         if (err) {
-          console.error("Session login error:", err);
+          console.error("Session save error:", err);
           return res.status(500).json({ message: "Erro ao criar sessão" });
         }
         res.status(201).json({
@@ -91,12 +92,13 @@ export function setupCredentialAuth(app: Express) {
         return res.status(401).json({ message: "Email, usuário ou senha incorretos" });
       }
 
-      (req as any).login({
-        claims: { sub: user.id, email: user.email },
-        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
-      }, (err: any) => {
+      // Store user info directly in session
+      (req as any).session.userId = user.id;
+      (req as any).session.userEmail = user.email;
+      
+      (req as any).session.save((err: any) => {
         if (err) {
-          console.error("Session login error:", err);
+          console.error("Session save error:", err);
           return res.status(500).json({ message: "Erro ao fazer login" });
         }
         res.json({
