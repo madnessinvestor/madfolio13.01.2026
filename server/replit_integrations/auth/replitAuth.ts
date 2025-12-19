@@ -132,6 +132,18 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
+  const session = (req as any).session;
+
+  // Support both Replit Auth and local credential-based auth
+  // Local auth: req.session.userId is set during login
+  if (session?.userId) {
+    (req as any).user = {
+      claims: {
+        sub: session.userId,
+      },
+    };
+    return next();
+  }
 
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
