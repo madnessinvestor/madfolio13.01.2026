@@ -63,7 +63,7 @@ export default function Dashboard() {
     queryKey: ["/api/snapshots/month-status", currentYear],
   });
 
-  // Calculate variations for history - show all available data (at least 36 months)
+  // Calculate variations for history
   const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   
   // Map month name to index (for when month is stored as string)
@@ -72,43 +72,47 @@ export default function Dashboard() {
     return index >= 0 ? index : parseInt(monthName) - 1;
   };
   
-  const historyWithVariations: HistoryPoint[] = [...history]
-    .filter((point) => point.year >= 2022) // Show all data from 2022 onwards to ensure at least 36 months
-    .sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      // Get month index from either name or number
-      const monthA = monthNameToIndex(a.month.toString());
-      const monthB = monthNameToIndex(b.month.toString());
-      return monthA - monthB;
-    })
+  // Get unique years from history
+  const uniqueYears = Array.from(new Set(history.map((h) => h.year)))
+    .sort((a, b) => a - b);
+  
+  const selectedYear = uniqueYears.length > 0 ? uniqueYears[uniqueYears.length - 1] : new Date().getFullYear();
+  
+  // Create a map of year/month to history point for quick lookup
+  const historyMap = new Map<string, any>();
+  history.forEach((h) => {
+    const monthIndex = monthNameToIndex(h.month.toString());
+    const key = `${h.year}-${monthIndex}`;
+    historyMap.set(key, h);
+  });
+  
+  // Generate 12 months for selected year
+  const selectedYearData = monthNames.map((monthName, monthIndex) => {
+    const key = `${selectedYear}-${monthIndex}`;
+    const point = historyMap.get(key);
+    return {
+      month: monthName,
+      year: selectedYear,
+      value: point?.totalValue || 0,
+      isLocked: point ? (point.isLocked === 1 || true) : false,
+    };
+  });
+  
+  // Calculate variations within the year
+  const performanceData = selectedYearData
     .map((point, index, array) => {
       const prevPoint = array[index - 1];
-      const variation = prevPoint ? point.totalValue - prevPoint.totalValue : 0;
-      const variationPercent = prevPoint && prevPoint.totalValue !== 0 
-        ? (variation / prevPoint.totalValue) * 100 
+      const variation = prevPoint && prevPoint.value > 0 ? point.value - prevPoint.value : 0;
+      const variationPercent = prevPoint && prevPoint.value > 0 
+        ? (variation / prevPoint.value) * 100 
         : 0;
       
       return {
-        month: point.month.toString(),
-        year: point.year,
-        value: point.totalValue,
+        month: point.month,
+        value: point.value,
         variation,
-        variationPercent
-      };
-    });
-
-  // Show ALL months from history (including unlocked months) - format as "Jan/25", "Fev/25", etc.
-  const performanceData = historyWithVariations
-    .map((h) => {
-      const monthIndex = monthNameToIndex(h.month);
-      const monthName = monthIndex >= 0 && monthIndex < 12 ? monthNames[monthIndex] : h.month;
-      const isLocked = h.isLocked === 1 || false;
-      return {
-        month: `${monthName}/${h.year.toString().slice(-2)}`,
-        value: h.value,
-        variation: h.variation,
-        variationPercent: h.variationPercent,
-        isLocked,
+        variationPercent,
+        isLocked: point.isLocked,
       };
     });
 
@@ -254,6 +258,8 @@ export default function Dashboard() {
             data={performanceData}
             monthStatus={monthStatus}
             onViewDetails={() => navigate("/monthly-snapshots")}
+            availableYears={uniqueYears}
+            selectedYear={selectedYear}
           />
         ) : (
           <div className="h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
