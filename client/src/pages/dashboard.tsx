@@ -81,9 +81,15 @@ export default function Dashboard() {
       };
     });
 
-  // Get last 24 months of data
+  // Get data starting from 11/25 for at least 25 months (11/25 + 24 months)
+  const startDate = new Date(2025, 10); // November 2025
   const performanceData = historyWithVariations
-    .slice(Math.max(0, historyWithVariations.length - 24))
+    .filter((h) => {
+      const monthNum = parseInt(h.month);
+      const date = new Date(h.year, monthNum - 1);
+      return date >= startDate;
+    })
+    .slice(0, 25) // Limit to 25 months starting from 11/25
     .map((h) => ({
       month: `${h.month}/${h.year.toString().slice(-2)}`,
       value: h.value,
