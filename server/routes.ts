@@ -589,6 +589,52 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/snapshots/initialize", async (req: any, res) => {
+    try {
+      const assets = await storage.getAssets();
+      let createdCount = 0;
+
+      for (let year = 2025; year <= 2029; year++) {
+        for (let month = 0; month < 12; month++) {
+          const monthDate = new Date(year, month, 1);
+          const lastDay = new Date(year, month + 1, 0);
+          const dateStr = lastDay.toISOString().split('T')[0];
+
+          for (const asset of assets) {
+            const price = asset.currentPrice || asset.acquisitionPrice || 0;
+            const quantity = asset.quantity || 0;
+            const value = quantity * price;
+
+            if (value > 0) {
+              const existingSnapshots = await storage.getSnapshotsByDateRange(
+                `${year}-${(month + 1).toString().padStart(2, '0')}-01`,
+                dateStr
+              );
+              const exists = existingSnapshots.some(s => s.assetId === asset.id);
+              
+              if (!exists) {
+                await storage.createSnapshot({
+                  assetId: asset.id,
+                  value,
+                  amount: quantity,
+                  unitPrice: price,
+                  date: dateStr,
+                  notes: "Initial snapshot"
+                });
+                createdCount++;
+              }
+            }
+          }
+        }
+      }
+
+      res.json({ success: true, createdCount, message: `Created ${createdCount} initial snapshots` });
+    } catch (error) {
+      console.error("Error initializing snapshots:", error);
+      res.status(500).json({ error: "Failed to initialize snapshots" });
+    }
+  });
+
   app.delete("/api/snapshots/:id", async (req: any, res) => {
     try {
       const deleted = await storage.deleteSnapshot(req.params.id);
