@@ -19,7 +19,7 @@ import {
   Building2,
   FileText,
   Wallet,
-  RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -48,6 +48,11 @@ const menuItems = [
     title: "Imóveis",
     url: "/real-estate",
     icon: Building2,
+  },
+  {
+    title: "Evolução Mensal",
+    url: "/monthly-snapshots",
+    icon: TrendingUp,
   },
   {
     title: "Lançamentos",

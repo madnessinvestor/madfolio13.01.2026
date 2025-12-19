@@ -5,7 +5,8 @@ import {
   type Wallet, type InsertWallet,
   type PortfolioHistory, type InsertPortfolioHistory,
   type ActivityLog, type InsertActivityLog,
-  assets, snapshots, monthlyStatements, wallets, portfolioHistory, activityLogs
+  type MonthlyPortfolioSnapshot, type InsertMonthlyPortfolioSnapshot,
+  assets, snapshots, monthlyStatements, wallets, portfolioHistory, activityLogs, monthlyPortfolioSnapshots
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
@@ -41,6 +42,12 @@ export interface IStorage {
   createOrUpdatePortfolioHistory(history: InsertPortfolioHistory): Promise<PortfolioHistory>;
   getPortfolioHistoryBySnapshots(userId?: string): Promise<Array<{date: string; totalValue: number; month: number; year: number}>>;
   getPortfolioHistoryByMonth(userId?: string): Promise<Array<{month: number; year: number; value: number; isLocked: number}>>;
+
+  getMonthlyPortfolioSnapshots(userId: string, year?: number): Promise<MonthlyPortfolioSnapshot[]>;
+  getMonthlyPortfolioSnapshot(userId: string, month: number, year: number): Promise<MonthlyPortfolioSnapshot | undefined>;
+  createOrUpdateMonthlyPortfolioSnapshot(snapshot: InsertMonthlyPortfolioSnapshot): Promise<MonthlyPortfolioSnapshot>;
+  lockMonthlySnapshot(snapshotId: string): Promise<MonthlyPortfolioSnapshot | undefined>;
+  unlockMonthlySnapshot(snapshotId: string): Promise<MonthlyPortfolioSnapshot | undefined>;
 
   getActivities(userId?: string): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
@@ -337,6 +344,65 @@ export class DatabaseStorage implements IStorage {
     
     const [created] = await db.insert(portfolioHistory).values(history).returning();
     return created;
+  }
+
+  async getMonthlyPortfolioSnapshots(userId: string, year?: number): Promise<MonthlyPortfolioSnapshot[]> {
+    if (year) {
+      return db.select().from(monthlyPortfolioSnapshots)
+        .where(and(
+          eq(monthlyPortfolioSnapshots.userId, userId),
+          eq(monthlyPortfolioSnapshots.year, year)
+        ))
+        .orderBy(monthlyPortfolioSnapshots.month);
+    }
+    return db.select().from(monthlyPortfolioSnapshots)
+      .where(eq(monthlyPortfolioSnapshots.userId, userId))
+      .orderBy(desc(monthlyPortfolioSnapshots.year), monthlyPortfolioSnapshots.month);
+  }
+
+  async getMonthlyPortfolioSnapshot(userId: string, month: number, year: number): Promise<MonthlyPortfolioSnapshot | undefined> {
+    const [snapshot] = await db.select().from(monthlyPortfolioSnapshots)
+      .where(and(
+        eq(monthlyPortfolioSnapshots.userId, userId || ""),
+        eq(monthlyPortfolioSnapshots.month, month),
+        eq(monthlyPortfolioSnapshots.year, year)
+      ));
+    return snapshot;
+  }
+
+  async createOrUpdateMonthlyPortfolioSnapshot(snapshot: InsertMonthlyPortfolioSnapshot): Promise<MonthlyPortfolioSnapshot> {
+    const userId = snapshot.userId || "default-user";
+    const existing = await this.getMonthlyPortfolioSnapshot(userId, snapshot.month, snapshot.year);
+    
+    if (existing) {
+      const [updated] = await db.update(monthlyPortfolioSnapshots)
+        .set({ 
+          ...snapshot, 
+          updatedAt: new Date() 
+        })
+        .where(eq(monthlyPortfolioSnapshots.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(monthlyPortfolioSnapshots).values(snapshot).returning();
+    return created;
+  }
+
+  async lockMonthlySnapshot(snapshotId: string): Promise<MonthlyPortfolioSnapshot | undefined> {
+    const [updated] = await db.update(monthlyPortfolioSnapshots)
+      .set({ isLocked: 1, updatedAt: new Date() })
+      .where(eq(monthlyPortfolioSnapshots.id, snapshotId))
+      .returning();
+    return updated;
+  }
+
+  async unlockMonthlySnapshot(snapshotId: string): Promise<MonthlyPortfolioSnapshot | undefined> {
+    const [updated] = await db.update(monthlyPortfolioSnapshots)
+      .set({ isLocked: 0, updatedAt: new Date() })
+      .where(eq(monthlyPortfolioSnapshots.id, snapshotId))
+      .returning();
+    return updated;
   }
 
   async getActivities(userId?: string): Promise<ActivityLog[]> {

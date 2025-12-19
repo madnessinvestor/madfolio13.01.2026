@@ -99,3 +99,18 @@ export const activityLogs = sqliteTable("activity_logs", {
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
+
+export const monthlyPortfolioSnapshots = sqliteTable("monthly_portfolio_snapshots", {
+  id: text("id").primaryKey().default(sql`lower(hex(randomblob(16)))`),
+  userId: text("user_id"),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+  totalValue: real("total_value").notNull(),
+  isLocked: integer("is_locked").default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+export const insertMonthlyPortfolioSnapshotSchema = createInsertSchema(monthlyPortfolioSnapshots).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMonthlyPortfolioSnapshot = z.infer<typeof insertMonthlyPortfolioSnapshotSchema>;
+export type MonthlyPortfolioSnapshot = typeof monthlyPortfolioSnapshots.$inferSelect;

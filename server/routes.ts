@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertSnapshotSchema, insertWalletSchema } from "@shared/schema";
+import { insertAssetSchema, insertSnapshotSchema, insertWalletSchema, insertMonthlyPortfolioSnapshotSchema } from "@shared/schema";
 import { z } from "zod";
 
 import { fetchAssetPrice, updateAssetPrice, startPriceUpdater, fetchHistoricalAssetPrice } from "./services/pricing";
@@ -1100,6 +1100,47 @@ export async function registerRoutes(
       res.json(activities);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch activities" });
+    }
+  });
+
+  // Monthly Portfolio Snapshots endpoints
+  app.get("/api/monthly-snapshots", async (req: any, res) => {
+    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    try {
+      const year = req.query.year ? Number(req.query.year) : undefined;
+      const snapshots = await storage.getMonthlyPortfolioSnapshots(userId, year);
+      res.json(snapshots);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch monthly snapshots" });
+    }
+  });
+
+  app.post("/api/monthly-snapshots", async (req: any, res) => {
+    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    try {
+      const validated = insertMonthlyPortfolioSnapshotSchema.parse(req.body);
+      const snapshot = await storage.createOrUpdateMonthlyPortfolioSnapshot({
+        ...validated,
+        userId,
+      });
+      res.json(snapshot);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to save monthly snapshot" });
+    }
+  });
+
+  app.patch("/api/monthly-snapshots/:id/unlock", async (req: any, res) => {
+    try {
+      const snapshot = await storage.unlockMonthlySnapshot(req.params.id);
+      if (!snapshot) {
+        return res.status(404).json({ error: "Snapshot not found" });
+      }
+      res.json(snapshot);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unlock snapshot" });
     }
   });
 

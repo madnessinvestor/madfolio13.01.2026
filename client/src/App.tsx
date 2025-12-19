@@ -28,6 +28,7 @@ import StatementsPage from "@/pages/statements";
 import DeBankBalances from "@/pages/debank-balances";
 import UpdateInvestmentsPage from "@/pages/update-investments";
 import ActivityPage from "@/pages/activity";
+import MonthlySnapshotsPage from "@/pages/monthly-snapshots";
 
 function Router() {
   return (
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/activity" component={ActivityPage} />
       <Route path="/debank" component={DeBankBalances} />
       <Route path="/update-investments" component={UpdateInvestmentsPage} />
+      <Route path="/monthly-snapshots" component={MonthlySnapshotsPage} />
       <Route component={NotFound} />
     </Switch>
   );
