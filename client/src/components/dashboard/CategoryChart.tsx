@@ -59,6 +59,7 @@ export function CategoryChart({ title, data, showPercentage = true }: CategoryCh
                   borderRadius: "0.5rem",
                 }}
                 labelStyle={{ color: "hsl(var(--foreground))" }}
+                textStyle={{ color: "hsl(var(--foreground))" }}
               />
               <Legend
                 verticalAlign="bottom"

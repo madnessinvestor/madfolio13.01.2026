@@ -111,6 +111,7 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
                         borderRadius: "0.5rem",
                       }}
                       labelStyle={{ color: "hsl(var(--foreground))" }}
+                      textStyle={{ color: "hsl(var(--foreground))" }}
                     />
                     <Legend 
                       verticalAlign="bottom" 
