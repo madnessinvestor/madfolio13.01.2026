@@ -12,7 +12,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar } from "recharts";
 import type { Asset } from "@shared/schema";
 
 interface SnapshotUpdate {
@@ -79,25 +79,45 @@ export default function MonthlySnapshotsPage() {
     return sequence;
   };
 
-  // Memoized chart data calculation to prevent infinite loops
+  const parseCurrencyValue = (val: string): number => {
+    const num = val.replace(/[^\d.,]/g, "");
+    return parseFloat(num.replace(/\./g, "").replace(",", ".")) || 0;
+  };
+
+  const getMonthValue = (assetId: string, month: number): number => {
+    return parseCurrencyValue(monthUpdates[month]?.[assetId] || "0");
+  };
+
+  const getMonthTotalValue = (month: number): number => {
+    let total = 0;
+    const assetList = assets || [];
+    for (const asset of assetList) {
+      total += getMonthValue(asset.id, month);
+    }
+    return total;
+  };
+
+  // Memoized chart data calculation - 36 months starting from December 2025
   const chartData = useMemo(() => {
-    const data: Array<{ month: string; value: number }> = [];
+    const data: Array<{ month: string; value: number; locked: boolean }> = [];
     
-    // Start from December 2025 (month 11)
-    let currentDate = new Date(2025, 11, 31); // December 31, 2025
+    // Start from December 2025
+    let currentDate = new Date(2025, 11, 1); // December 1, 2025
     
-    while (currentDate <= new Date()) {
+    // Generate 36 months
+    for (let i = 0; i < 36; i++) {
       const month = currentDate.getMonth();
       const year = currentDate.getFullYear();
       
-      // Only add to chart if month is registered (locked)
-      if (monthLockedStatus[month] === true) {
-        const monthTotal = getMonthTotalValue(month);
-        data.push({
-          month: `${monthShortNames[month]} ${year}`,
-          value: monthTotal,
-        });
-      }
+      // Check if month is locked (registered)
+      const isLocked = monthLockedStatus[month] === true;
+      const monthTotal = getMonthTotalValue(month);
+      
+      data.push({
+        month: `${monthShortNames[month]} ${year.toString().slice(-2)}`,
+        value: isLocked ? monthTotal : 0,
+        locked: isLocked,
+      });
       
       // Move to next month
       currentDate = new Date(year, month + 2, 0);
@@ -171,28 +191,11 @@ export default function MonthlySnapshotsPage() {
     return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const parseCurrencyValue = (val: string): number => {
-    const num = val.replace(/[^\d.,]/g, "");
-    return parseFloat(num.replace(/\./g, "").replace(",", ".")) || 0;
-  };
-
   const calculateEvolution = (currentValue: number, previousValue: number) => {
     if (previousValue === 0) return { percentage: 0, value: 0 };
     const valueDiff = currentValue - previousValue;
     const percentageDiff = (valueDiff / previousValue) * 100;
     return { percentage: percentageDiff, value: valueDiff };
-  };
-
-  const getMonthValue = (assetId: string, month: number): number => {
-    return parseCurrencyValue(monthUpdates[month]?.[assetId] || "0");
-  };
-
-  const getMonthTotalValue = (month: number): number => {
-    let total = 0;
-    for (const asset of assets) {
-      total += getMonthValue(asset.id, month);
-    }
-    return total;
   };
 
   const lockMonthMutation = useMutation({
@@ -352,7 +355,7 @@ export default function MonthlySnapshotsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
-            Evolução do Patrimônio
+            Evolução do Patrimônio - 36 Meses
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -365,25 +368,52 @@ export default function MonthlySnapshotsPage() {
               Registre meses na tabela abaixo para visualizar o gráfico
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
+                <XAxis 
+                  dataKey="month" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis 
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(0)}M`;
+                    if (value >= 1000) return `R$ ${(value / 1000).toFixed(0)}k`;
+                    return `R$ ${value.toFixed(0)}`;
+                  }}
+                />
                 <Tooltip 
-                  formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Patrimônio"]}
+                  formatter={(value: number) => {
+                    if (!value) return ["-", "Valor"];
+                    return [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Patrimônio"];
+                  }}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "6px",
+                  }}
                 />
                 <Legend />
+                <Bar 
+                  dataKey="value" 
+                  fill="hsl(var(--primary))" 
+                  opacity={0.6}
+                  radius={[4, 4, 0, 0]}
+                  name="Patrimônio Total"
+                />
                 <Line 
                   type="monotone" 
                   dataKey="value" 
                   stroke="hsl(var(--primary))" 
-                  dot={{ fill: "hsl(var(--primary))", r: 5 }}
-                  activeDot={{ r: 7 }}
-                  name="Patrimônio Total"
-                  isAnimationActive={true}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                  name="Tendência"
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </CardContent>
