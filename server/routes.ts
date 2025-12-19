@@ -165,8 +165,8 @@ export async function registerRoutes(
         details: `Quantidade: ${asset.quantity}`,
       });
       
-      const updated = await storage.updateAsset(req.params.id, { isDeleted: 1, deletedAt: new Date() });
-      res.status(204).send();
+      await storage.updateAsset(req.params.id, { isDeleted: 1, deletedAt: new Date() });
+      res.json({ success: true, message: "Asset deleted successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete asset" });
     }
