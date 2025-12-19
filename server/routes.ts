@@ -894,15 +894,23 @@ export async function registerRoutes(
       const historyByMonth = await storage.getPortfolioHistoryByMonth(userId);
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
       
+      // Handle empty history gracefully
+      if (!historyByMonth || historyByMonth.length === 0) {
+        return res.json([]);
+      }
+      
       const formattedHistory = historyByMonth
+        .filter(h => h && typeof h.month === 'number' && typeof h.year === 'number')
         .map((h, index, array) => {
+          // Ensure month is within valid range (1-12)
+          const monthIndex = Math.max(0, Math.min(11, h.month - 1));
           const prevValue = index > 0 ? array[index - 1].value : 0;
           return {
-            month: `${monthNames[h.month - 1]}`,
+            month: `${monthNames[monthIndex]}`,
             year: h.year,
-            value: h.value,
-            totalValue: h.value,
-            isLocked: h.isLocked,
+            value: h.value || 0,
+            totalValue: h.value || 0,
+            isLocked: h.isLocked || 0,
             variation: prevValue > 0 ? ((h.value - prevValue) / prevValue) * 100 : 0,
             variationPercent: prevValue > 0 ? ((h.value - prevValue) / prevValue) * 100 : 0
           };
@@ -910,7 +918,8 @@ export async function registerRoutes(
       
       res.json(formattedHistory);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch portfolio history" });
+      console.error("[Portfolio History Error]", error);
+      res.status(500).json({ error: "Failed to fetch portfolio history", details: String(error) });
     }
   });
 
