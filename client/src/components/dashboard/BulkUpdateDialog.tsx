@@ -58,6 +58,8 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
   const [monthDates, setMonthDates] = useState<Record<string, string>>({});
   const [monthUpdates, setMonthUpdates] = useState<Record<string, Record<string, string>>>({});
   const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false);
 
   const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
     queryKey: ["/api/assets"],
@@ -158,6 +160,7 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
         [assetId]: displayValue,
       },
     }));
+    setHasPendingChanges(true);
 
     // Debounce the save
     const cellKey = `${month}-${assetId}`;
@@ -185,6 +188,56 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
         return newSet;
       });
     }, 800);
+  };
+
+  const handleSaveAll = () => {
+    setIsSavingAll(true);
+    const updates: SnapshotUpdate[] = [];
+
+    Object.keys(monthUpdates).forEach((monthKey) => {
+      Object.keys(monthUpdates[monthKey] || {}).forEach((assetId) => {
+        const displayValue = monthUpdates[monthKey]?.[assetId] || "0";
+        const parsedValue = parseCurrencyValue(displayValue);
+        const date = monthDates[monthKey];
+        
+        if (parsedValue > 0 && date) {
+          updates.push({
+            assetId,
+            value: parsedValue,
+            date,
+          });
+        }
+      });
+    });
+
+    if (updates.length === 0) {
+      toast({
+        title: "Nenhuma alteração",
+        description: "Não há valores para salvar.",
+        variant: "destructive",
+      });
+      setIsSavingAll(false);
+      return;
+    }
+
+    // Save all updates in parallel
+    const promises = updates.map(update =>
+      new Promise<void>((resolve) => {
+        updateSnapshotMutation.mutate(update, {
+          onSuccess: () => resolve(),
+          onError: () => resolve(),
+        });
+      })
+    );
+
+    Promise.all(promises).then(() => {
+      setIsSavingAll(false);
+      setHasPendingChanges(false);
+      toast({
+        title: "Salvo com sucesso",
+        description: `${updates.length} valor(es) foi(foram) atualizado(s).`,
+      });
+    });
   };
 
   const handleMonthDateChange = (month: string, date: string) => {
@@ -380,6 +433,21 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
             data-testid="button-close-bulk-update"
           >
             Fechar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSaveAll}
+            disabled={isSavingAll || savingCells.size > 0}
+            data-testid="button-save-bulk-update"
+          >
+            {isSavingAll ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              "Salvar Alterações"
+            )}
           </Button>
         </div>
       </DialogContent>
