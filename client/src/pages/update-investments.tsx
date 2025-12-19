@@ -119,6 +119,14 @@ export default function UpdateInvestmentsPage() {
     return "Não atualizado";
   };
 
+  const getMonthUpdateDate = (assetId: string, month: number): string => {
+    const monthData = yearSnapshots[assetId]?.[month];
+    if (monthData?.createdAt) {
+      return new Date(monthData.createdAt).toLocaleDateString("pt-BR");
+    }
+    return "Sem data";
+  };
+
   const updateSnapshotMutation = useMutation({
     mutationFn: async (update: SnapshotUpdate) => {
       return apiRequest("POST", "/api/snapshots", update);
@@ -219,15 +227,9 @@ export default function UpdateInvestmentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[180px]">Ativo</TableHead>
-                      <TableHead className="min-w-[120px]">Última Atualização</TableHead>
                       {monthShortNames.map((month, idx) => (
-                        <TableHead key={`${month}-${idx}`} className="text-right min-w-[140px]">
-                          <div className="flex flex-col items-end gap-1">
-                            <span>{month}</span>
-                            {idx > 0 && (
-                              <span className="text-xs text-muted-foreground">Evolução</span>
-                            )}
-                          </div>
+                        <TableHead key={`${month}-${idx}`} className="text-right min-w-[130px]">
+                          {month}
                         </TableHead>
                       ))}
                     </TableRow>
@@ -241,19 +243,17 @@ export default function UpdateInvestmentsPage() {
                             <p className="text-xs text-muted-foreground">{asset.name}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {getLastUpdateDate(asset.id)}
-                        </TableCell>
                         {Array.from({ length: 12 }).map((_, monthIdx) => {
                           const cellKey = `${asset.id}-${monthIdx}`;
                           const isSaving = savingCells.has(cellKey);
                           const currentValue = getMonthValue(asset.id, monthIdx);
                           const previousValue = monthIdx > 0 ? getMonthValue(asset.id, monthIdx - 1) : 0;
                           const evolution = monthIdx > 0 ? calculateEvolution(currentValue, previousValue) : null;
+                          const updateDate = getMonthUpdateDate(asset.id, monthIdx);
 
                           return (
-                            <TableCell key={monthIdx} className="text-right align-top">
-                              <div className="flex flex-col gap-2">
+                            <TableCell key={monthIdx} className="text-right align-top p-2">
+                              <div className="flex flex-col gap-1.5">
                                 <Input
                                   type="text"
                                   value={monthUpdates[monthIdx]?.[asset.id] || ""}
@@ -261,11 +261,14 @@ export default function UpdateInvestmentsPage() {
                                     handleValueChange(asset.id, monthIdx.toString(), e.target.value)
                                   }
                                   placeholder="R$ 0,00"
-                                  className={`text-right text-sm h-8 ${
+                                  className={`text-right text-sm h-7 ${
                                     isSaving ? "bg-blue-50 dark:bg-blue-950/30" : ""
                                   }`}
                                   data-testid={`input-value-${asset.id}-${monthIdx}`}
                                 />
+                                <div className="text-xs text-muted-foreground">
+                                  {updateDate}
+                                </div>
                                 {evolution && (
                                   <div
                                     className={`text-xs font-semibold flex items-center justify-end gap-1 ${
@@ -289,7 +292,7 @@ export default function UpdateInvestmentsPage() {
                                       </>
                                     )}
                                     {evolution.value === 0 && (
-                                      <span className="text-xs">0%</span>
+                                      <span>0%</span>
                                     )}
                                   </div>
                                 )}
