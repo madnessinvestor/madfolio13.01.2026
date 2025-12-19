@@ -12,7 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/hooks/use-currency";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PortfolioSummary {
   totalValue: number;
@@ -57,6 +57,16 @@ export default function Dashboard() {
   const { data: history = [], isLoading: historyLoading } = useQuery<any[]>({
     queryKey: ["/api/portfolio/history"],
   });
+
+  useEffect(() => {
+    if (history.length === 0 && summary && summary.holdings && summary.holdings.length > 0 && !historyLoading) {
+      fetch("/api/portfolio/history/generate", { method: "POST" })
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+        })
+        .catch(console.error);
+    }
+  }, [summary?.holdings.length, history.length, historyLoading]);
 
   // Calculate variations for history
   const historyWithVariations: HistoryPoint[] = [...history]

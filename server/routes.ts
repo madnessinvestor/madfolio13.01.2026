@@ -702,6 +702,44 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/portfolio/history/generate", async (req: any, res) => {
+    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    try {
+      const assets = await storage.getAssets(userId);
+      let currentValue = 0;
+      
+      assets.forEach((asset) => {
+        const quantity = asset.quantity || 0;
+        const price = asset.currentPrice || asset.acquisitionPrice || 0;
+        currentValue += quantity * price;
+      });
+      
+      if (currentValue === 0) currentValue = 100000;
+      
+      const year = new Date().getFullYear();
+      
+      for (let month = 1; month <= 12; month++) {
+        const lastDay = new Date(year, month, 0).getDate();
+        const date = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        const variation = (Math.random() - 0.5) * 0.1;
+        const value = currentValue * (1 + variation * (13 - month) / 12);
+        
+        await storage.createPortfolioHistory({
+          userId,
+          totalValue: Math.max(value, currentValue * 0.8),
+          month,
+          year,
+          date
+        });
+      }
+      
+      res.json({ success: true, message: "Historical data generated" });
+    } catch (error) {
+      console.error("Error generating history:", error);
+      res.status(500).json({ error: "Failed to generate history" });
+    }
+  });
+
   app.get("/api/portfolio/summary", async (req: any, res) => {
     const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
