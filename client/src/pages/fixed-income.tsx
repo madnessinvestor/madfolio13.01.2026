@@ -46,7 +46,7 @@ interface PortfolioSummary {
 
 export default function FixedIncomePage() {
   const { toast } = useToast();
-  const { displayCurrency } = useDisplayCurrency();
+  const { displayCurrency, isBalanceHidden } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<{ id: string; symbol: string } | null>(null);
@@ -145,7 +145,7 @@ export default function FixedIncomePage() {
     color: `hsl(var(--chart-${(index % 5) + 1}))`,
   }));
 
-  const format = (value: number) => formatCurrency(value, displayCurrency);
+  const format = (value: number) => isBalanceHidden ? '***' : formatCurrency(value, displayCurrency);
 
   return (
     <div className="p-6 space-y-6">
@@ -201,6 +201,7 @@ export default function FixedIncomePage() {
               holdings={holdings}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              isHidden={isBalanceHidden}
             />
           ) : (
             <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">

@@ -81,16 +81,16 @@ export function PortfolioHoldings({ holdings, isLoading, formatCurrency, isHidde
                       </span>
                     </div>
                   </td>
-                  <td className="text-right py-3 px-2">
+                  <td className="text-right py-3 px-2 tabular-nums">
                     {isHidden ? "***" : holding.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}
                   </td>
-                  <td className="text-right py-3 px-2">
+                  <td className="text-right py-3 px-2 tabular-nums">
                     {isHidden ? "***" : formatCurrency(holding.acquisitionPrice)}
                   </td>
-                  <td className="text-right py-3 px-2">
+                  <td className="text-right py-3 px-2 tabular-nums">
                     {isHidden ? "***" : formatCurrency(holding.currentPrice)}
                   </td>
-                  <td className="text-right py-3 px-2 font-medium">
+                  <td className="text-right py-3 px-2 font-medium tabular-nums">
                     {isHidden ? "***" : formatCurrency(holding.value)}
                   </td>
                   <td className="text-right py-3 px-2">

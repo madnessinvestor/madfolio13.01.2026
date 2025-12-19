@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDisplayCurrency } from "@/App";
+import { useCurrencyConverter } from "@/components/CurrencySwitcher";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +42,8 @@ interface PortfolioSummary {
 
 export default function RealEstatePage() {
   const { toast } = useToast();
+  const { displayCurrency, isBalanceHidden } = useDisplayCurrency();
+  const { formatCurrency } = useCurrencyConverter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<{ id: string; name: string } | null>(null);
   const [editingAssetId, setEditingAssetId] = useState<string | undefined>(undefined);
@@ -144,6 +148,7 @@ export default function RealEstatePage() {
   }));
 
   const isLoading = assetsLoading || summaryLoading;
+  const format = (value: number) => isBalanceHidden ? '***' : formatCurrency(value, displayCurrency);
 
   return (
     <div className="p-6 space-y-6">
@@ -167,7 +172,7 @@ export default function RealEstatePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <MetricCard
             title="Valor Total em Imóveis"
-            value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            value={format(totalValue)}
             icon={Building2}
           />
           <MetricCard
@@ -193,6 +198,7 @@ export default function RealEstatePage() {
               holdings={holdings}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              isHidden={isBalanceHidden}
             />
           ) : (
             <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">

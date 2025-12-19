@@ -45,7 +45,7 @@ interface HistoryPoint {
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const { displayCurrency, isBalanceHidden, setIsBalanceHidden } = useDisplayCurrency();
+  const { displayCurrency, isBalanceHidden } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
 

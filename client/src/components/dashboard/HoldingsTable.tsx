@@ -28,6 +28,7 @@ interface HoldingsTableProps {
   onAdd?: () => void;
   onEdit?: (holding: Holding) => void;
   onDelete?: (holding: Holding) => void;
+  isHidden?: boolean;
 }
 
 export function HoldingsTable({
@@ -36,11 +37,13 @@ export function HoldingsTable({
   onAdd,
   onEdit,
   onDelete,
+  isHidden,
 }: HoldingsTableProps) {
   const formatCurrency = (value: number) =>
-    `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    isHidden ? '***' : `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
   const formatAmount = (value: number, type: string) => {
+    if (isHidden) return '***';
     if (type === "crypto") {
       return value.toLocaleString("pt-BR", { maximumFractionDigits: 8 });
     }

@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useDisplayCurrency } from "@/App";
 
 interface MetricCardProps {
   title: string;
@@ -11,9 +12,12 @@ interface MetricCardProps {
 }
 
 export function MetricCard({ title, value, change, changeLabel, icon: Icon }: MetricCardProps) {
+  const { isBalanceHidden } = useDisplayCurrency();
   const isPositive = change !== undefined && change > 0;
   const isNegative = change !== undefined && change < 0;
   const isNeutral = change === undefined || change === 0;
+
+  const displayValue = isBalanceHidden && (value.includes('R$') || value.includes('$')) ? '***' : value;
 
   return (
     <Card>
@@ -22,7 +26,7 @@ export function MetricCard({ title, value, change, changeLabel, icon: Icon }: Me
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums mt-1 truncate" data-testid={`text-metric-${title.toLowerCase().replace(/\s/g, '-')}`}>
-              {value}
+              {displayValue}
             </p>
             {change !== undefined && (
               <div className="flex items-center gap-1 mt-2">
