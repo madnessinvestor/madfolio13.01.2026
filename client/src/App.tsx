@@ -23,15 +23,14 @@ interface CurrencyContextType {
   setIsBalanceHidden: (hidden: boolean) => void;
 }
 
-const CurrencyContext = createContext<CurrencyContextType>({
-  displayCurrency: "BRL",
-  setDisplayCurrency: () => {},
-  isBalanceHidden: false,
-  setIsBalanceHidden: () => {},
-});
+const CurrencyContext = createContext<CurrencyContextType | null>(null);
 
 export function useDisplayCurrency() {
-  return useContext(CurrencyContext);
+  const context = useContext(CurrencyContext);
+  if (!context) {
+    throw new Error("useDisplayCurrency must be used within a CurrencyProvider");
+  }
+  return context;
 }
 
 import NotFound from "@/pages/not-found";
