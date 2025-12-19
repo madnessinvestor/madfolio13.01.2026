@@ -24,4 +24,3 @@ eng.traineddata
 attached_assets/
 .git/
 data/
-app.db*
