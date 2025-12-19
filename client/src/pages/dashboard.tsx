@@ -3,7 +3,9 @@ import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { ExposureCard } from "@/components/dashboard/ExposureCard";
 import { AddInvestmentDialog, type Investment, type Snapshot } from "@/components/dashboard/AddInvestmentDialog";
-import { Wallet, TrendingUp, Landmark, BarChart3, Building2 } from "lucide-react";
+import { BulkUpdateDialog } from "@/components/dashboard/BulkUpdateDialog";
+import { Wallet, TrendingUp, Landmark, BarChart3, Building2, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -46,6 +48,7 @@ export default function Dashboard() {
   const { displayCurrency } = useDisplayCurrency();
   const { formatCurrency } = useCurrencyConverter();
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
+  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
@@ -147,6 +150,15 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Visão geral do seu portfólio</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setBulkUpdateOpen(true)}
+            variant="outline"
+            className="gap-2"
+            data-testid="button-bulk-update"
+          >
+            <Calendar className="h-4 w-4" />
+            Atualizar Investimentos
+          </Button>
           <button
             onClick={() => setIsBalanceHidden(!isBalanceHidden)}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -245,6 +257,8 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <BulkUpdateDialog open={bulkUpdateOpen} onOpenChange={setBulkUpdateOpen} />
     </div>
   );
 }
