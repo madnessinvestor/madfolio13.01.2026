@@ -65,8 +65,7 @@ function Router() {
 function AuthenticatedApp() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>("BRL");
-  const [isBalanceHidden, setIsBalanceHidden] = useState(false);
+  const { displayCurrency, setDisplayCurrency, isBalanceHidden, setIsBalanceHidden } = useDisplayCurrency();
   const [isSaved, setIsSaved] = useState(false);
   
   const saveMutation = useMutation({
