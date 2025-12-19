@@ -128,10 +128,13 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
       return apiRequest("POST", "/api/snapshots", update);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/latest"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/statements"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
       toast({
         title: "Valor atualizado",
         description: "O lançamento foi registrado no histórico.",
