@@ -644,7 +644,7 @@ export async function registerRoutes(
   app.get("/api/portfolio/history", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     try {
-      const history = await storage.getPortfolioHistory(userId);
+      const history = await storage.getPortfolioHistoryBySnapshots(userId);
       res.json(history);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch portfolio history" });

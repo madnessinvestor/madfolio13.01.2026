@@ -277,35 +277,65 @@ export class DatabaseStorage implements IStorage {
     const allSnapshots = await this.getSnapshots();
     const userSnapshots = allSnapshots.filter(s => assetIds.has(s.assetId));
     
-    // Group snapshots by date
-    const snapshotsByDate: Record<string, Snapshot[]> = {};
+    if (userSnapshots.length === 0) return [];
+    
+    // Group snapshots by asset
+    const snapshotsByAsset: Record<string, Snapshot[]> = {};
     userSnapshots.forEach(snapshot => {
-      if (!snapshotsByDate[snapshot.date]) {
-        snapshotsByDate[snapshot.date] = [];
+      if (!snapshotsByAsset[snapshot.assetId]) {
+        snapshotsByAsset[snapshot.assetId] = [];
       }
-      snapshotsByDate[snapshot.date].push(snapshot);
+      snapshotsByAsset[snapshot.assetId].push(snapshot);
     });
     
-    // Calculate portfolio value for each date
+    // Sort snapshots by date for each asset
+    Object.keys(snapshotsByAsset).forEach(assetId => {
+      snapshotsByAsset[assetId].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    });
+    
+    // Generate 24 months of history
+    const now = new Date();
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day of current month
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 23); // Go back 23 months (24 months total)
+    startDate.setDate(1); // First day of that month
+    
     const portfolioHistory: Array<{date: string; totalValue: number; month: number; year: number}> = [];
     
-    Object.entries(snapshotsByDate).forEach(([date, dateSnapshots]) => {
+    // Generate entry for each month
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1;
+      const lastDayOfMonth = new Date(year, month, 0); // Last day of current month
+      
       let totalValue = 0;
-      dateSnapshots.forEach(snapshot => {
-        totalValue += snapshot.value;
+      
+      // For each asset, find the latest snapshot up to end of this month
+      Object.keys(snapshotsByAsset).forEach(assetId => {
+        const assetSnapshots = snapshotsByAsset[assetId];
+        for (let i = assetSnapshots.length - 1; i >= 0; i--) {
+          if (new Date(assetSnapshots[i].date) <= lastDayOfMonth) {
+            totalValue += assetSnapshots[i].value;
+            break;
+          }
+        }
       });
       
-      const dateObj = new Date(date);
-      portfolioHistory.push({
-        date,
-        totalValue,
-        month: dateObj.getMonth() + 1,
-        year: dateObj.getFullYear()
-      });
-    });
+      if (totalValue > 0) {
+        const dateStr = lastDayOfMonth.toISOString().split('T')[0];
+        portfolioHistory.push({
+          date: dateStr,
+          totalValue,
+          month,
+          year
+        });
+      }
+      
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
     
-    // Sort by date
-    return portfolioHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return portfolioHistory;
   }
 
   async getPortfolioHistoryByMonth(userId?: string): Promise<Array<{month: number; year: number; value: number}>> {
