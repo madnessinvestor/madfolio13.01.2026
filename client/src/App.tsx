@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { DatabaseIndicator } from "@/components/DatabaseIndicator";
 import { CurrencySwitcher, type DisplayCurrency } from "@/components/CurrencySwitcher";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Save, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
@@ -145,6 +146,13 @@ function MainApp() {
                   {isSaved ? "Salvo!" : "Salvar"}
                 </span>
               </Button>
+              <div className="flex items-center gap-2 pl-2 border-l">
+                <Avatar className="h-8 w-8" data-testid="avatar-madnessinvestor">
+                  <AvatarImage src="/madnessinvestor-profile.png" alt="madnessinvestor" />
+                  <AvatarFallback>MD</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium hidden sm:inline">madnessinvestor</span>
+              </div>
             </div>
           </header>
           <main className="flex-1 overflow-auto bg-background">
