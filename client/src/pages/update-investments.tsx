@@ -340,33 +340,6 @@ export default function UpdateInvestmentsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-                <p className="text-sm font-semibold mb-3">Salvar dados por mês:</p>
-                <div className="flex flex-wrap gap-2">
-                  {monthSequence.map((actualMonth, idx) => (
-                    <Button
-                      key={idx}
-                      onClick={() => handleSaveMonth(actualMonth)}
-                      disabled={savingMonths.has(actualMonth)}
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      data-testid={`button-save-month-${actualMonth}`}
-                    >
-                      {savingMonths.has(actualMonth) ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                          Salvando
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-3 h-3 mr-1" />
-                          {monthShortNames[actualMonth]}
-                        </>
-                      )}
-                    </Button>
-                  ))}
-                </div>
-              </div>
               <div className="border rounded-lg overflow-hidden flex flex-col">
                 <div className="overflow-x-auto overflow-y-visible scrollbar-visible" style={{ scrollBehavior: "smooth" }}>
                   <table className="w-full border-collapse text-sm">
@@ -459,7 +432,7 @@ export default function UpdateInvestmentsPage() {
 
                       return (
                         <td key={displayIdx} className="border-r px-2 py-2">
-                          <div className="space-y-2 text-center">
+                          <div className="text-center">
                             <div className={`text-sm font-semibold transition-colors ${
                               isMonthLocked ? "text-gray-400 dark:text-gray-500" : ""
                             }`}>
@@ -495,47 +468,59 @@ export default function UpdateInvestmentsPage() {
                                 </div>
                               </>
                             )}
-                            {!isMonthLocked ? (
-                              <Button
-                                onClick={() => handleSaveMonth(actualMonth)}
-                                disabled={savingMonths.has(actualMonth)}
-                                size="sm"
-                                className="w-full gap-1 bg-green-600 hover:bg-green-700 text-white"
-                                data-testid={`button-save-month-${actualMonth}`}
-                              >
-                                {savingMonths.has(actualMonth) ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Salvando
-                                  </>
-                                ) : (
-                                  <>
-                                    <Save className="w-3 h-3" />
-                                    Salvar
-                                  </>
-                                )}
-                              </Button>
-                            ) : (
-                              <Button
-                                onClick={() => handleEditMonth(actualMonth)}
-                                disabled={savingMonths.has(actualMonth)}
-                                size="sm"
-                                className="w-full gap-1 bg-red-600 hover:bg-red-700 text-white"
-                                data-testid={`button-edit-month-${actualMonth}`}
-                              >
-                                {savingMonths.has(actualMonth) ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  </>
-                                ) : (
-                                  <>
-                                    <Lock className="w-3 h-3" />
-                                    Editar
-                                  </>
-                                )}
-                              </Button>
-                            )}
                           </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+
+                  {/* Button row - Save/Edit buttons for each month */}
+                  <tr className="border-b bg-background">
+                    <td className="sticky left-0 z-10 bg-background border-r px-4 py-3" />
+                    {monthSequence.map((actualMonth, displayIdx) => {
+                      const isMonthLocked = monthLockedStatus[actualMonth];
+                      return (
+                        <td key={displayIdx} className="border-r px-2 py-3">
+                          {!isMonthLocked ? (
+                            <Button
+                              onClick={() => handleSaveMonth(actualMonth)}
+                              disabled={savingMonths.has(actualMonth)}
+                              size="sm"
+                              className="w-full gap-1 bg-green-600 hover:bg-green-700 text-white"
+                              data-testid={`button-save-month-${actualMonth}`}
+                            >
+                              {savingMonths.has(actualMonth) ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Salvando
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-3 h-3" />
+                                  Salvar
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleEditMonth(actualMonth)}
+                              disabled={savingMonths.has(actualMonth)}
+                              size="sm"
+                              className="w-full gap-1 bg-red-600 hover:bg-red-700 text-white"
+                              data-testid={`button-edit-month-${actualMonth}`}
+                            >
+                              {savingMonths.has(actualMonth) ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-3 h-3" />
+                                  Editar
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </td>
                       );
                     })}
