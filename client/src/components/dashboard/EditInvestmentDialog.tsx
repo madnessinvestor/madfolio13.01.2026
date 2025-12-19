@@ -10,10 +10,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Save, Calendar, History } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Asset {
   id: string;
@@ -26,6 +29,13 @@ interface Asset {
   acquisitionDate: string;
   currentPrice: number;
   currency: string;
+}
+
+interface Snapshot {
+  id: string;
+  assetId: string;
+  date: string;
+  value: number;
 }
 
 interface EditInvestmentDialogProps {
