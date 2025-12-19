@@ -1,45 +1,48 @@
-# ⚡ Quick Start - Configuração Automática
+# 🚀 Quick Start - SQLite Local + Auto-Sync GitHub
 
-## Clone e Execute (5 segundos):
+## 1️⃣ Clone e Setup (RÁPIDO):
 
 ```bash
-# 1. Clone o repositório
-git clone <seu-repositorio>
-cd portfolio-tracker
-
-# 2. Execute este comando ONE-LINER que configura TUDO:
-npm install && cat > .env << 'EOF'
-SUPABASE_URL=https://vpwxgwuduqqqxrnbimpi.supabase.co
-SUPABASE_ANON_KEY=sb_publishable_1KDXWm6HRhnNfD7Y40EA7A_f9WhC60O
-DATABASE_URL=postgresql://postgres:Database2512PowerUser$%!@boa@db.vpwxgwuduqqqxrnbimpi.supabase.co:5432/postgres
-NODE_ENV=development
-PORT=5000
-REPLIT_IDENTITY_PROVIDER=https://replit.com/identity
-EOF
+git clone seu-repo
+cd seu-repo
+npm install
+npm run db:push
 npm run dev
-
-# 3. Abra em seu navegador:
-# http://localhost:5000
 ```
 
-## ✅ Pronto!
+## 2️⃣ Pronto! ✅
 
-Seu app está **100% funcional** com Supabase configurado automaticamente.
+Ao iniciar, você verá:
+```
+[DB-SYNC] ✓ Database synchronized
+1:16:08 PM [express] serving on port 5000
+```
 
-## 📝 Credenciais
+Todos os dados anteriores carregam **AUTOMATICAMENTE**!
 
-Todas as credenciais já estão no comando acima. Nenhuma configuração extra necessária!
+## 3️⃣ Dados Salvos Em:
 
-- Usuário demo: `madnessinvestor@yahoo.com`
-- Senha: `123456`
+- 📁 Localmente: `app.db` (SQLite)
+- 💾 No GitHub: Histórico completo de commits
+- ✅ Sincronizados automaticamente
 
-## 🔒 Segurança
+## 🔄 O Que É Automático:
 
-Estas credenciais são seguras porque:
-- Repositório é **PRIVADO**
-- Supabase usa **RLS** (Row Level Security) por usuário
-- Cada usuário só vê seus dados
+| Ação | O Que Acontece |
+|------|----------------|
+| Iniciar app | Sincroniza com Git ✅ |
+| Salvar investimento | Auto-commit + push ✅ |
+| Reload página | Carrega do app.db ✅ |
+| Clone repo | Restaura todos os dados ✅ |
+
+## 🎯 Próxima Ação:
+
+Tudo está funcionando! Só execute `npm run db:push` se ainda não fez:
+
+```bash
+npm run db:push
+```
 
 ---
 
-**Pronto? Execute o comando acima e comece a usar!** 🚀
+**Tudo é automático! Basta usar normalmente. Os dados sempre estarão salvos! 🚀**

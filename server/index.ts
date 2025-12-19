@@ -65,6 +65,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Sync database with Git
+  try {
+    const { syncDatabaseWithGit } = await import("./db-sync");
+    await syncDatabaseWithGit();
+  } catch (error) {
+    console.error("[DB-SYNC] Error:", error);
+  }
+
   // Initialize Supabase connection
   try {
     const { initializeSupabase } = await import("./supabase");
