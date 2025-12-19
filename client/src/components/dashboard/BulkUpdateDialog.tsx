@@ -85,8 +85,9 @@ export function BulkUpdateDialog({ open, onOpenChange }: BulkUpdateDialogProps) 
         newMonthUpdates[monthKey] = {};
         assets.forEach((asset) => {
           const monthData = yearSnapshots[asset.id]?.[month];
-          // Se tem snapshot, usa o valor do snapshot. Senão, calcula quantity × currentPrice
-          const value = monthData?.value || ((asset.quantity || 0) * (asset.currentPrice || 0)) || 0;
+          // Se tem snapshot, usa o valor do snapshot. Senão, calcula quantity × (currentPrice ou acquisitionPrice)
+          const priceToUse = asset.currentPrice || asset.acquisitionPrice || 0;
+          const value = monthData?.value || ((asset.quantity || 0) * priceToUse) || 0;
           newMonthUpdates[monthKey][asset.id] = formatCurrencyInput(value);
         });
       }
