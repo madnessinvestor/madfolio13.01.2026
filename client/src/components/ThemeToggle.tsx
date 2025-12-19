@@ -7,9 +7,13 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const stored = localStorage.getItem("theme") as "light" | "dark" | null;
+    const root = window.document.documentElement;
     if (stored) {
       setTheme(stored);
-      document.documentElement.classList.toggle("dark", stored === "dark");
+      root.classList.toggle("dark", stored === "dark");
+    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      setTheme("dark");
+      root.classList.add("dark");
     }
   }, []);
 
@@ -17,7 +21,7 @@ export function ThemeToggle() {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
+    window.document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   return (
@@ -26,8 +30,14 @@ export function ThemeToggle() {
       variant="ghost"
       onClick={toggleTheme}
       data-testid="button-theme-toggle"
+      className="rounded-full"
     >
-      {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      {theme === "light" ? (
+        <Moon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      ) : (
+        <Sun className="h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      )}
+      <span className="sr-only">Alternar tema</span>
     </Button>
   );
 }

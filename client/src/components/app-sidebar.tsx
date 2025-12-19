@@ -100,10 +100,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Tema</span>
-          <ThemeToggle />
+      <SidebarFooter className="p-4 border-t">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">© 2025 InvestTracker</span>
         </div>
       </SidebarFooter>
     </Sidebar>
