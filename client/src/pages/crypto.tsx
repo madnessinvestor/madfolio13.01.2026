@@ -57,7 +57,7 @@ export default function CryptoPage() {
 
   const createInvestmentMutation = useMutation({
     mutationFn: async (investment: Omit<Investment, "id" | "currentPrice">) => {
-      return apiRequest("POST", "/api/investments", { ...investment, currency: "BRL" });
+      return apiRequest("POST", "/api/assets", { ...investment, currency: "BRL" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });

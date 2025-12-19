@@ -64,7 +64,7 @@ export default function RealEstatePage() {
 
   const createAssetMutation = useMutation({
     mutationFn: async (asset: Omit<RealEstateAsset, "id">) => {
-      return apiRequest("POST", "/api/investments", {
+      return apiRequest("POST", "/api/assets", {
         ...asset,
         market: "real_estate",
         category: "real_estate",
