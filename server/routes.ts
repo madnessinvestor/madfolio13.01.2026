@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertSnapshotSchema } from "@shared/schema";
+import { insertAssetSchema, insertSnapshotSchema, insertWalletSchema } from "@shared/schema";
 import { z } from "zod";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { fetchAssetPrice, updateAssetPrice, startPriceUpdater, fetchHistoricalAssetPrice } from "./services/pricing";
@@ -9,7 +9,6 @@ import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/ex
 import { fetchWalletBalance } from "./services/walletBalance";
 import { getBalances, getDetailedBalances, startStepMonitor, forceRefresh, forceRefreshAndWait, setWallets, forceRefreshWallet, initializeWallet } from "./services/debankScraper";
 import { getWalletHistory, getAllHistory, getLatestByWallet, getWalletStats } from "./services/walletCache";
-import { insertWalletSchema } from "@shared/schema";
 import { fetchJupPortfolio } from "./services/jupAgScraper";
 import { validateCredentials } from "./sqlite-auth";
 
@@ -573,6 +572,33 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching Jup.Ag portfolio:", error);
       res.status(500).json({ error: "Failed to fetch Jup.Ag portfolio" });
+    }
+  });
+
+  app.get("/api/portfolio/history", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const history = await storage.getPortfolioHistory(userId);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch portfolio history" });
+    }
+  });
+
+  app.post("/api/portfolio/history", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    try {
+      const { totalValue, month, year, date } = req.body;
+      const history = await storage.createPortfolioHistory({
+        userId,
+        totalValue,
+        month,
+        year,
+        date
+      });
+      res.status(201).json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create portfolio history" });
     }
   });
 

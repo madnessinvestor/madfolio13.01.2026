@@ -1,311 +1,116 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { History, Search, Filter, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { Investment as Asset } from "@/components/dashboard/AddInvestmentDialog";
-
-interface Snapshot {
-  id: string;
-  assetId: string;
-  value: number;
-  amount: number | null;
-  unitPrice: number | null;
-  date: string;
-  notes: string | null;
-}
-
-interface HistoryPoint {
-  month: string;
-  year: number;
-  value: number;
-  variation: number;
-}
-
-const ITEMS_PER_PAGE = 50;
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PortfolioHistory } from "@shared/schema";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
+import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
+import { useDisplayCurrency } from "@/App";
 
 export default function HistoryPage() {
-  const [filter, setFilter] = useState<"all" | "crypto" | "traditional">("all");
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const { data: snapshots = [], isLoading: snapshotsLoading } = useQuery<Snapshot[]>({
-    queryKey: ["/api/snapshots"],
-  });
-
-  const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
-    queryKey: ["/api/assets"],
-  });
-
-  const { data: history = [], isLoading: historyLoading } = useQuery<HistoryPoint[]>({
+  const { displayCurrency } = useDisplayCurrency();
+  const { data: history, isLoading } = useQuery<PortfolioHistory[]>({
     queryKey: ["/api/portfolio/history"],
   });
 
-  const enrichedSnapshots = snapshots.map((snapshot) => {
-    const asset = assets.find((a) => a.id === snapshot.assetId);
-    return {
-      ...snapshot,
-      assetSymbol: asset?.symbol || "Unknown",
-      assetName: asset?.name || "Unknown",
-      market: asset?.market || "unknown",
-    };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const sortedHistory = [...(history || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const historyWithChanges = sortedHistory.map((item, index) => {
+    const nextItem = sortedHistory[index + 1];
+    if (!nextItem) return { ...item, diff: 0, diffPercent: 0 };
+
+    const diff = item.totalValue - nextItem.totalValue;
+    const diffPercent = (diff / nextItem.totalValue) * 100;
+
+    return { ...item, diff, diffPercent };
   });
 
-  const filteredHistory = enrichedSnapshots.filter((entry) => {
-    const matchesFilter = filter === "all" || entry.market === filter;
-    const matchesSearch =
-      search === "" ||
-      entry.assetSymbol.toLowerCase().includes(search.toLowerCase()) ||
-      entry.assetName.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
-
-  const formatCurrency = (value: number) =>
-    `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-
-  const performanceData = history.map((h) => ({
-    month: h.month,
-    value: h.value,
+  const chartData = [...sortedHistory].reverse().map(item => ({
+    month: format(new Date(item.date), "MMM/yy", { locale: ptBR }),
+    value: item.totalValue
   }));
 
-  const isLoading = snapshotsLoading || assetsLoading || historyLoading;
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    return pages;
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Histórico</h1>
-          <p className="text-muted-foreground">Todos os lançamentos e snapshots</p>
-        </div>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Evolução do Patrimônio</h1>
+        <p className="text-muted-foreground">Acompanhe o crescimento da sua carteira mês a mês.</p>
       </div>
 
-      {historyLoading ? (
-        <Skeleton className="h-80 rounded-lg" />
-      ) : performanceData.length > 0 ? (
-        <PerformanceChart data={performanceData} title="Evolução do Patrimônio Total" />
-      ) : (
-        <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
-          Adicione lançamentos para ver o gráfico de evolução
-        </div>
+      {chartData.length > 0 && (
+        <PerformanceChart data={chartData} title="Evolução Patrimonial" />
       )}
 
       <Card>
-        <CardHeader className="flex flex-col gap-4 pb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Lançamentos
-            </CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {filteredHistory.length > 0 ? (
-                <>
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredHistory.length)} de {filteredHistory.length} registros
-                </>
-              ) : (
-                "Nenhum registro encontrado"
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 w-full">
-            <div className="relative flex-1 sm:flex-initial">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar ativo..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-9 w-full sm:w-48"
-                data-testid="input-search-history"
-              />
-            </div>
-            <Select value={filter} onValueChange={(v: "all" | "crypto" | "traditional") => {
-              setFilter(v);
-              setCurrentPage(1);
-            }}>
-              <SelectTrigger className="w-full sm:w-40" data-testid="select-filter-market">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filtrar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="crypto">Cripto</SelectItem>
-                <SelectItem value="traditional">Tradicional</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <CardHeader>
+          <CardTitle>Histórico Detalhado</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6">
-              <Skeleton className="h-64 rounded-lg" />
-            </div>
-          ) : filteredHistory.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Ativo</TableHead>
-                    <TableHead>Mercado</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Observação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedHistory.map((entry) => (
-                    <TableRow key={entry.id} data-testid={`row-history-${entry.id}`}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">
-                            {new Date(entry.date).toLocaleDateString("pt-BR")}
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mês/Ano</TableHead>
+                  <TableHead className="text-right">Patrimônio Total</TableHead>
+                  <TableHead className="text-right">Variação (R$)</TableHead>
+                  <TableHead className="text-right">Variação (%)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyWithChanges.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium capitalize">
+                      {format(new Date(item.date), "MMMM 'de' yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: displayCurrency }).format(item.totalValue)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <div className="flex items-center justify-end gap-1">
+                        {item.diff > 0 ? (
+                          <span className="text-green-500 flex items-center gap-1">
+                            <TrendingUp className="h-4 w-4" />
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: displayCurrency }).format(item.diff)}
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{entry.assetSymbol}</p>
-                          <p className="text-xs text-muted-foreground">{entry.assetName}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={entry.market === "crypto" ? "default" : "secondary"}>
-                          {entry.market === "crypto" ? "Cripto" : "Tradicional"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {formatCurrency(entry.value)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {entry.notes || "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="p-12 text-center text-muted-foreground">
-              Nenhum lançamento encontrado. Adicione ativos e registre valores para ver o histórico.
-            </div>
-          )}
-          {filteredHistory.length > ITEMS_PER_PAGE && (
-            <div className="border-t p-4 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1">
-                <Button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-prev-page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Anterior
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1 flex-wrap justify-center">
-                {currentPage > 3 && (
-                  <>
-                    <Button
-                      onClick={() => handlePageChange(1)}
-                      variant="outline"
-                      size="sm"
-                      data-testid="button-page-1"
-                    >
-                      1
-                    </Button>
-                    {currentPage > 4 && <span className="text-muted-foreground">...</span>}
-                  </>
-                )}
-
-                {getPageNumbers().map((page) => (
-                  <Button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
-                    data-testid={`button-page-${page}`}
-                  >
-                    {page}
-                  </Button>
+                        ) : item.diff < 0 ? (
+                          <span className="text-red-500 flex items-center gap-1">
+                            <TrendingDown className="h-4 w-4" />
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: displayCurrency }).format(Math.abs(item.diff))}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Minus className="h-4 w-4" />
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: displayCurrency }).format(0)}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <span className={item.diffPercent > 0 ? "text-green-500" : item.diffPercent < 0 ? "text-red-500" : "text-muted-foreground"}>
+                        {item.diffPercent > 0 ? "+" : ""}{item.diffPercent.toFixed(2)}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
                 ))}
-
-                {currentPage < totalPages - 2 && (
-                  <>
-                    {currentPage < totalPages - 3 && <span className="text-muted-foreground">...</span>}
-                    <Button
-                      onClick={() => handlePageChange(totalPages)}
-                      variant="outline"
-                      size="sm"
-                      data-testid={`button-page-${totalPages}`}
-                    >
-                      {totalPages}
-                    </Button>
-                  </>
+                {historyWithChanges.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      Nenhum dado de evolução disponível.
+                    </TableCell>
+                  </TableRow>
                 )}
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-next-page"
-                >
-                  Próxima
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

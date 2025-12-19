@@ -67,3 +67,17 @@ export const wallets = pgTable("wallets", {
 export const insertWalletSchema = createInsertSchema(wallets).omit({ id: true, createdAt: true, platform: true });
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
 export type Wallet = typeof wallets.$inferSelect;
+
+export const portfolioHistory = pgTable("portfolio_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  totalValue: real("total_value").notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  date: date("date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPortfolioHistorySchema = createInsertSchema(portfolioHistory).omit({ id: true, createdAt: true });
+export type InsertPortfolioHistory = z.infer<typeof insertPortfolioHistorySchema>;
+export type PortfolioHistory = typeof portfolioHistory.$inferSelect;

@@ -3,7 +3,8 @@ import {
   type Snapshot, type InsertSnapshot,
   type MonthlyStatement, type InsertMonthlyStatement,
   type Wallet, type InsertWallet,
-  assets, snapshots, monthlyStatements, wallets
+  type PortfolioHistory, type InsertPortfolioHistory,
+  assets, snapshots, monthlyStatements, wallets, portfolioHistory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
@@ -30,6 +31,9 @@ export interface IStorage {
   getWallets(userId?: string): Promise<Wallet[]>;
   createWallet(wallet: InsertWallet): Promise<Wallet>;
   deleteWallet(id: string): Promise<boolean>;
+  
+  getPortfolioHistory(userId?: string): Promise<PortfolioHistory[]>;
+  createPortfolioHistory(history: InsertPortfolioHistory): Promise<PortfolioHistory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -232,6 +236,18 @@ export class DatabaseStorage implements IStorage {
   async deleteWallet(id: string): Promise<boolean> {
     const result = await db.delete(wallets).where(eq(wallets.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getPortfolioHistory(userId?: string): Promise<PortfolioHistory[]> {
+    if (userId) {
+      return db.select().from(portfolioHistory).where(eq(portfolioHistory.userId, userId)).orderBy(desc(portfolioHistory.date));
+    }
+    return db.select().from(portfolioHistory).orderBy(desc(portfolioHistory.date));
+  }
+
+  async createPortfolioHistory(history: InsertPortfolioHistory): Promise<PortfolioHistory> {
+    const [newHistory] = await db.insert(portfolioHistory).values(history).returning();
+    return newHistory;
   }
 }
 
