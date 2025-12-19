@@ -734,6 +734,12 @@ export async function registerRoutes(
     const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const { totalValue, month, year, date } = req.body;
+      
+      if (!totalValue || !month || !year || !date) {
+        console.error("Missing portfolio history fields:", { totalValue, month, year, date });
+        return res.status(400).json({ error: "Missing required fields: totalValue, month, year, date" });
+      }
+      
       // Use createOrUpdate to avoid duplicates when re-saving a month
       const history = await storage.createOrUpdatePortfolioHistory({
         userId,
@@ -744,7 +750,8 @@ export async function registerRoutes(
       });
       res.status(201).json(history);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create or update portfolio history" });
+      console.error("Error creating/updating portfolio history:", error);
+      res.status(500).json({ error: "Failed to create or update portfolio history", details: String(error) });
     }
   });
 
