@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Bitcoin, Landmark, BarChart3, Building2 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 interface ExposureCardProps {
   cryptoValue: number;
@@ -67,7 +67,7 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
 
   const renderCustomLabel = ({ percent }: { percent: number }) => {
     if (percent < 0.05) return null;
-    return `${(percent * 100).toFixed(0)}%`;
+    return `${((percent * 100).toFixed(1)).replace('.', ',')}%`;
   };
 
   return (
@@ -86,7 +86,7 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
                     <Pie
                       data={pieData}
                       cx="50%"
-                      cy="50%"
+                      cy="45%"
                       labelLine={false}
                       label={renderCustomLabel}
                       innerRadius={60}
@@ -99,16 +99,24 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => [
-                        `${format(value as number)} (${((value as number / total) * 100).toFixed(1)}%)`,
-                        "Valor"
-                      ]}
+                      formatter={(value: number) => {
+                        const percent = ((value as number / total) * 100).toFixed(1).replace('.', ',');
+                        return [
+                          `${format(value as number)} (${percent}%)`,
+                          "Valor"
+                        ];
+                      }}
                       contentStyle={{
                         backgroundColor: "hsl(var(--popover))",
                         borderColor: "hsl(var(--border))",
                         borderRadius: "0.5rem",
                       }}
                       labelStyle={{ color: "hsl(var(--foreground))" }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      formatter={(value) => <span className="text-xs text-foreground">{value}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -120,28 +128,37 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
           <div className="space-y-4">
             {assets.map((asset, index) => {
               const Icon = asset.icon;
+              const percentFormatted = asset.percent.toFixed(1).replace('.', ',');
               return (
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1">
                       <div 
-                        className="p-2 rounded-lg"
+                        className="p-2 rounded-lg flex-shrink-0"
                         style={{ backgroundColor: `${asset.color}20` }}
                       >
                         <Icon className="h-4 w-4" style={{ color: asset.color }} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-sm">{asset.name}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           {format(asset.value)}
                         </p>
                       </div>
                     </div>
-                    <span className="text-lg font-bold tabular-nums whitespace-nowrap">
-                      {asset.percent.toFixed(1)}%
-                    </span>
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <span 
+                        className="text-sm font-bold tabular-nums whitespace-nowrap rounded px-2 py-1"
+                        style={{ 
+                          backgroundColor: `${asset.color}20`,
+                          color: asset.color
+                        }}
+                      >
+                        {percentFormatted}%
+                      </span>
+                    </div>
                   </div>
-                  <Progress value={asset.percent} className="h-2" />
+                  <Progress value={asset.percent} className="h-2" style={{ accentColor: asset.color }} />
                 </div>
               );
             })}
