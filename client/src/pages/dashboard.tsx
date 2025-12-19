@@ -2,6 +2,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { ExposureCard } from "@/components/dashboard/ExposureCard";
+import { PortfolioHoldings } from "@/components/dashboard/PortfolioHoldings";
 import { AddInvestmentDialog, type Investment, type Snapshot } from "@/components/dashboard/AddInvestmentDialog";
 import { BulkUpdateDialog } from "@/components/dashboard/BulkUpdateDialog";
 import { Wallet, TrendingUp, Landmark, BarChart3, Building2, Calendar } from "lucide-react";
@@ -257,6 +258,13 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <PortfolioHoldings
+        holdings={summary?.holdings || []}
+        isLoading={summaryLoading}
+        formatCurrency={format}
+        isHidden={isBalanceHidden}
+      />
 
       <BulkUpdateDialog open={bulkUpdateOpen} onOpenChange={setBulkUpdateOpen} />
     </div>
