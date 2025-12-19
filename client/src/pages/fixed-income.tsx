@@ -87,6 +87,8 @@ export default function FixedIncomePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
       toast({
         title: "Ativo removido",
         description: "O ativo foi removido do portfólio.",

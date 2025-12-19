@@ -92,8 +92,11 @@ export function EditInvestmentDialog({ assetId, open, onOpenChange }: EditInvest
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets", assetId] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots", assetId] });
       toast({
         title: "Investimento atualizado",
         description: "As alterações foram salvas com sucesso.",
@@ -114,7 +117,10 @@ export function EditInvestmentDialog({ assetId, open, onOpenChange }: EditInvest
       return apiRequest("POST", "/api/snapshots", snapshot);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/snapshots", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets", assetId] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
       toast({

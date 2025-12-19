@@ -74,6 +74,7 @@ export default function RealEstatePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
       toast({
         title: "Imóvel adicionado",
         description: "O imóvel foi cadastrado com sucesso.",
@@ -95,6 +96,8 @@ export default function RealEstatePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots"] });
       toast({
         title: "Imóvel removido",
         description: "O imóvel foi removido do portfólio.",
