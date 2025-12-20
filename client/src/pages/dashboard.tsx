@@ -141,17 +141,31 @@ export default function Dashboard() {
 
   // Memoized chart data calculation - 12 months of selected year
   const chartData = useMemo(() => {
-    const data: Array<{ month: string; value: number; locked: boolean }> = [];
+    const data: Array<{ month: string; value: number; locked: boolean; variation?: number; variationPercent?: number }> = [];
     
     // Generate 12 months for the selected year
     for (let month = 0; month < 12; month++) {
       const isLocked = monthLockedStatus[month] === true;
       const monthTotal = getMonthTotalValue(month);
       
+      // Calculate variation from previous month
+      let variation = undefined;
+      let variationPercent = undefined;
+      
+      if (month > 0) {
+        const previousMonthTotal = getMonthTotalValue(month - 1);
+        if (previousMonthTotal > 0) {
+          variation = monthTotal - previousMonthTotal;
+          variationPercent = (variation / previousMonthTotal) * 100;
+        }
+      }
+      
       data.push({
         month: monthShortNames[month],
         value: isLocked ? monthTotal : 0,
         locked: isLocked,
+        variation,
+        variationPercent,
       });
     }
     
@@ -538,14 +552,56 @@ export default function Dashboard() {
                   }}
                 />
                 <Tooltip 
-                  formatter={(value: number) => {
-                    if (!value) return ["-", "Valor"];
-                    return [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Patrimônio"];
-                  }}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "6px",
+                  content={({ active, payload }: any) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      const value = data.value || 0;
+                      const variation = data.variation;
+                      const variationPercent = data.variationPercent;
+                      
+                      return (
+                        <div style={{
+                          backgroundColor: "hsl(var(--background))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "6px",
+                          padding: "12px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+                        }}>
+                          <p style={{ margin: "0 0 8px 0", fontWeight: "600", color: "hsl(var(--foreground))" }}>
+                            {data.month}
+                          </p>
+                          <p style={{ margin: "4px 0", fontSize: "14px", color: "hsl(var(--foreground))" }}>
+                            Patrimônio: <span style={{ fontWeight: "500" }}>R$ {value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </p>
+                          {variation !== undefined && variation !== 0 ? (
+                            <>
+                              <div style={{ margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid hsl(var(--border))" }}>
+                                <p style={{ 
+                                  margin: "4px 0", 
+                                  fontSize: "14px",
+                                  color: variation >= 0 ? "hsl(142, 76%, 36%)" : "hsl(0, 84%, 60%)",
+                                  fontWeight: "500"
+                                }}>
+                                  Variação: {variation >= 0 ? "+" : ""}R$ {variation.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </p>
+                                <p style={{ 
+                                  margin: "2px 0", 
+                                  fontSize: "12px",
+                                  color: variation >= 0 ? "hsl(142, 76%, 36%)" : "hsl(0, 84%, 60%)"
+                                }}>
+                                  {variationPercent >= 0 ? "+" : ""}{variationPercent?.toFixed(2)}%
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            <p style={{ margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid hsl(var(--border))", fontSize: "12px", color: "hsl(var(--muted-foreground))" }}>
+                              Primeiro mês do período
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Legend />
