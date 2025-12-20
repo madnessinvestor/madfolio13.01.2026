@@ -93,14 +93,14 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Pie Chart - Left Side */}
           {pieData.length > 0 && (
-            <div className="flex flex-col items-center pt-8">
-              <div className="h-[688px] w-full">
+            <div className="flex flex-col items-center">
+              <div className="h-[380px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart margin={{ top: 20, right: 60, left: 60, bottom: 100 }}>
+                  <PieChart margin={{ top: 0, right: 20, left: 20, bottom: 40 }}>
                     <Pie
                       data={pieData}
                       cx="50%"
-                      cy="45%"
+                      cy="50%"
                       labelLine={false}
                       label={renderCustomLabel}
                       innerRadius={69}
