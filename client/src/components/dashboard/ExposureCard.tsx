@@ -86,7 +86,7 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
 
   return (
     <Card>
-      <CardHeader className="pb-6">
+      <CardHeader className="pb-10">
         <CardTitle className="text-lg font-semibold">Distribuição de Ativos</CardTitle>
       </CardHeader>
       <CardContent>
