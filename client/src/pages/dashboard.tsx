@@ -1,4 +1,5 @@
 import { MetricCard } from "@/components/dashboard/MetricCard";
+import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { ExposureCard } from "@/components/dashboard/ExposureCard";
 import { PortfolioHoldings } from "@/components/dashboard/PortfolioHoldings";
 import { AddInvestmentDialog, type Investment, type Snapshot } from "@/components/dashboard/AddInvestmentDialog";
@@ -10,6 +11,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/hooks/use-currency";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 
 interface PortfolioSummary {
@@ -48,9 +50,82 @@ export default function Dashboard() {
   const { formatCurrency } = useCurrencyConverter();
   const [, navigate] = useLocation();
   
+  // State for selected year in chart
+  const [selectedChartYear, setSelectedChartYear] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dashboard_selectedYear");
+      return saved ? parseInt(saved) : new Date().getFullYear();
+    }
+    return new Date().getFullYear();
+  });
+  
+  // Persist year selection
+  useEffect(() => {
+    localStorage.setItem("dashboard_selectedYear", selectedChartYear.toString());
+  }, [selectedChartYear]);
+
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
   });
+
+  const { data: history = [], isLoading: historyLoading } = useQuery<any[]>({
+    queryKey: ["/api/portfolio/history"],
+  });
+
+  const currentYear = new Date().getFullYear().toString();
+  const { data: monthStatus = {} } = useQuery<Record<number, boolean>>({
+    queryKey: ["/api/snapshots/month-status", selectedChartYear.toString()],
+  });
+
+  // Calculate variations for history
+  const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  
+  // Map month name to index (for when month is stored as string)
+  const monthNameToIndex = (monthName: string): number => {
+    const index = monthNames.indexOf(monthName);
+    return index >= 0 ? index : parseInt(monthName) - 1;
+  };
+  
+  // Available years: 2025-2030
+  const availableYears = [2025, 2026, 2027, 2028, 2029, 2030];
+  
+  // Create a map of year/month to history point for quick lookup
+  const historyMap = new Map<string, any>();
+  history.forEach((h) => {
+    const monthIndex = monthNameToIndex(h.month.toString());
+    const key = `${h.year}-${monthIndex}`;
+    historyMap.set(key, h);
+  });
+  
+  // Generate 12 months for selected year
+  const selectedYearData = monthNames.map((monthName, monthIndex) => {
+    const key = `${selectedChartYear}-${monthIndex}`;
+    const point = historyMap.get(key);
+    return {
+      month: monthName,
+      year: selectedChartYear,
+      value: point?.totalValue || 0,
+      isLocked: point ? (point.isLocked === 1 || true) : false,
+    };
+  });
+  
+  // Calculate variations within the year
+  const performanceData = selectedYearData
+    .map((point, index, array) => {
+      const prevPoint = array[index - 1];
+      const variation = prevPoint && prevPoint.value > 0 ? point.value - prevPoint.value : 0;
+      const variationPercent = prevPoint && prevPoint.value > 0 
+        ? (variation / prevPoint.value) * 100 
+        : 0;
+      
+      return {
+        month: point.month,
+        value: point.value,
+        variation,
+        variationPercent,
+        isLocked: point.isLocked,
+      };
+    });
 
   const createInvestmentMutation = useMutation({
     mutationFn: async (investment: Omit<Investment, "id" | "currentPrice">) => {
@@ -127,7 +202,7 @@ export default function Dashboard() {
     color: `hsl(var(--chart-${(index % 5) + 1}))`,
   }));
 
-  const isLoading = summaryLoading;
+  const isLoading = summaryLoading || historyLoading;
 
   const format = (value: number) => isBalanceHidden ? '***' : formatCurrency(value, displayCurrency);
 
@@ -178,6 +253,25 @@ export default function Dashboard() {
           />
         </div>
       )}
+
+      <div className="space-y-4">
+        {historyLoading ? (
+          <Skeleton className="h-96 rounded-lg" />
+        ) : performanceData.length > 0 ? (
+          <PerformanceChart 
+            data={performanceData}
+            monthStatus={monthStatus}
+            onViewDetails={() => navigate("/monthly-snapshots")}
+            availableYears={availableYears}
+            selectedYear={selectedChartYear}
+            onYearChange={setSelectedChartYear}
+          />
+        ) : (
+          <div className="h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
+            Adicione lançamentos para ver o gráfico de evolução
+          </div>
+        )}
+      </div>
 
       <ExposureCard 
         cryptoValue={cryptoValue} 
