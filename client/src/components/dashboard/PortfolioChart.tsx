@@ -15,6 +15,23 @@ interface PortfolioChartProps {
 export function PortfolioChart({ title, data }: PortfolioChartProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const { name, value } = payload[0].payload;
+      const percentage = ((value / total) * 100).toFixed(1);
+      return (
+        <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
+          <p className="text-sm font-semibold text-foreground mb-1">{name}</p>
+          <p className="text-sm text-foreground">
+            R$ {value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-muted-foreground">{percentage}%</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -37,21 +54,11 @@ export function PortfolioChart({ title, data }: PortfolioChartProps) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip
-                formatter={(value: number) => [
-                  `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} (${((value / total) * 100).toFixed(1)}%)`,
-                  "Value"
-                ]}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--popover))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "0.5rem",
-                }}
-                labelStyle={{ color: "hsl(var(--foreground))" }}
-              />
+              <Tooltip content={<CustomTooltip />} />
               <Legend
                 verticalAlign="bottom"
                 height={36}
+                wrapperStyle={{ paddingTop: "16px" }}
                 formatter={(value) => <span className="text-sm text-foreground">{value}</span>}
               />
             </PieChart>

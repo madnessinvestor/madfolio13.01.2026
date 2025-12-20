@@ -24,6 +24,21 @@ export function CategoryChart({ title, data, showPercentage = true }: CategoryCh
     return `${(percent * 100).toFixed(0)}%`;
   };
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const { name, value } = payload[0].payload;
+      const percentage = ((value / total) * 100).toFixed(1);
+      return (
+        <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
+          <p className="text-sm font-semibold text-foreground mb-1">{name}</p>
+          <p className="text-sm text-foreground">{formatCurrency(value)}</p>
+          <p className="text-xs text-muted-foreground">{percentage}%</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -48,22 +63,11 @@ export function CategoryChart({ title, data, showPercentage = true }: CategoryCh
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip
-                formatter={(value: number) => [
-                  `${formatCurrency(value)} (${((value / total) * 100).toFixed(1)}%)`,
-                  "Valor"
-                ]}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--popover))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "0.5rem",
-                }}
-                labelStyle={{ color: "hsl(var(--foreground))" }}
-                textStyle={{ color: "hsl(var(--foreground))" }}
-              />
+              <Tooltip content={<CustomTooltip />} />
               <Legend
                 verticalAlign="bottom"
                 height={36}
+                wrapperStyle={{ paddingTop: "16px" }}
                 formatter={(value) => <span className="text-sm text-foreground">{value}</span>}
               />
             </PieChart>
