@@ -29,6 +29,7 @@ interface HoldingsTableProps {
   onEdit?: (holding: Holding) => void;
   onDelete?: (holding: Holding) => void;
   isHidden?: boolean;
+  fixedIncome?: boolean;
 }
 
 export function HoldingsTable({
@@ -38,6 +39,7 @@ export function HoldingsTable({
   onEdit,
   onDelete,
   isHidden,
+  fixedIncome = false,
 }: HoldingsTableProps) {
   const formatCurrency = (value: number) =>
     isHidden ? '***' : `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
@@ -68,11 +70,12 @@ export function HoldingsTable({
               <TableRow>
                 <TableHead>Ativo</TableHead>
                 <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead className="text-right">Preço Médio</TableHead>
-                <TableHead className="text-right">Preço Atual</TableHead>
+                <TableHead className="text-right">{fixedIncome ? "Valor Inicial" : "Preço Médio"}</TableHead>
+                <TableHead className="text-right">{fixedIncome ? "Valor Atual" : "Preço Atual"}</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead className="text-right">Lucro/Perda %</TableHead>
-                <TableHead className="text-right">24h</TableHead>
+                {fixedIncome && <TableHead className="text-right">Valorização (R$)</TableHead>}
+                <TableHead className="text-right">{fixedIncome ? "Lucro/Perda Total (%)" : "Lucro/Perda %"}</TableHead>
+                {!fixedIncome && <TableHead className="text-right">24h</TableHead>}
                 <TableHead className="text-right sr-only">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -109,6 +112,13 @@ export function HoldingsTable({
                     <TableCell className="text-right tabular-nums font-medium">
                       {formatCurrency(totalValue)}
                     </TableCell>
+                    {fixedIncome && (
+                      <TableCell className="text-right tabular-nums">
+                        <span className={isProfit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                          {isProfit ? "+" : ""}{formatCurrency(profitLoss)}
+                        </span>
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       <div className={`flex items-center justify-end gap-1 ${isProfit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                         {isProfit ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -117,11 +127,13 @@ export function HoldingsTable({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <span className={`tabular-nums text-sm ${holding.change24h >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                        {holding.change24h >= 0 ? "+" : ""}{holding.change24h.toFixed(2)}%
-                      </span>
-                    </TableCell>
+                    {!fixedIncome && (
+                      <TableCell className="text-right">
+                        <span className={`tabular-nums text-sm ${holding.change24h >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          {holding.change24h >= 0 ? "+" : ""}{holding.change24h.toFixed(2)}%
+                        </span>
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         {onEdit && (

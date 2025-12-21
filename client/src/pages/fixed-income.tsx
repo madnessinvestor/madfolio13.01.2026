@@ -227,6 +227,7 @@ export default function FixedIncomePage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               isHidden={isBalanceHidden}
+              fixedIncome={true}
             />
           ) : (
             <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
