@@ -447,7 +447,11 @@ export default function Dashboard() {
   };
 
   const totalPortfolio = summary?.totalValue || 0;
-  const cryptoValue = summary?.cryptoValue || 0;
+  
+  // Calculate crypto value correctly by summing both holdings and wallets crypto
+  const allCryptoAssets = summary?.holdings.filter((h) => h.market === "crypto" || h.market === "crypto_simplified") || [];
+  const cryptoValue = allCryptoAssets.reduce((sum, h) => sum + (h.value || 0), 0);
+  
   const fixedIncomeValue = summary?.fixedIncomeValue || 0;
   const variableIncomeValue = summary?.variableIncomeValue || 0;
   const realEstateValue = summary?.realEstateValue || 0;
