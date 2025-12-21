@@ -33,6 +33,15 @@
 
 ## Recent Changes
 
+### Dec 21, 2025
+- Implemented auto-refresh for crypto holdings (Holdings Cripto)
+  - Auto-updates every 5 minutes with live cryptocurrency prices
+  - Refetches on page load
+  - Refetches when window regains focus
+  - Uses CoinGecko API for real-time price data (BTC, ETH, SOL, ERGO, etc.)
+  - Locked monthly snapshots prevent auto-updates for that month
+  - Price updates do not affect manually edited values in unlocked months
+
 ### Dec 19, 2025
 - Migrated project to Replit environment
 - Set up Node.js 20 module
@@ -149,14 +158,35 @@ npm run db:push
 - Always use `npm run db:push` for database schema changes
 - Use `.env.local` for local development settings (not committed)
 
+## Crypto Holdings Auto-Update Feature
+
+The application now automatically updates all cryptocurrency holdings in the "Holdings Cripto" section:
+
+**How it works:**
+- Backend: `startPriceUpdater()` runs every 5 minutes and fetches live prices from CoinGecko
+- Frontend: The crypto page (`client/src/pages/crypto.tsx`) auto-refetches the portfolio summary every 5 minutes
+- Data is also refetched when:
+  - Page loads
+  - Window regains focus (after switching tabs/windows)
+  - User manually triggers a page refresh
+
+**Supported cryptocurrencies:**
+- Direct mapping: BTC, ETH, SOL, ADA, DOT, AVAX, MATIC, LINK, ATOM, XRP, DOGE, SHIB, LTC, BCH, XLM, ALGO, VET, FIL, THETA, TRX, EOS, XTZ, AAVE, MKR, COMP, SNX, YFI, SUSHI, CRV, ERGO, and others
+- Dynamic search: Any cryptocurrency supported by CoinGecko
+
+**Price locking:**
+- When a user creates a "snapshot" (monthly lock), that value is frozen and won't be auto-updated
+- The `isLocked` flag in the snapshots table prevents auto-updates for that month
+- Unlocked months continue to auto-update
+
 ## Future Enhancements
 
-- [ ] Price update automation
 - [ ] Multiple portfolio views
 - [ ] Export reports to PDF
 - [ ] Mobile app
 - [ ] Email notifications
 - [ ] Advanced analytics
+- [ ] Real-time price notifications/alerts
 
 ## Deployment
 

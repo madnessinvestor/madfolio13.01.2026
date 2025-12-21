@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { HoldingsTable, type Holding } from "@/components/dashboard/HoldingsTable";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { PortfolioChart } from "@/components/dashboard/PortfolioChart";
@@ -51,9 +51,18 @@ export default function CryptoPage() {
   const [editingAssetId, setEditingAssetId] = useState<string | undefined>(undefined);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
+  const { data: summary, isLoading: summaryLoading, refetch } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
+    staleTime: 0,
+    refetchInterval: 5 * 60 * 1000, // Auto-refetch every 5 minutes
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
+
+  // Refetch on component mount to ensure latest prices
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const createInvestmentMutation = useMutation({
     mutationFn: async (investment: Omit<Investment, "id" | "currentPrice">) => {
