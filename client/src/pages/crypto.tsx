@@ -96,8 +96,32 @@ export default function CryptoPage() {
   });
 
   const cryptoHoldings = summary?.holdings.filter((h) => h.market === "crypto") || [];
+  const holdingsCripto = summary?.holdings.filter((h) => h.market === "Mercado Cripto") || [];
+  const walletsCripto = summary?.holdings.filter((h) => h.market === "Mercado Cripto (Simplificado)") || [];
 
   const holdings: Holding[] = cryptoHoldings.map((h) => ({
+    id: h.id,
+    symbol: h.symbol,
+    name: h.name,
+    amount: h.quantity || 0,
+    avgPrice: h.acquisitionPrice || 0,
+    currentPrice: h.currentPrice || 0,
+    change24h: h.profitLossPercent || 0,
+    type: "crypto",
+  }));
+
+  const holdingsCriptoFormatted: Holding[] = holdingsCripto.map((h) => ({
+    id: h.id,
+    symbol: h.symbol,
+    name: h.name,
+    amount: h.quantity || 0,
+    avgPrice: h.acquisitionPrice || 0,
+    currentPrice: h.currentPrice || 0,
+    change24h: h.profitLossPercent || 0,
+    type: "crypto",
+  }));
+
+  const walletsCriptoFormatted: Holding[] = walletsCripto.map((h) => ({
     id: h.id,
     symbol: h.symbol,
     name: h.name,
@@ -238,10 +262,10 @@ export default function CryptoPage() {
           <div className="lg:col-span-2">
             {summaryLoading ? (
               <Skeleton className="h-96 rounded-lg" />
-            ) : holdings.length > 0 ? (
+            ) : holdingsCriptoFormatted.length > 0 ? (
               <HoldingsTable
                 title="Holdings Cripto"
-                holdings={holdings}
+                holdings={holdingsCriptoFormatted}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 isHidden={isBalanceHidden}
@@ -249,7 +273,7 @@ export default function CryptoPage() {
               />
             ) : (
               <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
-                Adicione investimentos cripto para vê-los aqui
+                Nenhum ativo em Holdings Cripto
               </div>
             )}
           </div>
@@ -265,16 +289,20 @@ export default function CryptoPage() {
         <div className="grid grid-cols-1 gap-6">
           {summaryLoading ? (
             <Skeleton className="h-96 rounded-lg" />
-          ) : holdings.length > 0 ? (
+          ) : walletsCriptoFormatted.length > 0 ? (
             <HoldingsTable
               title="Wallets Cripto"
-              holdings={holdings}
+              holdings={walletsCriptoFormatted}
               onEdit={handleEdit}
               onDelete={handleDelete}
               isHidden={isBalanceHidden}
               cryptoType="wallets"
             />
-          ) : null}
+          ) : (
+            <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+              Nenhum ativo em Wallets Cripto
+            </div>
+          )}
         </div>
       </div>
 
