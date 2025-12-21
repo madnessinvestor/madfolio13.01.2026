@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock } from "lucide-react";
+import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock, Minus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar } from "recharts";
 import type { Asset } from "@shared/schema";
 
@@ -633,6 +633,100 @@ export default function MonthlySnapshotsPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Extrato da Evolução do Portfólio</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b bg-background">
+                  <th className="px-4 py-3 text-left font-semibold">Mês/Ano</th>
+                  <th className="px-4 py-3 text-right font-semibold">Valor do Portfólio</th>
+                  <th className="px-4 py-3 text-right font-semibold">Variação (R$)</th>
+                  <th className="px-4 py-3 text-right font-semibold">Variação (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const year = parseInt(selectedYear);
+                  const lockedMonths: Array<{month: number; total: number; monthStr: string}> = [];
+                  
+                  for (let month = 0; month < 12; month++) {
+                    if (monthLockedStatus[month]) {
+                      const total = getMonthTotalValue(month);
+                      const monthName = monthShortNames[month];
+                      const monthStr = `${String(month + 1).padStart(2, '0')}/${year}`;
+                      lockedMonths.push({ month, total, monthStr });
+                    }
+                  }
+
+                  if (lockedMonths.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={4} className="h-24 text-center text-muted-foreground">
+                          Nenhum mês registrado. Bloqueie meses na tabela acima para visualizar o extrato.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return lockedMonths.map((item, index) => {
+                    const previousTotal = index > 0 ? lockedMonths[index - 1].total : item.total;
+                    const variation = item.total - previousTotal;
+                    const variationPercent = previousTotal !== 0 ? (variation / previousTotal) * 100 : 0;
+                    const isFirstMonth = index === 0;
+
+                    return (
+                      <tr key={`${year}-${item.month}`} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3 font-medium">{item.monthStr}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.total)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {isFirstMonth ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1">
+                              {variation > 0 ? (
+                                <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                  <TrendingUp className="h-4 w-4" />
+                                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(variation)}
+                                </span>
+                              ) : variation < 0 ? (
+                                <span className="text-red-600 dark:text-red-400 flex items-center gap-1">
+                                  <TrendingDown className="h-4 w-4" />
+                                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Math.abs(variation))}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Minus className="h-4 w-4" />
+                                  R$ 0,00
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {isFirstMonth ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            <span className={variationPercent > 0 ? "text-green-600 dark:text-green-400 font-semibold" : variationPercent < 0 ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground"}>
+                              {variationPercent > 0 ? "+" : ""}{variationPercent.toFixed(2)}%
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
