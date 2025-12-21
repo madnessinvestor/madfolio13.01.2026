@@ -23,11 +23,11 @@
 - **Runtime**: Node.js 20
 - **Framework**: Express
 - **ORM**: Drizzle ORM
-- **Database**: PostgreSQL (Neon)
-- **Auth**: Replit Auth + Passport.js
+- **Database**: SQLite (better-sqlite3)
+- **Auth**: Replit Auth + Passport.js + Local credentials
 
 ### Database
-- PostgreSQL via Neon
+- SQLite database (app.db)
 - Schema managed by Drizzle ORM
 - Tables: users, sessions, assets, snapshots, wallets, portfolios, activities, monthly_statements
 
@@ -62,12 +62,11 @@
 ## Environment Variables
 
 Required:
-- `DATABASE_URL` - PostgreSQL connection string
 - `NODE_ENV` - development/production
 
 Optional:
 - `PORT` - Server port (default: 5000)
-- `REPLIT_IDENTITY_PROVIDER` - For Replit Auth
+- `DATABASE_URL` - PostgreSQL connection string (if using external DB)
 
 ## Running the Project
 
