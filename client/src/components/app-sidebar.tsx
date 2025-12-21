@@ -73,9 +73,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <img src="/madfolio-logo.png" alt="MadFolio" className="h-[70px] w-[70px] rounded-lg" />
+          <img src="/madfolio-logo.png" alt="MadFolio" className="h-[88px] w-[88px] rounded-lg" />
           <div>
-            <h1 className="font-bold text-lg">MadFolio</h1>
+            <h1 className="font-bold text-lg" style={{color: '#a855f7', textShadow: '0 0 20px #a855f7, 0 0 10px #7c3aed'}}>MadFolio</h1>
             <p className="text-xs text-muted-foreground">Portfolio Manager</p>
           </div>
         </div>
