@@ -233,31 +233,49 @@ export default function CryptoPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            {summaryLoading ? (
+              <Skeleton className="h-96 rounded-lg" />
+            ) : holdings.length > 0 ? (
+              <HoldingsTable
+                title="Holdings Cripto"
+                holdings={holdings}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                isHidden={isBalanceHidden}
+                cryptoType="holdings"
+              />
+            ) : (
+              <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+                Adicione investimentos cripto para vê-los aqui
+              </div>
+            )}
+          </div>
+          {chartData.length > 0 ? (
+            <PortfolioChart title="Distribuição Cripto" data={chartData} />
+          ) : (
+            <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
+              Sem dados para exibir
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6">
           {summaryLoading ? (
             <Skeleton className="h-96 rounded-lg" />
           ) : holdings.length > 0 ? (
             <HoldingsTable
-              title="Holdings Cripto"
+              title="Wallets Cripto"
               holdings={holdings}
               onEdit={handleEdit}
               onDelete={handleDelete}
               isHidden={isBalanceHidden}
+              cryptoType="wallets"
             />
-          ) : (
-            <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
-              Adicione investimentos cripto para vê-los aqui
-            </div>
-          )}
+          ) : null}
         </div>
-        {chartData.length > 0 ? (
-          <PortfolioChart title="Distribuição Cripto" data={chartData} />
-        ) : (
-          <div className="h-64 rounded-lg border flex items-center justify-center text-muted-foreground">
-            Sem dados para exibir
-          </div>
-        )}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
