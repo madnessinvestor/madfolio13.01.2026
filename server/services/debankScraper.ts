@@ -204,12 +204,16 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
+        '--disable-accelerated-jpeg-decoding',
+        '--disable-accelerated-video-decode',
         '--no-first-run',
-        '--no-zygote',
         '--single-process',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions'
       ],
       executablePath: chromiumPath,
+      timeout: 30000,
     });
 
     console.log(`[Sequential] Processing ${wallets.length} wallets sequentially`);

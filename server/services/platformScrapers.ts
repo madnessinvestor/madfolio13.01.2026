@@ -129,7 +129,7 @@ export async function scrapeDebankEVM(
     }
     
     // DOM scraping fallback
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 45000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: 50000 }).catch(e => 
       console.log('[DeBank] Navigation warning: ' + e.message)
     );
     
@@ -198,7 +198,7 @@ async function scrapeJupiterPortfolioNetWorth(
     
     // Navigate
     console.log('[JupiterPortfolio] Navigating to wallet...');
-    await page.goto(walletLink, { waitUntil: 'networkidle0', timeout: 40000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: 50000 }).catch(e => 
       console.log('[JupiterPortfolio] Navigation warning: ' + e.message)
     );
     
@@ -372,7 +372,7 @@ export async function scrapeJupiterSolana(
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
     // Navigate and wait for initial load
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 40000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: 50000 }).catch(e => 
       console.log('[Jupiter] Navigation warning: ' + e.message)
     );
     
@@ -436,7 +436,7 @@ export async function scrapeReadyStarknet(
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
     // Navigate and wait for initial load
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 40000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: 50000 }).catch(e => 
       console.log('[Ready] Navigation warning: ' + e.message)
     );
     
@@ -500,7 +500,7 @@ export async function scrapeAptoscanAptos(
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
     // Navigate and wait for initial load
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 25000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => 
       console.log('[Aptoscan] Navigation warning: ' + e.message)
     );
     
@@ -564,7 +564,7 @@ export async function scrapeSeiscanSei(
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
     // Navigate and wait for initial load
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 25000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => 
       console.log('[Seiscan] Navigation warning: ' + e.message)
     );
     
@@ -628,7 +628,7 @@ export async function scrapeGenericOpportunistic(
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     
     // Navigate and wait for initial load
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: timeoutMs - 5000 }).catch(e => 
+    await page.goto(walletLink, { waitUntil: 'domcontentloaded', timeout: timeoutMs - 5000 }).catch(e => 
       console.log('[Generic] Navigation warning: ' + e.message)
     );
     
