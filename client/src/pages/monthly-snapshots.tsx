@@ -138,6 +138,18 @@ export default function MonthlySnapshotsPage() {
     enabled: monthSequence.includes(0),
   });
 
+  // Query para histórico de portfólio (todos os meses)
+  interface PortfolioHistoryItem {
+    id: number;
+    totalValue: number;
+    month: number;
+    year: number;
+    date: string;
+  }
+  const { data: portfolioHistory = [] } = useQuery<PortfolioHistoryItem[]>({
+    queryKey: ["/api/portfolio/history"],
+  });
+
   useEffect(() => {
     setMonthLockedStatus(monthStatus);
   }, [monthStatus]);
@@ -677,39 +689,42 @@ export default function MonthlySnapshotsPage() {
               </thead>
               <tbody>
                 {(() => {
-                  const year = parseInt(selectedYear);
-                  const lockedMonths: Array<{month: number; total: number; monthStr: string}> = [];
-                  
-                  for (let month = 0; month < 12; month++) {
-                    if (monthLockedStatus[month]) {
-                      const total = getMonthTotalValue(month);
-                      const monthName = monthShortNames[month];
-                      const monthStr = `${String(month + 1).padStart(2, '0')}/${year}`;
-                      lockedMonths.push({ month, total, monthStr });
-                    }
-                  }
+                  // Filtrar dados de dezembro 2025 até dezembro 2030
+                  const filteredHistory = portfolioHistory.filter(item => {
+                    if (item.year < 2025 || item.year > 2030) return false;
+                    if (item.year === 2025 && item.month < 12) return false;
+                    if (item.year === 2030 && item.month > 12) return false;
+                    return true;
+                  });
 
-                  if (lockedMonths.length === 0) {
+                  // Ordenar por ano e depois por mês
+                  const sortedHistory = filteredHistory.sort((a, b) => {
+                    if (a.year !== b.year) return a.year - b.year;
+                    return a.month - b.month;
+                  });
+
+                  if (sortedHistory.length === 0) {
                     return (
                       <tr>
                         <td colSpan={4} className="h-24 text-center text-muted-foreground">
-                          Nenhum mês registrado. Bloqueie meses na tabela acima para visualizar o extrato.
+                          Nenhum mês registrado de dezembro de 2025 até dezembro de 2030.
                         </td>
                       </tr>
                     );
                   }
 
-                  return lockedMonths.map((item, index) => {
-                    const previousTotal = index > 0 ? lockedMonths[index - 1].total : item.total;
-                    const variation = item.total - previousTotal;
+                  return sortedHistory.map((item, index) => {
+                    const previousTotal = index > 0 ? sortedHistory[index - 1].totalValue : item.totalValue;
+                    const variation = item.totalValue - previousTotal;
                     const variationPercent = previousTotal !== 0 ? (variation / previousTotal) * 100 : 0;
                     const isFirstMonth = index === 0;
+                    const monthStr = `${String(item.month).padStart(2, '0')}/${item.year}`;
 
                     return (
-                      <tr key={`${year}-${item.month}`} className="border-b hover:bg-muted/50">
-                        <td className="px-4 py-3 font-medium">{item.monthStr}</td>
+                      <tr key={`${item.year}-${item.month}-${item.id}`} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3 font-medium">{monthStr}</td>
                         <td className="px-4 py-3 text-right tabular-nums font-semibold">
-                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.total)}
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.totalValue)}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
                           {isFirstMonth ? (
