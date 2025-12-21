@@ -241,6 +241,7 @@ export default function MonthlySnapshotsPage() {
     try {
       const monthData = monthUpdates[month];
       const updates: SnapshotUpdate[] = [];
+      const assetUpdates: Array<{ assetId: string; value: number }> = [];
       let monthTotal = 0;
 
       for (const assetId of Object.keys(monthData)) {
@@ -252,6 +253,7 @@ export default function MonthlySnapshotsPage() {
             value,
             date: monthDates[month],
           });
+          assetUpdates.push({ assetId, value });
         }
       }
 
@@ -267,6 +269,21 @@ export default function MonthlySnapshotsPage() {
       // Save all snapshots
       for (const update of updates) {
         await apiRequest("POST", "/api/snapshots", update);
+      }
+
+      // Update currentPrice for each asset based on snapshot values
+      for (const assetUpdate of assetUpdates) {
+        const asset = assets.find(a => a.id === assetUpdate.assetId);
+        if (asset && asset.quantity > 0) {
+          // Calculate new current price: total value / quantity
+          const newCurrentPrice = assetUpdate.value / asset.quantity;
+          await apiRequest("PATCH", `/api/assets/${assetUpdate.assetId}`, {
+            currentPrice: newCurrentPrice,
+          }).catch(() => {
+            // Continue even if individual asset update fails
+            console.error(`Failed to update currentPrice for asset ${assetUpdate.assetId}`);
+          });
+        }
       }
 
       const year = parseInt(selectedYear);
