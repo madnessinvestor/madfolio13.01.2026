@@ -47,11 +47,48 @@ async function extractDebankNetWorthEVM(page: Page): Promise<string | null> {
   try {
     const netWorth = await page.evaluate(() => {
       try {
+        console.log('[DeBank] Starting DOM evaluation');
+        
+        // First try to find specific selectors that might contain the balance
+        const selectors = [
+          '[data-testid="portfolio-value"]',
+          '[data-testid="total-balance"]',
+          '.portfolio-value',
+          '.total-balance',
+          '.net-worth',
+          '[class*="balance"][class*="total"]',
+          '[class*="portfolio"][class*="value"]',
+          'h1[class*="balance"]',
+          'div[class*="balance"]:not([class*="token"])',
+          'span[class*="balance"]'
+        ];
+        
+        for (const selector of selectors) {
+          const elements = document.querySelectorAll(selector);
+          console.log(`[DeBank] Checking selector ${selector}: found ${elements.length} elements`);
+          for (const el of elements) {
+            const text = el.textContent?.trim() || '';
+            console.log(`[DeBank] Element text: "${text}"`);
+            const match = text.match(/\$[\d,]+(?:\.\d{2})?/);
+            if (match) {
+              const value = match[0].replace('$', '');
+              const numValue = parseFloat(value.replace(/,/g, ''));
+              if (numValue > 0 && numValue < 10000000) {
+                console.log(`[DeBank] Found via selector ${selector}: $${value}`);
+                return value;
+              }
+            }
+          }
+        }
+        
+        // Fallback to text analysis
         const pageText = document.body.innerText;
+        console.log(`[DeBank] Page text length: ${pageText.length}`);
         const lines = pageText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        console.log(`[DeBank] Found ${lines.length} text lines`);
         
         // Look for pattern: $X,XXX -Y.YY% or $X +Y.YY% (portfolio total with % change)
-        for (let i = 0; i < Math.min(lines.length, 30); i++) {
+        for (let i = 0; i < Math.min(lines.length, 50); i++) {
           const line = lines[i];
           const match = line.match(/^\$\s*([\d,]+(?:\.\d{2})?)\s+[-+][\d.]+%/);
           if (match) {
@@ -61,10 +98,10 @@ async function extractDebankNetWorthEVM(page: Page): Promise<string | null> {
           }
         }
         
-        // Fallback: Look for first $ value on a line by itself
-        for (let i = 0; i < Math.min(lines.length, 50); i++) {
+        // Look for lines that start with $ and contain a reasonable balance
+        for (let i = 0; i < Math.min(lines.length, 100); i++) {
           const line = lines[i];
-          if (line.startsWith('$')) {
+          if (line.startsWith('$') && !line.includes('token') && !line.includes('Token')) {
             const match = line.match(/^\$\s*([\d,]+\.?\d*)/);
             if (match) {
               const value = match[1];
@@ -77,6 +114,26 @@ async function extractDebankNetWorthEVM(page: Page): Promise<string | null> {
           }
         }
         
+        // Last resort: look for any $ value in the page
+        const allDollarMatches = pageText.match(/\$[\d,]+(?:\.\d{2})?/g);
+        console.log(`[DeBank] Found ${allDollarMatches?.length || 0} dollar matches in page`);
+        if (allDollarMatches) {
+          const values = allDollarMatches
+            .map(m => ({
+              str: m,
+              num: parseFloat(m.replace(/[$,]/g, ''))
+            }))
+            .filter(v => v.num >= 1 && v.num < 10000000) // Reasonable balance range
+            .sort((a, b) => b.num - a.num); // Sort by value descending
+            
+          if (values.length > 0) {
+            const bestValue = values[0].str.replace('$', '');
+            console.log('[DeBank] Last resort - found value: ' + bestValue);
+            return bestValue;
+          }
+        }
+        
+        console.log('[DeBank] No value found in DOM');
         return null;
       } catch (error) {
         console.log('[DeBank] Extraction error: ' + error);
@@ -104,7 +161,24 @@ export async function scrapeDebankEVM(
   try {
     console.log('[DeBank] Starting EVM scraper');
     
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    // Set more realistic browser fingerprint
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1920, height: 1080 });
+    
+    // Set additional headers to appear more like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Cache-Control': 'max-age=0'
+    });
     
     // Try API first
     const addressMatch = walletLink.match(/0x[a-fA-F0-9]{40}/);
@@ -113,15 +187,24 @@ export async function scrapeDebankEVM(
       try {
         console.log('[DeBank] Trying API endpoint');
         const apiResponse = await fetch(`https://api.debank.com/v1/user/total_balance?id=${address}`, {
-          headers: { "Accept": "application/json" }
+          headers: { 
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          }
         });
         
         if (apiResponse.ok) {
           const data = await apiResponse.json() as any;
           const balanceUSD = data.total_usd_value || 0;
-          const formatted = `$${balanceUSD.toFixed(2)}`;
-          console.log('[DeBank] API success: ' + formatted);
-          return { value: formatted, success: true, platform: 'debank' };
+          if (balanceUSD > 0) {
+            const formatted = `$${balanceUSD.toFixed(2)}`;
+            console.log('[DeBank] API success: ' + formatted);
+            return { value: formatted, success: true, platform: 'debank' };
+          } else {
+            console.log('[DeBank] API returned zero balance');
+          }
+        } else {
+          console.log('[DeBank] API failed with status:', apiResponse.status);
         }
       } catch (apiError) {
         console.log('[DeBank] API failed, trying DOM scraping');
@@ -129,12 +212,22 @@ export async function scrapeDebankEVM(
     }
     
     // DOM scraping fallback
-    await page.goto(walletLink, { waitUntil: 'networkidle2', timeout: 45000 }).catch(e => 
+    console.log('[DeBank] Starting DOM scraping');
+    await page.goto(walletLink, { waitUntil: 'networkidle0', timeout: 45000 }).catch(e => 
       console.log('[DeBank] Navigation warning: ' + e.message)
     );
     
-    // Wait for JS rendering
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Wait for JS rendering - increased time
+    await new Promise(resolve => setTimeout(resolve, 15000));
+    
+    // Try to wait for specific elements that indicate the page is loaded
+    try {
+      await page.waitForSelector('[data-testid="portfolio-value"]', { timeout: 10000 }).catch(() => {});
+      await page.waitForSelector('.portfolio-value', { timeout: 5000 }).catch(() => {});
+      await page.waitForSelector('[class*="balance"]', { timeout: 5000 }).catch(() => {});
+    } catch (e) {
+      console.log('[DeBank] No specific selectors found, continuing with general extraction');
+    }
     
     const value = await extractDebankNetWorthEVM(page);
     

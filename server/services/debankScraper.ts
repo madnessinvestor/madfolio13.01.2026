@@ -234,7 +234,7 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         const balance = await scrapeWalletWithTimeout(
           browser,
           wallet,
-          wallet.link.includes('debank.com') ? 65000 : 45000
+          wallet.link.includes('debank.com') ? 90000 : 60000
         );
         
         balanceCache.set(wallet.name, balance);
@@ -373,9 +373,9 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
       });
     }
     
-    const timeoutMs = wallet.link.includes('debank.com') ? 65000 :
-                     wallet.link.includes('jup.ag') ? 50000 :
-                     wallet.link.includes('portfolio.ready.co') ? 50000 : 35000;
+    const timeoutMs = wallet.link.includes('debank.com') ? 90000 :
+                     wallet.link.includes('jup.ag') ? 70000 :
+                     wallet.link.includes('portfolio.ready.co') ? 70000 : 50000;
     
     const balance = await scrapeWalletWithTimeout(browser, wallet, timeoutMs);
     balanceCache.set(wallet.name, balance);
