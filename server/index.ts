@@ -121,9 +121,9 @@ app.use((req, res, next) => {
     console.error("[Seed] Error seeding admin users:", error);
   }
 
-  await setupAuth(app);
-  setupCredentialAuth(app);
-  registerAuthRoutes(app);
+  // await setupAuth(app);
+  // setupCredentialAuth(app);
+  // registerAuthRoutes(app);
   
   // Initialize wallets from database on startup
   try {

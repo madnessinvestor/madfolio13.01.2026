@@ -36,6 +36,30 @@ const balanceCache = new Map<string, WalletBalance>();
 let refreshInterval: NodeJS.Timeout | null = null;
 
 async function getChromiumPath(): Promise<string> {
+  // Try Puppeteer installed Chrome first
+  try {
+    const puppeteerChrome = '/home/codespace/.cache/puppeteer/chrome/linux-143.0.7499.146/chrome-linux64/chrome';
+    const { stdout } = await execAsync(`ls -la "${puppeteerChrome}" 2>/dev/null | head -1`);
+    if (stdout.trim()) {
+      console.log('[Browser] Found Puppeteer Chrome at:', puppeteerChrome);
+      return puppeteerChrome;
+    }
+  } catch (_) {
+    // Continue to Firefox
+  }
+  
+  // Try Firefox as fallback
+  try {
+    const puppeteerFirefox = '/home/codespace/.cache/puppeteer/firefox/linux-stable_146.0/firefox/firefox';
+    const { stdout } = await execAsync(`ls -la "${puppeteerFirefox}" 2>/dev/null | head -1`);
+    if (stdout.trim()) {
+      console.log('[Browser] Found Puppeteer Firefox at:', puppeteerFirefox);
+      return puppeteerFirefox;
+    }
+  } catch (_) {
+    // Continue to system browsers
+  }
+  
   try {
     const { stdout } = await execAsync('which chromium');
     return stdout.trim();
@@ -51,7 +75,7 @@ async function getChromiumPath(): Promise<string> {
       // Fallback search
     }
     
-    console.warn('[Browser] Chromium not found, attempting auto-discovery...');
+    console.warn('[Browser] No browsers found, attempting auto-discovery...');
     return 'chromium';
   }
 }
@@ -199,6 +223,62 @@ async function scrapeWalletWithTimeout(
 }
 
 // ============================================================================
+// BROWSER LAUNCH WITH FALLBACKS
+// ============================================================================
+
+async function launchBrowserWithFallbacks(): Promise<Browser | null> {
+  const browsers = [
+    { name: 'Chrome', path: '/home/codespace/.cache/puppeteer/chrome/linux-143.0.7499.146/chrome-linux64/chrome' },
+    { name: 'Firefox', path: '/home/codespace/.cache/puppeteer/firefox/linux-stable_146.0/firefox/firefox' }
+  ];
+  
+  for (const browser of browsers) {
+    try {
+      console.log(`[Browser] Trying to launch ${browser.name}...`);
+      
+      const launchedBrowser = await puppeteerExtra.launch({
+        headless: true,
+        product: browser.name.toLowerCase() as any,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
+          '--disable-hang-monitor',
+          '--disable-prompt-on-repost',
+          '--force-color-profile=srgb',
+          '--metrics-recording-only',
+          '--no-crash-upload',
+          '--disable-component-extensions-with-background-pages',
+          '--disable-extensions',
+          '--disable-plugins'
+        ].filter(arg => browser.name === 'Chrome' || !arg.includes('--single-process')), // Firefox doesn't support single-process
+        executablePath: browser.path,
+      });
+      
+      console.log(`[Browser] Successfully launched ${browser.name}`);
+      return launchedBrowser;
+    } catch (error) {
+      console.log(`[Browser] Failed to launch ${browser.name}:`, error.message);
+      continue;
+    }
+  }
+  
+  console.log('[Browser] All browser launch attempts failed');
+  return null;
+}
+
+// ============================================================================
 // SEQUENTIAL WALLET UPDATE
 // ============================================================================
 
@@ -206,22 +286,12 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
   let browser: Browser | null = null;
   
   try {
-    const chromiumPath = await getChromiumPath();
+    browser = await launchBrowserWithFallbacks();
     
-    browser = await puppeteerExtra.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ],
-      executablePath: chromiumPath,
-    });
+    if (!browser) {
+      console.log('[Sequential] No browser available, skipping wallet updates');
+      return;
+    }
 
     console.log(`[Sequential] Processing ${wallets.length} wallets sequentially`);
     
