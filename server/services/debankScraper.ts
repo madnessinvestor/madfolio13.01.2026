@@ -40,8 +40,19 @@ async function getChromiumPath(): Promise<string> {
     const { stdout } = await execAsync('which chromium');
     return stdout.trim();
   } catch (error) {
-    console.error('Could not find chromium:', error);
-    return '/nix/store/chromium/bin/chromium';
+    try {
+      const { stdout } = await execAsync("ls -la /nix/store/*/bin/chromium 2>/dev/null | tail -1 | awk '{print $NF}'");
+      const path = stdout.trim();
+      if (path && path.length > 0) {
+        console.log('[Browser] Found chromium at:', path);
+        return path;
+      }
+    } catch (_) {
+      // Fallback search
+    }
+    
+    console.warn('[Browser] Chromium not found, attempting auto-discovery...');
+    return 'chromium';
   }
 }
 
