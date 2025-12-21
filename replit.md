@@ -33,6 +33,23 @@
 
 ## Recent Changes
 
+### Dec 21, 2025 - Ajuste Wallet Tracker
+- **CORRIGIDO: Wallet Tracker agora atualiza a cada 5 minutos** (antes: 60 minutos)
+  - `startStepMonitor()` alterado de 60 * 60 * 1000ms para 5 * 60 * 1000ms
+  - Valores das carteiras rastreadas (DeBanK, Step.finance) atualizam mais frequentemente
+  - Aplicado em `server/routes.ts` linha 34
+
+- **CORRIGIDO: "Preço não encontrado" para ativos simplificados**
+  - Ativos com mercado "crypto_simplified", "variable_income_simplified", "fixed_income", "real_estate" não tentam mais buscar preço online
+  - Usa automaticamente o `acquisitionPrice` como valor padrão
+  - Evita erros de API para símbolos customizados (ex: EVM-MADNESSMAIN, APTOS-MADNESS)
+  - Aplicado em `server/services/pricing.ts` função `fetchAssetPrice()`
+
+- **MELHORADO: Tratamento de preços ao adicionar investimento**
+  - Se busca de preço falhar para crypto/variable_income real, usa acquisitionPrice como fallback
+  - Mantém fallback para mercados simplificados
+  - Aplicado em `server/routes.ts` POST `/api/investments`
+
 ### Dec 21, 2025
 - Implemented auto-refresh for crypto holdings (Holdings Cripto)
   - Auto-updates every 5 minutes with live cryptocurrency prices

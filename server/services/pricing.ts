@@ -134,6 +134,11 @@ export async function fetchBrazilianStockPrice(symbol: string): Promise<StockPri
 }
 
 export async function fetchAssetPrice(symbol: string, market: string): Promise<number | null> {
+  // Don't fetch prices for simplified or manual markets
+  if (market === "crypto_simplified" || market === "variable_income_simplified" || market === "fixed_income" || market === "real_estate") {
+    return null;
+  }
+  
   if (market === "crypto") {
     const result = await fetchCryptoPrice(symbol);
     return result?.price || null;

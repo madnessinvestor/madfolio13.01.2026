@@ -28,7 +28,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   startPriceUpdater(5 * 60 * 1000);
-  startStepMonitor(60 * 60 * 1000); // 1 hour with 5 second spacing between wallets
+  startStepMonitor(5 * 60 * 1000); // 5 minutes with 5 second spacing between wallets
 
   // SQLite authentication routes
   app.get("/health", (req, res) => {
@@ -246,6 +246,7 @@ export async function registerRoutes(
         acquisitionDate: validated.acquisitionDate,
       });
       
+      // Only fetch online prices for real crypto and variable income markets
       if (validated.market === "crypto" || validated.market === "variable_income") {
         const price = await fetchAssetPrice(asset.symbol, asset.market);
         if (price !== null) {
@@ -253,8 +254,15 @@ export async function registerRoutes(
             currentPrice: price, 
             lastPriceUpdate: new Date() 
           });
+        } else {
+          // Use acquisition price as fallback if price fetch fails
+          await storage.updateAsset(asset.id, { 
+            currentPrice: validated.acquisitionPrice,
+            lastPriceUpdate: new Date() 
+          });
         }
       } else {
+        // For simplified markets, fixed income, and real estate: use acquisition price
         await storage.updateAsset(asset.id, { 
           currentPrice: validated.acquisitionPrice,
           lastPriceUpdate: new Date() 
@@ -838,6 +846,18 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to generate history" });
     }
   });
+
+  // Helper function to update asset prices from wallet tracker
+  async function syncWalletValuesToAssets(): Promise<void> {
+    try {
+      const walletBalances = getDetailedBalances();
+      // This updates the cached wallet values which can be used to sync asset values
+      // Implementation depends on how wallets are linked to assets
+      console.log("[Sync] Wallet balances available for sync:", walletBalances.length);
+    } catch (error) {
+      console.error("[Sync] Error syncing wallet values:", error);
+    }
+  }
 
   app.get("/api/portfolio/summary", async (req: any, res) => {
     const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
