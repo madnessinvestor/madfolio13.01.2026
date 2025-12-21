@@ -123,9 +123,15 @@ export function HoldingsTable({
                     </TableCell>
                     {(fixedIncome || variableIncome || cryptoType === "holdings" || cryptoType === "wallets" || realEstate) && (
                       <TableCell className="text-right tabular-nums">
-                        <span className={isProfit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                          {isProfit ? "+" : ""}{formatCurrency(profitLoss)}
-                        </span>
+                        {cryptoType === "holdings" ? (
+                          <span className="text-foreground">
+                            {formatCurrency(totalValue)}
+                          </span>
+                        ) : (
+                          <span className={isProfit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                            {isProfit ? "+" : ""}{formatCurrency(profitLoss)}
+                          </span>
+                        )}
                       </TableCell>
                     )}
                     {cryptoType === "holdings" && (
