@@ -203,9 +203,12 @@ export default function CryptoPage() {
     setAssetToDelete(null);
   };
 
-  const totalValue = summary?.cryptoValue || 0;
+  const allCryptoAssets = [...holdingsCripto, ...walletsCripto];
+  const totalValueFromAssets = allCryptoAssets.reduce((sum, h) => sum + (h.value || 0), 0);
+  const totalValue = totalValueFromAssets || summary?.cryptoValue || 0;
+  const totalAssetCount = holdingsCripto.length + walletsCripto.length;
 
-  const chartData = cryptoHoldings.map((h, index) => ({
+  const chartData = allCryptoAssets.map((h, index) => ({
     name: h.symbol,
     value: h.value,
     color: `hsl(var(--chart-${(index % 5) + 1}))`,
@@ -251,7 +254,7 @@ export default function CryptoPage() {
           />
           <MetricCard
             title="Ativos"
-            value={cryptoHoldings.length.toString()}
+            value={totalAssetCount.toString()}
             icon={Coins}
           />
         </div>
