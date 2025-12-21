@@ -229,15 +229,29 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
       const wallet = wallets[i];
       console.log(`[Sequential] Wallet ${i + 1}/${wallets.length}: ${wallet.name}`);
       
-      // Always provide browser (selectAndScrapePlatform will use it or fallback gracefully)
-      const balance = await scrapeWalletWithTimeout(
-        browser,
-        wallet,
-        wallet.link.includes('debank.com') ? 65000 : 45000
-      );
-      
-      balanceCache.set(wallet.name, balance);
-      console.log(`[Sequential] Updated ${wallet.name}: ${balance.balance} (${balance.status})`);
+      try {
+        // Always provide browser (selectAndScrapePlatform will use it or fallback gracefully)
+        const balance = await scrapeWalletWithTimeout(
+          browser,
+          wallet,
+          wallet.link.includes('debank.com') ? 65000 : 45000
+        );
+        
+        balanceCache.set(wallet.name, balance);
+        console.log(`[Sequential] Updated ${wallet.name}: ${balance.balance} (${balance.status})`);
+      } catch (error) {
+        console.error(`[Sequential] Error processing ${wallet.name}:`, error);
+        // Set error state for this wallet
+        balanceCache.set(wallet.name, {
+          id: wallet.id,
+          name: wallet.name,
+          link: wallet.link,
+          balance: 'Indisponível',
+          lastUpdated: new Date(),
+          status: 'unavailable',
+          error: 'Erro no processamento'
+        });
+      }
       
       // 5 second delay between wallets
       if (i < wallets.length - 1) {
@@ -246,7 +260,19 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
       }
     }
   } catch (error) {
-    console.error(`[Sequential] Error:`, error);
+    console.error(`[Sequential] Browser launch failed:`, error);
+    // If browser launch fails, set all wallets to unavailable
+    for (const wallet of wallets) {
+      balanceCache.set(wallet.name, {
+        id: wallet.id,
+        name: wallet.name,
+        link: wallet.link,
+        balance: 'Indisponível',
+        lastUpdated: new Date(),
+        status: 'unavailable',
+        error: 'Browser não disponível'
+      });
+    }
   } finally {
     if (browser) {
       await browser.close().catch(() => {});
@@ -299,19 +325,7 @@ export function startStepMonitor(intervalMs: number): void {
 export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
   console.log('[Force] Manual refresh requested');
   
-  for (const wallet of WALLETS) {
-    const cached = balanceCache.get(wallet.name);
-    balanceCache.set(wallet.name, {
-      id: wallet.id,
-      name: wallet.name,
-      link: wallet.link,
-      balance: cached?.balance || 'Carregando...',
-      lastUpdated: new Date(),
-      status: 'success',
-      lastKnownValue: cached?.lastKnownValue
-    });
-  }
-  
+  // Don't set loading state, just trigger refresh
   await updateWalletsSequentially(WALLETS);
   return getDetailedBalances();
 }

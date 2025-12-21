@@ -323,13 +323,9 @@ export default function WalletTracker() {
                 <span className="text-xs text-muted-foreground">
                   {getPlatformName(wallet.link)}
                 </span>
-                {wallet.balance === "Loading..." || wallet.balance === "Carregando..." ? (
-                  <Badge variant="secondary" className="text-xs">Carregando</Badge>
-                ) : (
-                  <Badge variant={getStatusDisplay(wallet).variant} className="text-xs">
-                    {getStatusDisplay(wallet).label}
-                  </Badge>
-                )}
+                <Badge variant={getStatusDisplay(wallet).variant} className="text-xs">
+                  {getStatusDisplay(wallet).label}
+                </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Última atualização: {formatDate(wallet.lastUpdated)}
