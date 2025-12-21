@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Label } from "recharts";
 
 interface ChartData {
   name: string;
@@ -32,6 +32,11 @@ export function PortfolioChart({ title, data }: PortfolioChartProps) {
     return null;
   };
 
+  const renderLabel = (entry: ChartData) => {
+    const percentage = ((entry.value / total) * 100).toFixed(1);
+    return `${percentage}%`;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -49,6 +54,8 @@ export function PortfolioChart({ title, data }: PortfolioChartProps) {
                 outerRadius={80}
                 paddingAngle={2}
                 dataKey="value"
+                label={renderLabel}
+                labelLine={false}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
