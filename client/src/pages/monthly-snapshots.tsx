@@ -674,7 +674,24 @@ export default function MonthlySnapshotsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Extrato da Evolução do Portfólio</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Extrato da Evolução do Portfólio
+            </CardTitle>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-40" data-testid="select-year-extrato">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -689,17 +706,19 @@ export default function MonthlySnapshotsPage() {
               </thead>
               <tbody>
                 {(() => {
-                  // Filtrar dados de dezembro 2025 até dezembro 2030
+                  const selectedYearNum = parseInt(selectedYear);
+                  
+                  // Filtrar dados apenas do ano selecionado e que estejam registrados (locked)
                   const filteredHistory = portfolioHistory.filter(item => {
-                    if (item.year < 2025 || item.year > 2030) return false;
-                    if (item.year === 2025 && item.month < 12) return false;
-                    if (item.year === 2030 && item.month > 12) return false;
+                    // Verificar se está no ano selecionado
+                    if (item.year !== selectedYearNum) return false;
+                    // Verificar se o mês está registrado (locked)
+                    if (!monthLockedStatus[item.month - 1]) return false;
                     return true;
                   });
 
-                  // Ordenar por ano e depois por mês
+                  // Ordenar por mês
                   const sortedHistory = filteredHistory.sort((a, b) => {
-                    if (a.year !== b.year) return a.year - b.year;
                     return a.month - b.month;
                   });
 
@@ -707,7 +726,7 @@ export default function MonthlySnapshotsPage() {
                     return (
                       <tr>
                         <td colSpan={4} className="h-24 text-center text-muted-foreground">
-                          Nenhum mês registrado de dezembro de 2025 até dezembro de 2030.
+                          Nenhum mês registrado em {selectedYear}.
                         </td>
                       </tr>
                     );
