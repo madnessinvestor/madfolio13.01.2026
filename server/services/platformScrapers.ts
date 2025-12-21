@@ -133,8 +133,8 @@ export async function scrapeDebankEVM(
       console.log('[DeBank] Navigation warning: ' + e.message)
     );
     
-    // Wait for JS rendering
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Wait for JS rendering (up to 30 seconds for complete page load)
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     const value = await extractDebankNetWorthEVM(page);
     
@@ -202,9 +202,9 @@ async function scrapeJupiterPortfolioNetWorth(
       console.log('[JupiterPortfolio] Navigation warning: ' + e.message)
     );
     
-    // Wait for full rendering
-    console.log('[JupiterPortfolio] Waiting 10 seconds for rendering...');
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Wait for full rendering (up to 30 seconds for complete page load)
+    console.log('[JupiterPortfolio] Waiting up to 30 seconds for rendering...');
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     let netWorthValue: string | null = null;
     let retryCount = 0;
@@ -376,8 +376,8 @@ export async function scrapeJupiterSolana(
       console.log('[Jupiter] Navigation warning: ' + e.message)
     );
     
-    // Quick wait for initial rendering
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for initial rendering (up to 30 seconds for complete page load)
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     // Extract ALL text and find largest value
     const value = await page.evaluate(() => {
@@ -440,8 +440,8 @@ export async function scrapeReadyStarknet(
       console.log('[Ready] Navigation warning: ' + e.message)
     );
     
-    // Quick wait for rendering
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for rendering (up to 30 seconds for complete page load)
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     // Extract ALL text and find largest value
     const value = await page.evaluate(() => {
@@ -504,8 +504,8 @@ export async function scrapeAptoscanAptos(
       console.log('[Aptoscan] Navigation warning: ' + e.message)
     );
     
-    // Quick wait for rendering
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for rendering (up to 30 seconds for complete page load)
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     // Extract ALL text and find largest value
     const value = await page.evaluate(() => {
@@ -568,8 +568,8 @@ export async function scrapeSeiscanSei(
       console.log('[Seiscan] Navigation warning: ' + e.message)
     );
     
-    // Quick wait for rendering
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for rendering (up to 30 seconds for complete page load)
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     // Extract ALL text and find largest value
     const value = await page.evaluate(() => {

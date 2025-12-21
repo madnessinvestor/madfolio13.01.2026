@@ -28,8 +28,8 @@ async function extractStarknetBalance(page: any, walletName: string): Promise<st
   try {
     await page.waitForSelector("body", { timeout: 10000 });
     
-    // Esperar um pouco para o JS carregar
-    await page.waitForTimeout(2000);
+    // Aguardar até 30 segundos para o JS carregar completamente
+    await page.waitForTimeout(30000);
     
     const balance = await page.evaluate(() => {
       const pageText = document.body.innerText;
@@ -75,8 +75,8 @@ async function extractAptosBalance(page: any, walletName: string): Promise<strin
   try {
     await page.waitForSelector("body", { timeout: 10000 });
     
-    // Esperar um pouco para o JS carregar
-    await page.waitForTimeout(2000);
+    // Aguardar até 30 segundos para o JS carregar completamente
+    await page.waitForTimeout(30000);
     
     const balance = await page.evaluate(() => {
       const pageText = document.body.innerText;
@@ -122,8 +122,8 @@ async function extractSeiBalance(page: any, walletName: string): Promise<string 
   try {
     await page.waitForSelector("body", { timeout: 10000 });
     
-    // Esperar um pouco para o JS carregar
-    await page.waitForTimeout(2000);
+    // Aguardar até 30 segundos para o JS carregar completamente
+    await page.waitForTimeout(30000);
     
     const balance = await page.evaluate(() => {
       const pageText = document.body.innerText;
