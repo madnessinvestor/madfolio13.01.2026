@@ -1038,10 +1038,6 @@ export async function registerRoutes(
       const walletName = decodeURIComponent(req.params.walletName);
       const updatedBalance = await forceRefreshWallet(walletName);
       
-      if (!updatedBalance) {
-        return res.status(404).json({ error: "Wallet not found" });
-      }
-      
       res.json({ message: "Wallet refreshed", balance: updatedBalance });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh wallet balance" });

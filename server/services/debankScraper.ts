@@ -187,7 +187,7 @@ async function scrapeWalletWithTimeout(
             id: wallet.id,
             name: wallet.name,
             link: wallet.link,
-            balance: 'Carregando...',
+            balance: 'Indisponível',
             lastUpdated: new Date(),
             status: 'unavailable',
             error: 'Timeout - no cache available'
@@ -272,7 +272,7 @@ export function initializeWallet(wallet: WalletConfig): void {
       id: wallet.id,
       name: wallet.name,
       link: wallet.link,
-      balance: 'Carregando...',
+      balance: 'Indisponível',
       lastUpdated: new Date(),
       status: 'unavailable',
       error: 'Aguardando primeira coleta'
@@ -316,13 +316,20 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
   return getDetailedBalances();
 }
 
-export async function forceRefreshWallet(walletName: string): Promise<WalletBalance | null> {
+export async function forceRefreshWallet(walletName: string): Promise<WalletBalance> {
   console.log(`[Force] Refreshing wallet: ${walletName}`);
   
   const wallet = WALLETS.find(w => w.name === walletName);
   if (!wallet) {
     console.log(`[Force] Wallet not found: ${walletName}`);
-    return null;
+    return {
+      name: walletName,
+      link: '',
+      balance: 'Indisponível',
+      lastUpdated: new Date(),
+      status: 'unavailable',
+      error: 'Wallet not found'
+    };
   }
 
   let browser: Browser | null = null;
@@ -362,7 +369,15 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
     return balance;
   } catch (error) {
     console.error(`[Force] Error:`, error);
-    return null;
+    const cached = balanceCache.get(walletName);
+    return {
+      name: walletName,
+      link: wallet?.link || '',
+      balance: cached?.lastKnownValue || 'Indisponível',
+      lastUpdated: new Date(),
+      status: cached?.lastKnownValue ? 'temporary_error' : 'unavailable',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   } finally {
     if (browser) {
       await browser.close().catch(() => {});
