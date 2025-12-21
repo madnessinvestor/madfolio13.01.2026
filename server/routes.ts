@@ -16,7 +16,7 @@ const investmentSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
   category: z.string(),
-  market: z.enum(["crypto", "fixed_income", "variable_income", "real_estate"]),
+  market: z.enum(["crypto", "crypto_simplified", "fixed_income", "variable_income", "variable_income_simplified", "real_estate"]),
   currency: z.enum(["BRL", "USD", "EUR"]).default("BRL"),
   quantity: z.number().positive(),
   acquisitionPrice: z.number().positive(),
