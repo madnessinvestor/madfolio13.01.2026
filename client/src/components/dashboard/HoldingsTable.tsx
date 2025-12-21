@@ -72,7 +72,6 @@ export function HoldingsTable({
                 <TableHead className="text-right">Quantidade</TableHead>
                 <TableHead className="text-right">{fixedIncome ? "Valor Inicial" : "Preço Médio"}</TableHead>
                 <TableHead className="text-right">{fixedIncome ? "Valor Atual" : "Preço Atual"}</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
                 {fixedIncome && <TableHead className="text-right">Valorização (R$)</TableHead>}
                 <TableHead className="text-right">{fixedIncome ? "Lucro/Perda Total (%)" : "Lucro/Perda %"}</TableHead>
                 {!fixedIncome && <TableHead className="text-right">24h</TableHead>}
@@ -108,9 +107,6 @@ export function HoldingsTable({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(holding.currentPrice)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
-                      {formatCurrency(totalValue)}
                     </TableCell>
                     {fixedIncome && (
                       <TableCell className="text-right tabular-nums">
