@@ -132,6 +132,12 @@ export default function MonthlySnapshotsPage() {
     queryKey: ["/api/snapshots/month-status", selectedYear],
   });
 
+  const previousYear = (parseInt(selectedYear) - 1).toString();
+  const { data: previousYearSnapshots = {} } = useQuery<Record<string, Record<number, SnapshotData>>>({
+    queryKey: ["/api/snapshots/year", previousYear],
+    enabled: monthSequence.includes(0),
+  });
+
   useEffect(() => {
     setMonthLockedStatus(monthStatus);
   }, [monthStatus]);
