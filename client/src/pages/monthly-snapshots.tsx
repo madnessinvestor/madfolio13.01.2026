@@ -181,6 +181,31 @@ export default function MonthlySnapshotsPage() {
     }
   }, [assets, selectedYear, yearSnapshots]);
 
+  // Update monthUpdates when assets change and month is not locked
+  useEffect(() => {
+    if (assets.length > 0) {
+      setMonthUpdates((prev) => {
+        const newUpdates = { ...prev };
+        const year = parseInt(selectedYear);
+        
+        for (let month = 0; month < 12; month++) {
+          const monthKey = month.toString();
+          const isLocked = monthLockedStatus[month + 1] === true; // monthLockedStatus uses 1-based month
+          
+          if (!isLocked) {
+            newUpdates[monthKey] = { ...newUpdates[monthKey] };
+            assets.forEach((asset) => {
+              const currentValue = (asset.quantity || 0) * (asset.currentPrice || 0);
+              newUpdates[monthKey][asset.id] = formatCurrencyInput(currentValue);
+            });
+          }
+        }
+        
+        return newUpdates;
+      });
+    }
+  }, [assets, monthLockedStatus, selectedYear]);
+
   const formatCurrencyInput = (value: number): string => {
     return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };

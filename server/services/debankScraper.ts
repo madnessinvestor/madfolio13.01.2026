@@ -5,6 +5,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { addCacheEntry } from './walletCache';
 import { selectAndScrapePlatform } from './platformScrapers';
+import { storage } from '../storage';
 
 puppeteerExtra.use(StealthPlugin());
 const execAsync = promisify(exec);
@@ -27,6 +28,30 @@ interface WalletBalance {
 }
 
 let WALLETS: WalletConfig[] = [];
+
+async function updateAssetForWallet(walletName: string, balance: string): Promise<void> {
+  try {
+    // Parse balance to number
+    const balanceValue = parseFloat(balance.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+    
+    // Find asset with symbol or name matching wallet name and market crypto_simplified
+    const assets = await storage.getAssets();
+    const matchingAsset = assets.find(asset => 
+      asset.market === 'crypto_simplified' && 
+      (asset.symbol === walletName || asset.name === walletName)
+    );
+    
+    if (matchingAsset && balanceValue > 0) {
+      await storage.updateAsset(matchingAsset.id, { 
+        currentPrice: balanceValue, 
+        lastPriceUpdate: new Date() 
+      });
+      console.log(`[Asset Update] Updated asset ${matchingAsset.symbol} with balance ${balanceValue}`);
+    }
+  } catch (error) {
+    console.error(`[Asset Update] Error updating asset for wallet ${walletName}:`, error);
+  }
+}
 
 export function setWallets(newWallets: WalletConfig[]): void {
   WALLETS = newWallets;
@@ -316,6 +341,11 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         
         balanceCache.set(wallet.name, balance);
         console.log(`[Sequential] Updated ${wallet.name}: ${balance.balance} (${balance.status})`);
+        
+        // Update corresponding asset if balance was successfully retrieved
+        if (balance.status === 'success') {
+          await updateAssetForWallet(wallet.name, balance.balance);
+        }
       } catch (error) {
         console.error(`[Sequential] Error processing ${wallet.name}:`, error);
         // Set error state for this wallet
@@ -458,6 +488,11 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
     
     const balance = await scrapeWalletWithTimeout(browser, wallet, timeoutMs);
     balanceCache.set(wallet.name, balance);
+    
+    // Update corresponding asset if balance was successfully retrieved
+    if (balance.status === 'success') {
+      await updateAssetForWallet(wallet.name, balance.balance);
+    }
     
     return balance;
   } catch (error) {
