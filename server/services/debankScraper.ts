@@ -97,10 +97,10 @@ async function updatePortfolioEvolution(walletName: string, brlValue: number): P
   }
 }
 
-async function updateAssetForWallet(walletName: string, balance: string): Promise<void> {
+async function updateAssetForWallet(walletName: string, brlValue: number): Promise<void> {
   try {
-    // Parse balance to number (already in BRL as saved by Wallet Tracker)
-    const brlValue = parseCurrencyValue(balance);
+    // brlValue is already a number in BRL (converted from USD)
+    // No need to parse again - just use the numeric value directly
 
     // Find asset with name matching wallet name (case insensitive) and market crypto or crypto_simplified
     const assets = await storage.getAssets();
@@ -128,7 +128,7 @@ export function syncWalletsToAssets(): void {
       if (entry.status === 'success') {
         const brlValue = parseCurrencyValue(entry.balance);
         if (brlValue > 0) {
-          updateAssetForWallet(entry.walletName, entry.balance);
+          updateAssetForWallet(entry.walletName, brlValue);
         }
       }
     }
@@ -443,7 +443,7 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
               finalBalance = balance;
 
               // Update corresponding asset if balance was successfully retrieved
-              await updateAssetForWallet(wallet.name, brlValue.toString());
+              await updateAssetForWallet(wallet.name, brlValue);
 
               break;
             } else {
@@ -646,7 +646,8 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
     
     // Update corresponding asset if balance was successfully retrieved
     if (balance.status === 'success') {
-      await updateAssetForWallet(wallet.name, balance.balance);
+      const brlValue = parseCurrencyValue(balance.balance);
+      await updateAssetForWallet(wallet.name, brlValue);
     }
     
     return balance;
