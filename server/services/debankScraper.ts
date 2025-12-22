@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { addCacheEntry } from './walletCache';
 import { selectAndScrapePlatform } from './platformScrapers';
 import { storage } from '../storage';
+import { readCache } from './walletCache';
 
 puppeteerExtra.use(StealthPlugin());
 const execAsync = promisify(exec);
@@ -50,6 +51,20 @@ async function updateAssetForWallet(walletName: string, balance: string): Promis
     }
   } catch (error) {
     console.error(`[Asset Update] Error updating asset for wallet ${walletName}:`, error);
+  }
+}
+
+export function syncWalletsToAssets(): void {
+  try {
+    const cache = readCache();
+    for (const entry of cache.entries) {
+      if (entry.status === 'success' && parseFloat(entry.balance.replace(/[^\d.,]/g, '').replace(',', '.')) > 0) {
+        updateAssetForWallet(entry.walletName, entry.balance);
+      }
+    }
+    console.log(`[Sync] Synchronized ${cache.entries.length} wallets to assets`);
+  } catch (error) {
+    console.error('[Sync] Error synchronizing wallets to assets:', error);
   }
 }
 

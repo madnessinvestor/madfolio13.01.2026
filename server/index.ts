@@ -130,9 +130,10 @@ app.use((req, res, next) => {
     const { storage } = await import("./storage");
     const allWallets = await storage.getWallets();
     if (allWallets.length > 0) {
-      const { setWallets } = await import("./services/debankScraper");
+      const { setWallets, syncWalletsToAssets } = await import("./services/debankScraper");
       setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
-      console.log(`[Init] Loaded ${allWallets.length} wallets from database`);
+      syncWalletsToAssets();
+      console.log(`[Init] Loaded ${allWallets.length} wallets from database and synchronized to assets`);
     }
   } catch (error) {
     console.error("[Init] Error loading wallets from database:", error);
