@@ -29,7 +29,7 @@ function initializeCacheFile(): void {
 }
 
 // Read cache from file
-function readCache(): CacheHistory {
+export function readCache(): CacheHistory {
   try {
     if (!fs.existsSync(cacheFilePath)) {
       initializeCacheFile();
