@@ -4,11 +4,12 @@
 
 **MadFolio** é uma aplicação full-stack para rastreamento de investimentos em criptomoedas e mercado tradicional.
 
-- **Status**: Imported and running
+- **Status**: Imported and running on Replit
 - **Type**: Full-Stack JavaScript (React + Express + SQLite)
 - **Database**: SQLite (local app.db) with optional Supabase integration
 - **Authentication**: Replit Auth + Local Credentials
-- **Deployment**: Replit autoscale
+- **Deployment**: Replit autoscale (build: npm run build, run: node dist/index.cjs)
+- **Last Import**: December 22, 2025
 
 ## Architecture
 
