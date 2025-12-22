@@ -14,6 +14,42 @@ const execAsync = promisify(exec);
 
 let WALLETS: WalletConfig[] = [];
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Parse currency value correctly handling US format
+ * Examples:
+ * "$54,188" → 54188
+ * "$1,234.56" → 1234.56
+ * "R$ 54.188" → 54188
+ */
+function parseCurrencyValue(value: string): number {
+  if (!value || typeof value !== 'string') return 0;
+
+  try {
+    // Remove currency symbols and spaces from the beginning
+    let cleanValue = value.replace(/^[$\s]+/, '').trim();
+
+    // Handle different formats
+    if (cleanValue.includes(',') && cleanValue.includes('.')) {
+      // Format like "1,234.56" - comma is thousands separator, dot is decimal
+      cleanValue = cleanValue.replace(/,/g, '');
+    } else if (cleanValue.includes(',')) {
+      // Format like "54,188" - comma is thousands separator
+      cleanValue = cleanValue.replace(/,/g, '');
+    }
+    // If only dots, treat as decimal (European format like "1234.56")
+
+    const parsed = parseFloat(cleanValue);
+    return isNaN(parsed) ? 0 : parsed;
+  } catch (error) {
+    console.error(`[Parse] Error parsing currency value "${value}":`, error);
+    return 0;
+  }
+}
+
 interface WalletConfig {
   id?: string;
   name: string;
@@ -64,19 +100,19 @@ async function updatePortfolioEvolution(walletName: string, brlValue: number): P
 async function updateAssetForWallet(walletName: string, balance: string): Promise<void> {
   try {
     // Parse balance to number (already in BRL as saved by Wallet Tracker)
-    const brlValue = parseFloat(balance.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
-    
+    const brlValue = parseCurrencyValue(balance);
+
     // Find asset with name matching wallet name (case insensitive) and market crypto or crypto_simplified
     const assets = await storage.getAssets();
-    const matchingAsset = assets.find(asset => 
-      (asset.market === 'crypto' || asset.market === 'crypto_simplified') && 
+    const matchingAsset = assets.find(asset =>
+      (asset.market === 'crypto' || asset.market === 'crypto_simplified') &&
       asset.name.toLowerCase() === walletName.toLowerCase()
     );
-    
+
     if (matchingAsset && brlValue > 0 && matchingAsset.currentPrice !== brlValue) {
-      await storage.updateAsset(matchingAsset.id, { 
-        currentPrice: brlValue, 
-        lastPriceUpdate: new Date() 
+      await storage.updateAsset(matchingAsset.id, {
+        currentPrice: brlValue,
+        lastPriceUpdate: new Date()
       });
       console.log(`[Asset Update] Updated asset ${matchingAsset.name} from ${matchingAsset.currentPrice} to ${brlValue} BRL`);
     }
@@ -90,7 +126,7 @@ export function syncWalletsToAssets(): void {
     const cache = readCache();
     for (const entry of cache.entries) {
       if (entry.status === 'success') {
-        const brlValue = parseFloat(entry.balance.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        const brlValue = parseCurrencyValue(entry.balance);
         if (brlValue > 0) {
           updateAssetForWallet(entry.walletName, entry.balance);
         }
@@ -282,7 +318,7 @@ async function updatePortfolioEvolutionTotal(userId: string = "default-user"): P
 
     for (const [walletName, balance] of balanceCache) {
       if (walletNames.has(walletName) && balance.status === 'success' && balance.balance) {
-        const numValue = parseFloat(balance.balance.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        const numValue = parseCurrencyValue(balance.balance);
         if (numValue > 0) {
           totalValue += numValue;
         }
@@ -376,30 +412,29 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
           
           // Validate the scraped value - must not be 0, null, undefined, or empty
           if (balance.status === 'success' && balance.balance) {
-            const numValue = parseFloat(balance.balance.replace(/[^\d.,]/g, '').replace(',', '.'));
-            
-            if (numValue > 0) {
-              console.log(`[Sequential] Valid value found: ${balance.balance} (${numValue})`);
-              
+            const usdValue = parseCurrencyValue(balance.balance);
+
+            if (usdValue > 0) {
+              console.log(`[Sequential] Valid value found: ${balance.balance} (parsed as ${usdValue} USD)`);
+
               // Convert USD to BRL if needed
-              let brlValue = numValue;
+              let brlValue = usdValue;
               if (balance.balance.includes('$')) {
-                brlValue = await convertToBRL(numValue, 'USD');
-                const brlFormatted = `R$ ${brlValue.toFixed(2)}`;
-                console.log(`[Sequential] Converted ${balance.balance} USD to ${brlFormatted} BRL`);
-                
-                // Update balance with BRL value
-                balance.balance = brlFormatted;
+                brlValue = await convertToBRL(usdValue, 'USD');
+                console.log(`[Sequential] Converted ${usdValue} USD to ${brlValue.toFixed(2)} BRL`);
               }
-              
+
+              // Update balance with numeric BRL value (no formatting)
+              balance.balance = brlValue.toString();
+
               // Update cache and mark as valid
               balanceCache.set(wallet.name, balance);
               validValue = true;
               finalBalance = balance;
-              
+
               // Update corresponding asset if balance was successfully retrieved
-              await updateAssetForWallet(wallet.name, balance.balance);
-              
+              await updateAssetForWallet(wallet.name, brlValue.toString());
+
               break;
             } else {
               console.log(`[Sequential] Invalid value (0 or negative): ${balance.balance} - will retry`);
