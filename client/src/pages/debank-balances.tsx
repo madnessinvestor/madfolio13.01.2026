@@ -124,12 +124,7 @@ export default function WalletTracker() {
 
   const deleteWalletMutation = useMutation({
     mutationFn: async (walletId: string) => {
-      const response = await apiRequest("DELETE", `/api/wallets/${walletId}`);
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(`Failed to delete wallet: ${response.status} - ${errorText}`);
-      }
-      return response.json().catch(() => ({ success: true }));
+      return apiRequest("DELETE", `/api/wallets/${walletId}`).then(res => res.json());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
@@ -138,11 +133,11 @@ export default function WalletTracker() {
         description: "Wallet removida com sucesso.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Delete error:", error);
       toast({
         title: "Erro",
-        description: "Falha ao remover wallet.",
+        description: error?.message || "Falha ao remover wallet.",
         variant: "destructive",
       });
     },

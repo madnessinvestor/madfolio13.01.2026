@@ -340,8 +340,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWallet(id: string): Promise<boolean> {
-    const result = await db.delete(wallets).where(eq(wallets.id, id)).returning();
-    return result.length > 0;
+    try {
+      console.log(`[SQLite] Deleting wallet:`, id);
+      const result = await db.delete(wallets).where(eq(wallets.id, id)).returning();
+      if (result.length > 0) {
+        console.log(`[SQLite] ✓ Wallet deleted successfully`);
+        await autoCommit(`feat: Delete wallet ${result[0].name}`);
+      } else {
+        console.log(`[SQLite] ✗ No wallet found with id: ${id}`);
+      }
+      return result.length > 0;
+    } catch (error) {
+      console.error(`[SQLite] ✗ Error deleting wallet:`, error);
+      throw error;
+    }
   }
 
   async getPortfolioHistory(userId?: string): Promise<PortfolioHistory[]> {
