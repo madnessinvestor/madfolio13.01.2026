@@ -449,6 +449,10 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
               // Update balance with numeric BRL value (no formatting)
               balance.balance = brlValue.toString();
 
+              // CRITICAL FIX: Persist converted BRL value to cache file
+              // Without this, syncWalletsToAssets reads unconverted USD values
+              addCacheEntry(wallet.name, balance.balance, 'debank', 'success');
+
               // Update cache and mark as valid
               balanceCache.set(wallet.name, balance);
               validValue = true;
