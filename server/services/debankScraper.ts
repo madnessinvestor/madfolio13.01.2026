@@ -5,6 +5,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { addCacheEntry } from './walletCache';
 import { selectAndScrapePlatform } from './platformScrapers';
+import { storage } from '../storage';
 
 puppeteerExtra.use(StealthPlugin());
 const execAsync = promisify(exec);
@@ -28,8 +29,39 @@ interface WalletBalance {
 
 let WALLETS: WalletConfig[] = [];
 
+async function updateAssetForWallet(walletName: string, balance: string): Promise<void> {
+  try {
+    // Parse balance to number
+    const balanceValue = parseFloat(balance.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+    
+    // Find asset with symbol or name matching wallet name and market crypto_simplified
+    const assets = await storage.getAssets();
+    const matchingAsset = assets.find(asset => 
+      asset.market === 'crypto_simplified' && 
+      (asset.symbol === walletName || asset.name === walletName)
+    );
+    
+    if (matchingAsset && balanceValue > 0) {
+      await storage.updateAsset(matchingAsset.id, { 
+        currentPrice: balanceValue, 
+        lastPriceUpdate: new Date() 
+      });
+      console.log(`[Asset Update] Updated asset ${matchingAsset.symbol} with balance ${balanceValue}`);
+    }
+  } catch (error) {
+    console.error(`[Asset Update] Error updating asset for wallet ${walletName}:`, error);
+  }
+}
+
 export function setWallets(newWallets: WalletConfig[]): void {
   WALLETS = newWallets;
+  // Clean balanceCache to remove deleted wallets
+  const newNames = new Set(newWallets.map(w => w.name));
+  for (const [name] of balanceCache) {
+    if (!newNames.has(name)) {
+      balanceCache.delete(name);
+    }
+  }
 }
 
 const balanceCache = new Map<string, WalletBalance>();
@@ -222,15 +254,34 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
       const wallet = wallets[i];
       console.log(`[Sequential] Wallet ${i + 1}/${wallets.length}: ${wallet.name}`);
       
-      // Always provide browser (selectAndScrapePlatform will use it or fallback gracefully)
-      const balance = await scrapeWalletWithTimeout(
-        browser,
-        wallet,
-        wallet.link.includes('debank.com') ? 65000 : 45000
-      );
-      
-      balanceCache.set(wallet.name, balance);
-      console.log(`[Sequential] Updated ${wallet.name}: ${balance.balance} (${balance.status})`);
+      try {
+        // Always provide browser (selectAndScrapePlatform will use it or fallback gracefully)
+        const balance = await scrapeWalletWithTimeout(
+          browser,
+          wallet,
+          wallet.link.includes('debank.com') ? 90000 : 60000
+        );
+        
+        balanceCache.set(wallet.name, balance);
+        console.log(`[Sequential] Updated ${wallet.name}: ${balance.balance} (${balance.status})`);
+        
+        // Update corresponding asset if balance was successfully retrieved
+        if (balance.status === 'success') {
+          await updateAssetForWallet(wallet.name, balance.balance);
+        }
+      } catch (error) {
+        console.error(`[Sequential] Error processing ${wallet.name}:`, error);
+        // Set error state for this wallet
+        balanceCache.set(wallet.name, {
+          id: wallet.id,
+          name: wallet.name,
+          link: wallet.link,
+          balance: 'Indisponível',
+          lastUpdated: new Date(),
+          status: 'unavailable',
+          error: 'Erro no processamento'
+        });
+      }
       
       // 5 second delay between wallets
       if (i < wallets.length - 1) {
@@ -252,12 +303,14 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
 // ============================================================================
 
 export function getBalances(): string[] {
-  return Array.from(balanceCache.values()).map(w => w.balance);
+  const walletNames = new Set(WALLETS.map(w => w.name));
+  return Array.from(balanceCache.values()).filter(balance => walletNames.has(balance.name)).map(w => w.balance);
 }
 
 export function getDetailedBalances(): WalletBalance[] {
+  const walletNames = new Set(WALLETS.map(w => w.name));
   // Ensure all wallets have at least their last known value
-  const balances = Array.from(balanceCache.values()).map(wallet => {
+  const balances = Array.from(balanceCache.values()).filter(balance => walletNames.has(balance.name)).map(wallet => {
     // If balance is "Carregando..." or "Indisponível", try to use last known value
     if ((wallet.balance === "Carregando..." || wallet.balance === "Indisponível") && wallet.lastKnownValue) {
       return {
@@ -364,6 +417,11 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
     
     const balance = await scrapeWalletWithTimeout(browser, wallet, timeoutMs);
     balanceCache.set(wallet.name, balance);
+    
+    // Update corresponding asset if balance was successfully retrieved
+    if (balance.status === 'success') {
+      await updateAssetForWallet(wallet.name, balance.balance);
+    }
     
     return balance;
   } catch (error) {
