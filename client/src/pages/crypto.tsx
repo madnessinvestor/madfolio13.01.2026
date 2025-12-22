@@ -54,7 +54,7 @@ export default function CryptoPage() {
   const { data: summary, isLoading: summaryLoading, refetch } = useQuery<PortfolioSummary>({
     queryKey: ["/api/portfolio/summary"],
     staleTime: 0,
-    refetchInterval: 5 * 1000, // Auto-refetch every 5 seconds
+    refetchInterval: 1 * 1000, // Auto-refetch every 1 second
     refetchOnMount: true, // Refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
