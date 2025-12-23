@@ -178,6 +178,84 @@ const INTER_WALLET_DELAY = 20 * 1000; // 20 segundos entre wallets diferentes
 // Controle de concorrência: garantir que apenas 1 browser esteja ativo por vez
 let isRefreshing = false;
 let refreshQueue: Array<() => Promise<void>> = [];
+let currentBrowser: Browser | null = null; // Referência global para browser ativo
+let activeScrapers: Set<string> = new Set(); // Rastrear scrapers ativos
+
+// ============================================================================
+// RESET COMPLETO DO ESTADO INTERNO
+// ============================================================================
+
+/**
+ * Reset completo do estado interno do Wallet Tracker
+ * Deve ser chamado:
+ * - Após falha sistêmica (várias wallets falhando)
+ * - Antes de "Atualizar Agora" manual
+ * - Quando sistema entrar em estado inválido
+ */
+async function resetWalletTrackerState(): Promise<void> {
+  console.log('[Reset] ⚠️ Iniciando reset completo do estado interno do Wallet Tracker');
+  
+  try {
+    // 1. Cancelar todas as execuções pendentes
+    if (currentBrowser) {
+      console.log('[Reset] Fechando browser ativo...');
+      try {
+        await currentBrowser.close().catch(() => {});
+        console.log('[Reset] ✓ Browser fechado');
+      } catch (e) {
+        console.log('[Reset] Browser já estava fechado');
+      }
+      currentBrowser = null;
+    }
+    
+    // 2. Limpar completamente a fila de wallets
+    refreshQueue = [];
+    console.log('[Reset] ✓ Fila de refresh limpa');
+    
+    // 3. Resetar estados internos
+    isRefreshing = false;
+    activeScrapers.clear();
+    console.log('[Reset] ✓ Estados internos resetados');
+    
+    // 4. Limpar timestamps para permitir atualização imediata
+    lastWalletUpdate.clear();
+    console.log('[Reset] ✓ Timestamps limpos');
+    
+    // 5. Para cada wallet no cache:
+    //    - Se tem valor válido: mantém
+    //    - Se está em estado inválido: reseta para tentar novamente
+    for (const [walletName, balance] of Array.from(balanceCache.entries())) {
+      if (balance.status !== 'success') {
+        // Wallet em estado de erro - preparar para nova tentativa
+        const historicalValue = getLastHighestValue(walletName);
+        const fallbackValue = balance.lastKnownValue || historicalValue;
+        
+        if (fallbackValue) {
+          balanceCache.set(walletName, {
+            ...balance,
+            balance: fallbackValue,
+            status: 'temporary_error',
+            lastKnownValue: fallbackValue,
+            error: 'Sistema resetado - pronto para nova tentativa'
+          });
+          console.log(`[Reset] ${walletName}: mantido valor histórico ${fallbackValue}`);
+        } else {
+          balanceCache.set(walletName, {
+            ...balance,
+            balance: 'Aguardando',
+            status: 'temporary_error',
+            error: 'Sistema resetado - aguardando primeira extração'
+          });
+          console.log(`[Reset] ${walletName}: resetado para aguardando`);
+        }
+      }
+    }
+    
+    console.log('[Reset] ✓ Reset completo finalizado com sucesso');
+  } catch (error) {
+    console.error('[Reset] Erro durante reset:', error);
+  }
+}
 
 async function processRefreshQueue() {
   if (refreshQueue.length === 0) {
@@ -517,10 +595,15 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         executablePath: chromiumPath,
         timeout: 30000,
       });
+      
+      // Rastrear browser globalmente para permitir cancelamento
+      currentBrowser = browser;
+      console.log('[Sequential] Browser lançado e rastreado');
     } catch (browserLaunchError) {
       console.error('[Sequential] Browser launch failed:', browserLaunchError);
       console.log('[Sequential] Browser not available - will use fallback values for all wallets');
-      browser = null; // Garante que browser seja null se falhar
+      browser = null;
+      currentBrowser = null;
     }
 
     console.log(`[Sequential] Processing ${wallets.length} wallets sequentially`);
@@ -528,10 +611,21 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
     // Contador de falhas consecutivas para abortar ciclo em massa
     let consecutiveFailures = 0;
     const maxConsecutiveFailures = 3; // Abortar se 3 wallets falharem consecutivamente
+    let totalFailures = 0;
+    let successCount = 0;
     
     for (let i = 0; i < wallets.length; i++) {
       const wallet = wallets[i];
       console.log(`[Sequential] Wallet ${i + 1}/${wallets.length}: ${wallet.name}`);
+      
+      // Verificar se sistema está sendo resetado
+      if (!isRefreshing && currentBrowser === null && browser !== null) {
+        console.log('[Sequential] ⚠️ Sistema resetado externamente - abortando ciclo');
+        break;
+      }
+      
+      // Rastrear scraper ativo
+      activeScrapers.add(wallet.name);
       
       // 🕒 Verificar se passou tempo mínimo desde última atualização desta wallet
       const lastUpdate = lastWalletUpdate.get(wallet.name) || 0;
@@ -546,15 +640,20 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         if (cached) {
           console.log(`[Sequential] Using cached value for ${wallet.name}: ${cached.balance}`);
         }
+        
+        activeScrapers.delete(wallet.name);
         continue; // Pular para próxima wallet
       }
       
-      // Se já temos muitas falhas consecutivas, abortar o ciclo
+      // Se já temos muitas falhas consecutivas, abortar o ciclo e resetar estado
       if (consecutiveFailures >= maxConsecutiveFailures) {
-        console.log(`[Sequential] ⚠️ Aborting cycle: ${consecutiveFailures} consecutive failures detected`);
-        console.log(`[Sequential] ⚠️ This indicates internal issues, not external site problems`);
-        console.log(`[Sequential] ⚠️ Will retry in next automatic cycle (60 minutes) or manual refresh`);
-        break; // Abortar o ciclo completamente
+        console.log(`[Sequential] ⚠️ Abortando ciclo: ${consecutiveFailures} falhas consecutivas detectadas`);
+        console.log(`[Sequential] ⚠️ Isso indica problemas internos, não problemas dos sites externos`);
+        console.log(`[Sequential] ⚠️ Resetando sistema para recuperação...`);
+        
+        // Resetar estado antes de abortar
+        await resetWalletTrackerState();
+        break;
       }
       
       let validValue = false;
@@ -634,6 +733,7 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
               balanceCache.set(wallet.name, balance);
               validValue = true;
               consecutiveFailures = 0; // Reset contador quando tiver sucesso
+              successCount++; // Incrementar contador de sucessos
               finalBalance = balance;
               
               // ✅ Registrar timestamp desta atualização
@@ -682,7 +782,8 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
       // If still no valid value after all attempts, use fallback with historical data
       if (!validValue) {
         consecutiveFailures++; // Incrementar contador de falhas
-        console.log(`[Sequential] Failed to get valid value for ${wallet.name} after ${maxAttempts} attempts (consecutive failures: ${consecutiveFailures})`);
+        totalFailures++; // Incrementar contador total de falhas
+        console.log(`[Sequential] Failed to get valid value for ${wallet.name} after ${maxAttempts} attempts (consecutive: ${consecutiveFailures}, total: ${totalFailures})`);
         const cached = balanceCache.get(wallet.name);
         const historicalValue = cached?.lastKnownValue || getLastHighestValue(wallet.name);
         
@@ -699,14 +800,16 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
             error: 'Usando valor histórico'
           };
         } else {
+          // NÃO marcar como "Indisponível" - usar "Aguardando" para indicar que vai tentar novamente
+          console.log(`[Sequential] No historical value - marking as awaiting retry`);
           finalBalance = {
             id: wallet.id,
             name: wallet.name,
             link: wallet.link,
-            balance: 'Indisponível',
+            balance: 'Aguardando',
             lastUpdated: new Date(),
-            status: 'unavailable',
-            error: 'Falha após múltiplas tentativas'
+            status: 'temporary_error',
+            error: 'Aguardando próxima tentativa'
           };
         }
         balanceCache.set(wallet.name, finalBalance);
@@ -714,11 +817,23 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
       
       console.log(`[Sequential] Final result for ${wallet.name}: ${finalBalance?.balance} (${finalBalance?.status})`);
       
+      // Remover scraper do set de ativos
+      activeScrapers.delete(wallet.name);
+      
       // 🕒 20 segundos entre wallets diferentes (para respeitar rate limits e permitir carregamento completo)
       if (i < wallets.length - 1) {
         console.log(`[Sequential] Waiting 20 seconds before next wallet...`);
         await new Promise(resolve => setTimeout(resolve, INTER_WALLET_DELAY));
       }
+    }
+    
+    // Logging de estatísticas finais
+    console.log(`[Sequential] ✓ Ciclo finalizado: ${successCount} sucessos, ${totalFailures} falhas`);
+    
+    // Se teve muitas falhas totais (>50%), considerar reset
+    if (wallets.length > 0 && totalFailures / wallets.length > 0.5) {
+      console.log(`[Sequential] ⚠️ Alta taxa de falhas detectada (${Math.round(totalFailures / wallets.length * 100)}%)`);
+      console.log(`[Sequential] Sistema pode estar em estado degradado - considerar reset manual se persistir`);
     }
 
     // Update portfolio evolution with total value after all wallets are processed
@@ -734,7 +849,13 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
 
   } catch (error) {
     console.error(`[Sequential] Error:`, error);
+    // Em caso de erro crítico, resetar estado
+    console.log('[Sequential] Erro crítico - iniciando reset de segurança');
+    await resetWalletTrackerState();
   } finally {
+    // Limpar scrapers ativos
+    activeScrapers.clear();
+    
     // Garantir fechamento do browser em qualquer situação
     if (browser) {
       try {
@@ -746,6 +867,10 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         console.log('[Sequential] Browser was already closed or unavailable');
       }
     }
+    
+    // Limpar referência global
+    currentBrowser = null;
+    console.log('[Sequential] ✓ Referência global de browser limpa');
   }
 }
 
@@ -841,9 +966,15 @@ export function startStepMonitor(intervalMs: number): void {
 }
 
 export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
-  console.log('[Force] Manual refresh requested');
+  console.log('[Force] 🔄 Atualização manual solicitada - forçando reset completo');
   
-  // Marca todas as wallets como "em atualização"
+  // STEP 1: Reset completo do estado interno
+  await resetWalletTrackerState();
+  
+  // STEP 2: Aguardar 2 segundos para garantir que tudo foi limpo
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // STEP 3: Marca todas as wallets como "em atualização" com valores históricos
   for (const wallet of WALLETS) {
     const cached = balanceCache.get(wallet.name);
     const historicalValue = getLastHighestValue(wallet.name);
@@ -852,14 +983,15 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
       id: wallet.id,
       name: wallet.name,
       link: wallet.link,
-      balance: fallbackValue || 'Carregando...',
+      balance: fallbackValue || 'Atualizando...',
       lastUpdated: new Date(),
-      status: fallbackValue ? 'temporary_error' : 'unavailable',
-      lastKnownValue: fallbackValue
+      status: fallbackValue ? 'temporary_error' : 'temporary_error',
+      lastKnownValue: fallbackValue,
+      error: 'Atualização manual em andamento'
     });
   }
   
-  // Aguarda atualização completa com timeout de segurança
+  // STEP 4: Aguardar atualização completa com timeout de segurança
   try {
     await Promise.race([
       updateWalletsSequentially(WALLETS),
@@ -868,7 +1000,9 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
       )
     ]);
   } catch (error) {
-    console.error('[Force] Update timeout or error:', error);
+    console.error('[Force] Update timeout ou erro:', error);
+    console.log('[Force] Resetando sistema após timeout...');
+    await resetWalletTrackerState();
   }
   
   return await getDetailedBalances();
@@ -963,22 +1097,20 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
 }
 
 export async function forceRefresh(): Promise<WalletBalance[]> {
-  console.log('[Force] Refresh started');
+  console.log('[Force] 🔄 Refresh iniciado');
   
-  // Se já está processando, adiciona à fila
+  // Se já está processando, resetar e tentar novamente
   if (isRefreshing) {
-    console.log('[Force] Browser busy, queuing refresh request');
-    return new Promise((resolve) => {
-      refreshQueue.push(async () => {
-        await updateWalletsSequentially(WALLETS);
-        resolve(await getDetailedBalances());
-      });
-    });
+    console.log('[Force] Sistema ocupado - resetando estado e tentando novamente');
+    await resetWalletTrackerState();
+    // Aguardar 1 segundo antes de tentar novamente
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
   
   // Marca como em processamento e inicia
   isRefreshing = true;
   updateWalletsSequentially(WALLETS).finally(() => {
+    isRefreshing = false;
     setTimeout(() => processRefreshQueue(), 2000);
   });
   
