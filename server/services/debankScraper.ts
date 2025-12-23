@@ -494,16 +494,28 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
 
     console.log(`[Sequential] Processing ${wallets.length} wallets sequentially`);
     
+    // Contador de falhas consecutivas para abortar ciclo em massa
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 3; // Abortar se 3 wallets falharem consecutivamente
+    
     for (let i = 0; i < wallets.length; i++) {
       const wallet = wallets[i];
       console.log(`[Sequential] Wallet ${i + 1}/${wallets.length}: ${wallet.name}`);
       
+      // Se já temos muitas falhas consecutivas, abortar o ciclo
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        console.log(`[Sequential] ⚠️ Aborting cycle: ${consecutiveFailures} consecutive failures detected`);
+        console.log(`[Sequential] ⚠️ This indicates internal issues, not external site problems`);
+        console.log(`[Sequential] ⚠️ Will retry in next automatic cycle (60 minutes) or manual refresh`);
+        break; // Abortar o ciclo completamente
+      }
+      
       let validValue = false;
       let attempts = 0;
-      const maxAttempts = 2; // Reduzido de 3 para 2
+      const maxAttempts = 1; // Apenas 1 tentativa - não insistir se falhar
       let finalBalance: WalletBalance | null = null;
       
-      // Retry logic: if value is 0 or invalid, wait 5 seconds and try again
+      // Retry logic: apenas 1 tentativa por wallet para evitar loops
       while (!validValue && attempts < maxAttempts) {
         attempts++;
         console.log(`[Sequential] Attempt ${attempts}/${maxAttempts} for ${wallet.name}`);
@@ -574,6 +586,7 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
               // Update cache and mark as valid
               balanceCache.set(wallet.name, balance);
               validValue = true;
+              consecutiveFailures = 0; // Reset contador quando tiver sucesso
               finalBalance = balance;
 
               // Update corresponding asset if balance was successfully retrieved
@@ -585,12 +598,6 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
             }
           } else {
             console.log(`[Sequential] Scrape failed or returned invalid status: ${balance.status}`);
-          }
-          
-          // If value is invalid and we have more attempts, wait 10 seconds
-          if (!validValue && attempts < maxAttempts) {
-            console.log(`[Sequential] Waiting 10 seconds before retry...`);
-            await new Promise(resolve => setTimeout(resolve, 10000));
           }
           
         } catch (error) {
@@ -624,7 +631,8 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
       
       // If still no valid value after all attempts, use fallback with historical data
       if (!validValue) {
-        console.log(`[Sequential] Failed to get valid value for ${wallet.name} after ${maxAttempts} attempts`);
+        consecutiveFailures++; // Incrementar contador de falhas
+        console.log(`[Sequential] Failed to get valid value for ${wallet.name} after ${maxAttempts} attempts (consecutive failures: ${consecutiveFailures})`);
         const cached = balanceCache.get(wallet.name);
         const historicalValue = cached?.lastKnownValue || getLastHighestValue(wallet.name);
         
