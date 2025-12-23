@@ -260,17 +260,18 @@ export default function WalletTracker() {
                 >
                   <ExternalLink className="h-4 w-4" />
                 </a>
+                {/* Botão de histórico sempre ativo, independente do estado de carregamento */}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setSelectedWalletForHistory(wallet.name)}
+                  data-testid={`button-view-history-${wallet.id || wallet.name}`}
+                  title="Ver histórico"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                </Button>
                 {wallet.id && (
                   <>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setSelectedWalletForHistory(wallet.name)}
-                      data-testid={`button-view-history-${wallet.id}`}
-                      title="Ver histórico"
-                    >
-                      <TrendingUp className="h-4 w-4" />
-                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
