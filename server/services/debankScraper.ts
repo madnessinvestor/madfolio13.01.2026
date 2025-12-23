@@ -76,8 +76,17 @@ async function updatePortfolioEvolution(walletName: string, brlValue: number): P
 
     // Update portfolio history for future years (2025-2030) with this wallet's value
     // Note: This is a simplified approach - ideally we'd aggregate all wallet values
+    // IMPORTANTE: Só atualiza meses NÃO bloqueados
     for (let year = 2025; year <= 2030; year++) {
       try {
+        // Verifica se o mês está bloqueado antes de atualizar
+        const existingSnapshot = await storage.getMonthlyPortfolioSnapshot("default-user", currentMonth, year);
+        
+        if (existingSnapshot && existingSnapshot.isLocked === 1) {
+          console.log(`[Portfolio] ⊗ Skipping ${walletName} for ${year}-${currentMonth.toString().padStart(2, '0')} (locked)`);
+          continue; // Pula meses bloqueados
+        }
+
         const portfolioEntry = {
           userId: "default-user",
           totalValue: brlValue, // Using individual wallet value for now
@@ -376,8 +385,17 @@ async function updatePortfolioEvolutionTotal(userId: string = "default-user"): P
     const currentYear = currentDate.getFullYear();
 
     // Update portfolio history for future years (2025-2030) with total portfolio value
+    // IMPORTANTE: Só atualiza meses NÃO bloqueados
     for (let year = 2025; year <= 2030; year++) {
       try {
+        // Verifica se o mês está bloqueado antes de atualizar
+        const existingSnapshot = await storage.getMonthlyPortfolioSnapshot(userId, currentMonth, year);
+        
+        if (existingSnapshot && existingSnapshot.isLocked === 1) {
+          console.log(`[Portfolio Total] ⊗ Skipping ${year}-${currentMonth.toString().padStart(2, '0')} (locked)`);
+          continue; // Pula meses bloqueados
+        }
+
         const portfolioEntry = {
           userId,
           totalValue,
