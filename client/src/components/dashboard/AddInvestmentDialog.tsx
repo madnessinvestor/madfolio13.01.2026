@@ -506,7 +506,7 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="crypto-value-usd">Valor Total (Dólares)</Label>
+                  <Label htmlFor="crypto-value-usd">Valor Total</Label>
                   <Input
                     id="crypto-value-usd"
                     placeholder="USD 0,00"
@@ -531,18 +531,6 @@ export function AddInvestmentDialog({ onAdd, isLoading, existingAssets: provided
                     }}
                     disabled={walletLoading}
                     data-testid="input-crypto-value-usd"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="crypto-value-brl">Valor Total (Reais)</Label>
-                  <Input
-                    id="crypto-value-brl"
-                    placeholder="R$ 0,00"
-                    value={cryptoValueBRL}
-                    onChange={(e) => setCryptoValueBRL(e.target.value)}
-                    disabled
-                    data-testid="input-crypto-value-brl"
                   />
                 </div>
 
