@@ -86,11 +86,22 @@ async function calculateConsolidatedPortfolioValue(userId: string = "default-use
 /**
  * Sincroniza automaticamente a Evolução do Portfólio
  * Atualiza apenas meses não bloqueados (snapshots não salvos)
+ * AGORA TAMBÉM atualiza snapshots individuais por ativo
  */
 export async function syncPortfolioEvolution(userId: string = "default-user"): Promise<void> {
   try {
     console.log(`[Portfolio Sync] ========================================`);
     console.log(`[Portfolio Sync] Starting automatic portfolio evolution sync`);
+    
+    // Obter todos os assets do usuário
+    const allAssets = await storage.getAssets(userId);
+    const rates = await fetchExchangeRates();
+    
+    if (allAssets.length === 0) {
+      console.log(`[Portfolio Sync] ⊗ No assets found, skipping sync`);
+      console.log(`[Portfolio Sync] ========================================`);
+      return;
+    }
     
     // Calcular valor consolidado total
     const totalValue = await calculateConsolidatedPortfolioValue(userId);
@@ -107,12 +118,15 @@ export async function syncPortfolioEvolution(userId: string = "default-user"): P
     const currentYear = currentDate.getFullYear();
     
     console.log(`[Portfolio Sync] Current period: ${currentYear}-${currentMonth.toString().padStart(2, '0')}`);
+    console.log(`[Portfolio Sync] Assets to sync: ${allAssets.length}`);
     
     // Atualizar snapshots para anos 2025-2030
     let updatedCount = 0;
     let skippedCount = 0;
     
     for (let year = 2025; year <= 2030; year++) {
+      let assetsUpdated = 0; // Reset counter for each year
+      
       try {
         // Verificar se o mês está bloqueado (salvo)
         const existingSnapshot = await storage.getMonthlyPortfolioSnapshot(userId, currentMonth, year);
@@ -124,6 +138,7 @@ export async function syncPortfolioEvolution(userId: string = "default-user"): P
         }
         
         // Mês não está bloqueado, pode atualizar
+        // 1. Atualizar snapshot consolidado do portfólio
         await storage.createOrUpdateMonthlyPortfolioSnapshot({
           userId,
           year,
@@ -132,7 +147,57 @@ export async function syncPortfolioEvolution(userId: string = "default-user"): P
           isLocked: 0
         });
         
-        console.log(`[Portfolio Sync] ✓ ${year}-${currentMonth.toString().padStart(2, '0')}: Updated to R$ ${totalValue.toFixed(2)}`);
+        // 2. NOVO: Atualizar snapshots individuais por ativo para meses não bloqueados
+        const lastDayOfMonth = new Date(year, currentMonth, 0); // Último dia do mês
+        const snapshotDate = lastDayOfMonth.toISOString().split('T')[0];
+        
+        for (const asset of allAssets) {
+          try {
+            const currentPrice = asset.currentPrice || asset.acquisitionPrice || 0;
+            const quantity = asset.quantity || 0;
+            const currency = asset.currency || "BRL";
+            
+            const valueInCurrency = quantity * currentPrice;
+            const exchangeRate = rates[currency as keyof typeof rates] || 1;
+            const valueInBRL = valueInCurrency * exchangeRate;
+            
+            if (valueInBRL > 0) {
+              // Verificar se já existe snapshot para este ativo neste mês
+              const startDate = `${year}-${currentMonth.toString().padStart(2, '0')}-01`;
+              const endDate = snapshotDate;
+              const existingSnapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
+              const assetSnapshot = existingSnapshots.find(s => s.assetId === asset.id);
+              
+              if (assetSnapshot) {
+                // Se snapshot existe e não está bloqueado, atualizar
+                if (!assetSnapshot.isLocked) {
+                  await storage.updateSnapshot(assetSnapshot.id, {
+                    value: valueInBRL,
+                    amount: quantity,
+                    unitPrice: currentPrice,
+                    date: snapshotDate,
+                  });
+                  assetsUpdated++;
+                }
+              } else {
+                // Se não existe snapshot, criar um novo (não bloqueado)
+                await storage.createSnapshot({
+                  assetId: asset.id,
+                  value: valueInBRL,
+                  amount: quantity,
+                  unitPrice: currentPrice,
+                  date: snapshotDate,
+                  isLocked: 0,
+                });
+                assetsUpdated++;
+              }
+            }
+          } catch (assetError) {
+            console.error(`[Portfolio Sync] Error updating snapshot for asset ${asset.symbol}:`, assetError);
+          }
+        }
+        
+        console.log(`[Portfolio Sync] ✓ ${year}-${currentMonth.toString().padStart(2, '0')}: Updated total to R$ ${totalValue.toFixed(2)} + ${assetsUpdated} asset snapshots`);
         updatedCount++;
         
       } catch (error) {
@@ -141,7 +206,7 @@ export async function syncPortfolioEvolution(userId: string = "default-user"): P
     }
     
     console.log(`[Portfolio Sync] ========================================`);
-    console.log(`[Portfolio Sync] ✓ Sync completed: ${updatedCount} updated, ${skippedCount} locked (preserved)`);
+    console.log(`[Portfolio Sync] ✓ Sync completed: ${updatedCount} months updated, ${skippedCount} locked (preserved), ${assetsUpdated} asset snapshots updated`);
     console.log(`[Portfolio Sync] ========================================`);
     
   } catch (error) {

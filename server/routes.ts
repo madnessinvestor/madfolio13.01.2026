@@ -1318,5 +1318,23 @@ export async function registerRoutes(
     }
   });
 
+  // Portfolio Evolution Sync endpoint - manually trigger portfolio evolution sync
+  app.post("/api/portfolio/sync", async (req: any, res) => {
+    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    try {
+      const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+      await syncPortfolioEvolution(userId);
+      
+      res.json({
+        success: true,
+        message: "Evolução do portfólio sincronizada com sucesso",
+        syncedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Portfolio sync error:", error);
+      res.status(500).json({ error: "Failed to sync portfolio evolution" });
+    }
+  });
+
   return httpServer;
 }

@@ -63,6 +63,24 @@ export default function MonthlySnapshotsPage() {
     setMounted(true);
   }, []);
 
+  // Sync portfolio evolution when page loads
+  useEffect(() => {
+    const syncPortfolio = async () => {
+      try {
+        await apiRequest("POST", "/api/portfolio/sync");
+        // Refresh snapshots data after sync
+        queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/snapshots/month-status"] });
+      } catch (error) {
+        console.error("Failed to sync portfolio evolution:", error);
+      }
+    };
+    
+    if (mounted) {
+      syncPortfolio();
+    }
+  }, [mounted]);
+
   const getMonthSequence = () => {
     const year = parseInt(selectedYear);
     const sequence = [];

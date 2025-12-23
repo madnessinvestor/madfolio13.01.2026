@@ -71,17 +71,20 @@ export function addCacheEntry(
   cache.entries.push(entry);
   cache.lastUpdated = new Date().toISOString();
 
-  // Keep only last 1000 entries per wallet to avoid huge files
-  const walletEntries = cache.entries.filter(e => e.walletName === walletName);
-  if (walletEntries.length > 1000) {
-    const removeCount = walletEntries.length - 1000;
-    cache.entries = cache.entries.filter(
-      (e, idx) => !(e.walletName === walletName && idx < removeCount)
-    );
+  // Keep only last 20 entries per wallet (persistência das últimas 20 atualizações)
+  const walletEntries = cache.entries
+    .map((e, idx) => ({ entry: e, originalIndex: idx }))
+    .filter(item => item.entry.walletName === walletName);
+  
+  if (walletEntries.length > 20) {
+    // Remove as entradas mais antigas desta wallet (mantém apenas as últimas 20)
+    const entriesToRemove = walletEntries.slice(0, walletEntries.length - 20);
+    const indicesToRemove = new Set(entriesToRemove.map(item => item.originalIndex));
+    cache.entries = cache.entries.filter((_, idx) => !indicesToRemove.has(idx));
   }
 
   writeCache(cache);
-  console.log(`[Cache] Added entry for ${walletName}: ${balance}`);
+  console.log(`[Cache] Added entry for ${walletName}: ${balance} (keeping last 20)`);
 }
 
 // Get wallet history
