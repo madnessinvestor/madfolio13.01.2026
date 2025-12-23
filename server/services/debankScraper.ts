@@ -625,6 +625,14 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
     // Update portfolio evolution with total value after all wallets are processed
     await updatePortfolioEvolutionTotal();
 
+    // Sync consolidated portfolio evolution from all sources
+    try {
+      const { syncPortfolioEvolution } = await import('./portfolioSync');
+      await syncPortfolioEvolution("default-user");
+    } catch (error) {
+      console.error('[Sequential] Error syncing portfolio evolution:', error);
+    }
+
   } catch (error) {
     console.error(`[Sequential] Error:`, error);
   } finally {

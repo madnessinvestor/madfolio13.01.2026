@@ -125,6 +125,14 @@ export async function registerRoutes(
         details: `Quantidade: ${asset.quantity}, Categoria: ${asset.category}`,
       });
       
+      // Sync portfolio evolution after asset creation
+      try {
+        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        await syncPortfolioEvolution(userId);
+      } catch (error) {
+        console.error("[API] Error syncing portfolio evolution:", error);
+      }
+      
       const updatedAsset = await storage.getAsset(asset.id);
       console.log(`[API] ✓ POST /api/assets complete - asset returned to client`);
       res.status(201).json(updatedAsset);
@@ -169,6 +177,14 @@ export async function registerRoutes(
             details: changes.join(", "),
           });
         }
+      }
+      
+      // Sync portfolio evolution after asset update
+      try {
+        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        await syncPortfolioEvolution(userId);
+      } catch (error) {
+        console.error("[API] Error syncing portfolio evolution:", error);
       }
       
       res.json(asset);
@@ -1055,8 +1071,18 @@ export async function registerRoutes(
   });
 
   app.post("/api/saldo/refresh", async (req, res) => {
+    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const updatedBalances = await forceRefreshAndWait();
+      
+      // Sync portfolio evolution after wallet refresh
+      try {
+        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        await syncPortfolioEvolution(userId);
+      } catch (error) {
+        console.error("[API] Error syncing portfolio evolution:", error);
+      }
+      
       res.json({ message: "Balances refreshed", balances: updatedBalances });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh DeBank balances" });

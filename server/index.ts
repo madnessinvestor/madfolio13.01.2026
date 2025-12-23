@@ -139,6 +139,15 @@ app.use((req, res, next) => {
     console.error("[Init] Error loading wallets from database:", error);
   }
   
+  // Sync portfolio evolution on startup
+  try {
+    const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+    await syncPortfolioEvolution("default-user");
+    console.log(`[Init] Portfolio evolution synchronized on startup`);
+  } catch (error) {
+    console.error("[Init] Error syncing portfolio evolution:", error);
+  }
+  
   // Start wallet monitoring (scraping every 60 minutes)
   try {
     const { startStepMonitor } = await import("./services/debankScraper");
