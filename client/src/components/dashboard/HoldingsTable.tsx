@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pencil, Trash2, Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { useCurrencyConverter } from "@/components/CurrencySwitcher";
 
 export interface Holding {
   id: string;
@@ -47,8 +48,12 @@ export function HoldingsTable({
   cryptoType,
   realEstate = false,
 }: HoldingsTableProps) {
+  const { rates } = useCurrencyConverter();
   const formatCurrency = (value: number) =>
     isHidden ? '***' : `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+  const formatUSDCurrency = (value: number) =>
+    isHidden ? '***' : `USD ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
   const formatAmount = (value: number, type: string) => {
     if (isHidden) return '***';
@@ -82,6 +87,7 @@ export function HoldingsTable({
                 <TableHead className="text-right">
                   {cryptoType === "holdings" ? "Cotação Atual" : cryptoType === "wallets" ? "Valor Atual" : fixedIncome || variableIncome ? "Valor Atual" : "Preço Atual"}
                 </TableHead>
+                {cryptoType === "wallets" && <TableHead className="text-right">Valor Atual (Dólares)</TableHead>}
                 {(fixedIncome || variableIncome || cryptoType === "holdings" || cryptoType === "wallets" || realEstate) && <TableHead className="text-right">{realEstate ? "Valorização (R$)" : cryptoType === "wallets" ? "Valor Total / Valorização (R$)" : fixedIncome || variableIncome ? "Valorização (R$)" : "Valor Total"}</TableHead>}
                 {cryptoType === "holdings" && <TableHead className="text-right">Lucro/Perda Total (R$)</TableHead>}
                 <TableHead className="text-right">
@@ -121,6 +127,11 @@ export function HoldingsTable({
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(holding.currentPrice)}
                     </TableCell>
+                    {cryptoType === "wallets" && (
+                      <TableCell className="text-right tabular-nums">
+                        {formatUSDCurrency(holding.currentPrice / (rates?.USD || 5.51))}
+                      </TableCell>
+                    )}
                     {(fixedIncome || variableIncome || cryptoType === "holdings" || cryptoType === "wallets" || realEstate) && (
                       <TableCell className="text-right tabular-nums">
                         {cryptoType === "holdings" ? (
