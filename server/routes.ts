@@ -8,7 +8,7 @@ import { fetchAssetPrice, updateAssetPrice, startPriceUpdater, fetchHistoricalAs
 import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/exchangeRate";
 import { fetchWalletBalance } from "./services/walletBalance";
 import { getBalances, getDetailedBalances, startStepMonitor, forceRefresh, forceRefreshAndWait, setWallets, forceRefreshWallet, initializeWallet } from "./services/debankScraper";
-import { getWalletHistory, getAllHistory, getLatestByWallet, getWalletStats } from "./services/walletCache";
+import { getWalletHistory, getAllHistory, getLatestByWallet, getWalletStats, getLastHighestValue } from "./services/walletCache";
 import { fetchJupPortfolio } from "./services/jupAgScraper";
 import { validateCredentials } from "./sqlite-auth";
 

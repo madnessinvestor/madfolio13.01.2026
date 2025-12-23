@@ -113,6 +113,37 @@ export function getLatestByWallet(): Record<string, CacheEntry> {
   return latest;
 }
 
+// Get the last highest valid value from history
+export function getLastHighestValue(walletName: string): string | null {
+  const cache = readCache();
+  const entries = cache.entries
+    .filter(e => e.walletName === walletName && e.status === 'success')
+    .reverse(); // Most recent first
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  // Extract numeric values from successful entries
+  const valuesWithEntry = entries
+    .map(e => {
+      const num = parseFloat(e.balance.replace(/[$,]/g, ''));
+      return { value: isNaN(num) ? null : num, balance: e.balance };
+    })
+    .filter(v => v.value !== null && v.value > 0);
+
+  if (valuesWithEntry.length === 0) {
+    return null;
+  }
+
+  // Find the highest value
+  const highest = valuesWithEntry.reduce((max, current) => 
+    (current.value! > max.value!) ? current : max
+  );
+
+  return highest.balance;
+}
+
 // Get wallet statistics
 export function getWalletStats(walletName: string) {
   const cache = readCache();

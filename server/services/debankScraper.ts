@@ -3,7 +3,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser } from 'puppeteer';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { addCacheEntry } from './walletCache';
+import { addCacheEntry, getLastHighestValue } from './walletCache';
 import { selectAndScrapePlatform } from './platformScrapers';
 import { storage } from '../storage';
 import { readCache } from './walletCache';
@@ -551,15 +551,27 @@ export function getBalances(): string[] {
 
 export function getDetailedBalances(): WalletBalance[] {
   const walletNames = new Set(WALLETS.map(w => w.name));
-  // Ensure all wallets have at least their last known value
+  // Ensure all wallets have at least their last highest valid value
   const balances = Array.from(balanceCache.values()).filter(balance => walletNames.has(balance.name)).map(wallet => {
-    // If balance is "Carregando..." or "Indisponível", try to use last known value
-    if ((wallet.balance === "Carregando..." || wallet.balance === "Indisponível") && wallet.lastKnownValue) {
-      return {
-        ...wallet,
-        balance: wallet.lastKnownValue,
-        status: 'temporary_error' as const,
-      };
+    // If balance is "Carregando..." or "Indisponível", try to use last highest valid value from history
+    if ((wallet.balance === "Carregando..." || wallet.balance === "Indisponível") || wallet.status !== 'success') {
+      const lastHighestValue = getLastHighestValue(wallet.name);
+      if (lastHighestValue) {
+        return {
+          ...wallet,
+          balance: lastHighestValue,
+          status: 'temporary_error' as const,
+          lastKnownValue: lastHighestValue
+        };
+      }
+      // Fallback to lastKnownValue if no history found
+      if (wallet.lastKnownValue) {
+        return {
+          ...wallet,
+          balance: wallet.lastKnownValue,
+          status: 'temporary_error' as const,
+        };
+      }
     }
     return wallet;
   });
