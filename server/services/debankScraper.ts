@@ -130,14 +130,23 @@ async function updateAssetForWallet(walletName: string, brlValue: number): Promi
   }
 }
 
-export function syncWalletsToAssets(): void {
+export async function syncWalletsToAssets(): Promise<void> {
   try {
     const cache = readCache();
     for (const entry of cache.entries) {
       if (entry.status === 'success') {
-        const brlValue = parseCurrencyValue(entry.balance);
+        let brlValue = parseCurrencyValue(entry.balance);
+        
+        // Check if value is in USD and needs conversion
+        if (entry.balance.includes('$') || entry.balance.includes(',')) {
+          const exchangeRate = await getExchangeRate('USD');
+          const usdValue = brlValue;
+          brlValue = usdValue * (exchangeRate >= 3.0 && exchangeRate <= 7.0 ? exchangeRate : 5.5);
+          console.log(`[Sync] Converted ${entry.walletName}: ${usdValue} USD → ${brlValue.toFixed(2)} BRL`);
+        }
+        
         if (brlValue > 0) {
-          updateAssetForWallet(entry.walletName, brlValue);
+          await updateAssetForWallet(entry.walletName, brlValue);
         }
       }
     }
@@ -634,33 +643,55 @@ export function getBalances(): string[] {
   return Array.from(balanceCache.values()).filter(balance => walletNames.has(balance.name)).map(w => w.balance);
 }
 
-export function getDetailedBalances(): WalletBalance[] {
+export async function getDetailedBalances(): Promise<WalletBalance[]> {
   const walletNames = new Set(WALLETS.map(w => w.name));
   // Ensure all wallets have at least their last highest valid value
-  const balances = Array.from(balanceCache.values()).filter(balance => walletNames.has(balance.name)).map(wallet => {
+  const balances = Array.from(balanceCache.values()).filter(balance => walletNames.has(balance.name)).map(async wallet => {
     // If balance is "Carregando..." or "Indisponível", try to use last highest valid value from history
     if ((wallet.balance === "Carregando..." || wallet.balance === "Indisponível") || wallet.status !== 'success') {
       const lastHighestValue = getLastHighestValue(wallet.name);
       if (lastHighestValue) {
+        // Convert value to BRL if needed
+        const numValue = parseCurrencyValue(lastHighestValue);
+        let brlValue = numValue;
+        
+        // Check if value is in USD (contains $ or comma separator)
+        if (lastHighestValue.includes('$') || lastHighestValue.includes(',')) {
+          const exchangeRate = await getExchangeRate('USD');
+          brlValue = numValue * (exchangeRate >= 3.0 && exchangeRate <= 7.0 ? exchangeRate : 5.5);
+          console.log(`[getDetailedBalances] Converted ${wallet.name}: ${numValue} USD → ${brlValue.toFixed(2)} BRL`);
+        }
+        
         return {
           ...wallet,
-          balance: lastHighestValue,
+          balance: brlValue.toString(),
           status: 'temporary_error' as const,
-          lastKnownValue: lastHighestValue
+          lastKnownValue: brlValue.toString()
         };
       }
       // Fallback to lastKnownValue if no history found
       if (wallet.lastKnownValue) {
+        // Convert value to BRL if needed
+        const numValue = parseCurrencyValue(wallet.lastKnownValue);
+        let brlValue = numValue;
+        
+        // Check if value is in USD (contains $ or comma separator)
+        if (wallet.lastKnownValue.includes('$') || wallet.lastKnownValue.includes(',')) {
+          const exchangeRate = await getExchangeRate('USD');
+          brlValue = numValue * (exchangeRate >= 3.0 && exchangeRate <= 7.0 ? exchangeRate : 5.5);
+          console.log(`[getDetailedBalances] Converted ${wallet.name} (fallback): ${numValue} USD → ${brlValue.toFixed(2)} BRL`);
+        }
+        
         return {
           ...wallet,
-          balance: wallet.lastKnownValue,
+          balance: brlValue.toString(),
           status: 'temporary_error' as const,
         };
       }
     }
     return wallet;
   });
-  return balances;
+  return await Promise.all(balances);
 }
 
 export function initializeWallet(wallet: WalletConfig): void {
@@ -724,7 +755,7 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
     console.error('[Force] Update timeout or error:', error);
   }
   
-  return getDetailedBalances();
+  return await getDetailedBalances();
 }
 
 export async function forceRefreshWallet(walletName: string): Promise<WalletBalance | null> {
@@ -772,7 +803,20 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
     
     // Update corresponding asset if balance was successfully retrieved
     if (balance.status === 'success') {
-      const brlValue = parseCurrencyValue(balance.balance);
+      let brlValue = parseCurrencyValue(balance.balance);
+      
+      // Check if value is in USD and needs conversion
+      if (balance.balance.includes('$') || balance.balance.includes(',')) {
+        const exchangeRate = await getExchangeRate('USD');
+        const usdValue = brlValue;
+        brlValue = usdValue * (exchangeRate >= 3.0 && exchangeRate <= 7.0 ? exchangeRate : 5.5);
+        console.log(`[forceRefreshWallet] Converted ${wallet.name}: ${usdValue} USD → ${brlValue.toFixed(2)} BRL`);
+        
+        // Update balance with BRL value
+        balance.balance = brlValue.toString();
+        balanceCache.set(wallet.name, balance);
+      }
+      
       await updateAssetForWallet(wallet.name, brlValue);
     }
     
@@ -790,5 +834,5 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
 export async function forceRefresh(): Promise<WalletBalance[]> {
   console.log('[Force] Refresh started (no wait)');
   updateWalletsSequentially(WALLETS);
-  return getDetailedBalances();
+  return await getDetailedBalances();
 }

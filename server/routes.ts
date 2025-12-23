@@ -880,7 +880,7 @@ export async function registerRoutes(
   // Helper function to update asset prices from wallet tracker
   async function syncWalletValuesToAssets(): Promise<void> {
     try {
-      const walletBalances = getDetailedBalances();
+      const walletBalances = await getDetailedBalances();
       // This updates the cached wallet values which can be used to sync asset values
       // Implementation depends on how wallets are linked to assets
       console.log("[Sync] Wallet balances available for sync:", walletBalances.length);
@@ -1047,7 +1047,7 @@ export async function registerRoutes(
 
   app.get("/api/saldo/detailed", async (req, res) => {
     try {
-      const balances = getDetailedBalances();
+      const balances = await getDetailedBalances();
       res.json(balances);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch DeBank balances" });

@@ -132,7 +132,7 @@ app.use((req, res, next) => {
     if (allWallets.length > 0) {
       const { setWallets, syncWalletsToAssets } = await import("./services/debankScraper");
       setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
-      syncWalletsToAssets();
+      await syncWalletsToAssets();
       console.log(`[Init] Loaded ${allWallets.length} wallets from database and synchronized to assets`);
     }
   } catch (error) {
