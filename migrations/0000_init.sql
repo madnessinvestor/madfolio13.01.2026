@@ -69,6 +69,17 @@ CREATE TABLE `wallets` (
 	`created_at` integer DEFAULT (unixepoch())
 );
 --> statement-breakpoint
+CREATE TABLE `monthly_portfolio_snapshots` (
+	`id` text PRIMARY KEY DEFAULT lower(hex(randomblob(16))) NOT NULL,
+	`user_id` text,
+	`year` integer NOT NULL,
+	`month` integer NOT NULL,
+	`total_value` real NOT NULL,
+	`is_locked` integer DEFAULT 0,
+	`created_at` integer DEFAULT (unixepoch()),
+	`updated_at` integer DEFAULT (unixepoch())
+);
+--> statement-breakpoint
 CREATE TABLE `sessions` (
 	`sid` text PRIMARY KEY NOT NULL,
 	`sess` text NOT NULL,

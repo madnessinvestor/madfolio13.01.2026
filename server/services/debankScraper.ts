@@ -281,15 +281,7 @@ async function processRefreshQueue() {
   }
 }
 
-async function getChromiumPath(): Promise<string> {
-  try {
-    const { stdout } = await execAsync('which chromium');
-    return stdout.trim();
-  } catch (error) {
-    console.error('Could not find chromium:', error);
-    return '/nix/store/chromium/bin/chromium';
-  }
-}
+// Chromium path detection removed - puppeteer will use its bundled Chromium automatically
 
 // ============================================================================
 // MAIN SCRAPING WITH TIMEOUT & FALLBACK
@@ -600,8 +592,6 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
   let browser: Browser | null = null;
   
   try {
-    const chromiumPath = await getChromiumPath();
-    
     try {
       browser = await puppeteerExtra.launch({
         headless: true,
@@ -609,16 +599,8 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-accelerated-jpeg-decoding',
-          '--disable-accelerated-video-decode',
-          '--no-first-run',
-          '--single-process',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--disable-extensions'
+          '--disable-gpu'
         ],
-        executablePath: chromiumPath,
         timeout: 30000,
       });
       
@@ -821,12 +803,13 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         
         if (historicalValue) {
           console.log(`[Sequential] Using historical fallback value: ${historicalValue}`);
+          const cachedBalance = balanceCache.get(wallet.name);
           finalBalance = {
             id: wallet.id,
             name: wallet.name,
             link: wallet.link,
             balance: historicalValue,
-            lastUpdated: cached?.lastUpdated || new Date(),
+            lastUpdated: cachedBalance?.lastUpdated || new Date(),
             status: 'temporary_error',
             lastKnownValue: historicalValue,
             error: 'Usando valor histórico'
@@ -1060,8 +1043,6 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
   let browser: Browser | null = null;
 
   try {
-    const chromiumPath = await getChromiumPath();
-    
     // Only create browser if needed
     const needsBrowser = wallet.link.includes('debank.com') || 
                         wallet.link.includes('jup.ag') || 
@@ -1074,13 +1055,8 @@ export async function forceRefreshWallet(walletName: string): Promise<WalletBala
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
           '--disable-gpu'
         ],
-        executablePath: chromiumPath,
       });
     }
     
