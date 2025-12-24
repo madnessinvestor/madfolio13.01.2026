@@ -919,15 +919,15 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
       if (lastValidEntry) {
         console.log(`[getDetailedBalances] ${wallet.name}: usando último saldo válido do histórico: ${lastValidEntry.balance} (${lastValidEntry.timestamp})`);
         
-        // Retornar o saldo do histórico diretamente
-        // O valor já está em BRL porque foi salvo convertido
+        // ✅ CORREÇÃO: Se há histórico salvo, status DEVE ser 'success' e erro DEVE ser null
+        // Falha de browser não é erro funcional quando há dados persistidos
         return {
           ...wallet,
           balance: lastValidEntry.balance,
           lastUpdated: new Date(lastValidEntry.timestamp),
-          status: 'temporary_error' as const,
+          status: 'success' as const,  // ✅ Status OK quando usa histórico
           lastKnownValue: lastValidEntry.balance,
-          error: 'Usando último saldo salvo (scraping indisponível)'
+          error: undefined  // ✅ Sem erro quando há histórico válido
         };
       }
       
@@ -937,11 +937,12 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
         return {
           ...wallet,
           balance: wallet.lastKnownValue,
-          status: 'temporary_error' as const,
+          status: 'success' as const,  // ✅ Status OK quando usa cache válido
+          error: undefined  // ✅ Sem erro quando há valor conhecido
         };
       }
       
-      // 3. Se não tem nada, marcar como aguardando primeira coleta
+      // 3. ⚠️ APENAS AQUI pode retornar "Aguardando" - quando NUNCA houve saldo salvo
       console.log(`[getDetailedBalances] ${wallet.name}: sem histórico disponível - aguardando primeira coleta`);
       return {
         ...wallet,
