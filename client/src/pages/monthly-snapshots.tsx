@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock, Minus } from "lucide-react";
+import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock, Minus, RefreshCw } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar } from "recharts";
 import type { Asset } from "@shared/schema";
 
@@ -55,6 +55,7 @@ export default function MonthlySnapshotsPage() {
   const [monthUpdateDates, setMonthUpdateDates] = useState<Record<string, string>>({});
   const [monthLockedStatus, setMonthLockedStatus] = useState<Record<number, boolean>>({});
   const [savingMonths, setSavingMonths] = useState<Set<number>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
   const originalDataRef = useRef<Record<string, Record<string, string>>>({});
 
   // Initialize useEffect for year persistence (this ensures it runs client-side only)
@@ -424,6 +425,29 @@ export default function MonthlySnapshotsPage() {
     return `${day}/${month}/${year}`;
   };
 
+  const handleSyncInvestments = async () => {
+    setIsSyncing(true);
+    try {
+      await apiRequest("POST", "/api/portfolio/sync");
+      // Refresh data after sync
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/month-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      toast({
+        title: "Investimentos atualizados",
+        description: "Os investimentos não registrados foram atualizados com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar os investimentos. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const years = Array.from({ length: 6 }, (_, i) => (2025 + i).toString());
 
   return (
@@ -504,18 +528,30 @@ export default function MonthlySnapshotsPage() {
               <Calendar className="w-4 h-4" />
               Investimentos - {selectedYear}
             </CardTitle>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-40" data-testid="select-year">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncInvestments}
+                disabled={isSyncing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? "Atualizando..." : "Atualizar Investimentos"}
+              </Button>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-40" data-testid="select-year">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
