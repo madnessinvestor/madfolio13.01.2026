@@ -22,5 +22,13 @@
     "lastUpdated": "2025-12-24T20:00:53.836Z",
     "status": "success",
     "platform": "unknown"
+  },
+  {
+    "id": "c3b8222449c8bf85a6d7d1305f003452",
+    "name": "EVM-madnesstwo",
+    "balance": "$17",
+    "lastUpdated": "2025-12-24T20:01:35.335Z",
+    "status": "success",
+    "platform": "unknown"
   }
 ]
