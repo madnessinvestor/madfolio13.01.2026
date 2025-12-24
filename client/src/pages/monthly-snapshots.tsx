@@ -445,6 +445,12 @@ export default function MonthlySnapshotsPage() {
       
       const year = parseInt(selectedYear);
       
+      console.log('[Sync] Fresh data:', { 
+        assetsCount: freshAssets.length, 
+        monthStatus: freshMonthStatus,
+        selectedYear: year 
+      });
+      
       // Update monthDates for unlocked months with last day of month
       setMonthDates((prev) => {
         const newDates = { ...prev };
@@ -453,11 +459,14 @@ export default function MonthlySnapshotsPage() {
           const monthKey = month.toString();
           const isLocked = freshMonthStatus[month + 1] === true;
           
+          console.log(`[Sync] Month ${month + 1} (${monthKey}): locked=${isLocked}`);
+          
           // ONLY update dates for unlocked months
           if (!isLocked) {
             // Calculate last day of month: month + 1 for next month, day 0 gives last day of previous month
             const lastDayOfMonth = new Date(year, month + 1, 0);
             newDates[monthKey] = lastDayOfMonth.toISOString().split("T")[0];
+            console.log(`[Sync] Updated date for month ${month + 1}: ${newDates[monthKey]}`);
           }
         }
         
@@ -477,6 +486,8 @@ export default function MonthlySnapshotsPage() {
           if (!isLocked) {
             newUpdates[monthKey] = { ...newUpdates[monthKey] };
             
+            console.log(`[Sync] Updating values for month ${month + 1}`);
+            
             // Update each asset by its ID
             freshAssets.forEach((asset) => {
               // Check if there's a snapshot for this asset in this month
@@ -488,6 +499,8 @@ export default function MonthlySnapshotsPage() {
               // Use snapshot value if exists and is recent, otherwise use calculated current value
               const valueToUse = monthData?.value || currentValue;
               
+              console.log(`[Sync] Asset ${asset.symbol}: value=${valueToUse}`);
+              
               // Update the state with the asset identified by asset.id
               newUpdates[monthKey][asset.id] = formatCurrencyInput(valueToUse);
             });
@@ -495,6 +508,7 @@ export default function MonthlySnapshotsPage() {
           // Locked months are NOT touched
         }
         
+        console.log('[Sync] Final updates:', newUpdates);
         return newUpdates;
       });
       
