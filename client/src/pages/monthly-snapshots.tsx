@@ -438,6 +438,9 @@ export default function MonthlySnapshotsPage() {
         queryClient.refetchQueries({ queryKey: ["/api/snapshots/month-status", selectedYear] })
       ]);
       
+      // Wait a bit for React Query to update the cache
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Get fresh data
       const freshAssets = queryClient.getQueryData<Asset[]>(["/api/assets"]) || [];
       const freshYearSnapshots = queryClient.getQueryData<Record<string, Record<number, SnapshotData>>>(["/api/snapshots/year", selectedYear]) || {};
@@ -450,6 +453,9 @@ export default function MonthlySnapshotsPage() {
         monthStatus: freshMonthStatus,
         selectedYear: year 
       });
+      
+      // Update monthLockedStatus first to ensure consistency
+      setMonthLockedStatus(freshMonthStatus);
       
       // Update monthDates for unlocked months with last day of month
       setMonthDates((prev) => {
@@ -474,43 +480,43 @@ export default function MonthlySnapshotsPage() {
       });
       
       // Update monthUpdates with fresh calculated values for unlocked months
-      setMonthUpdates((prev) => {
-        const newUpdates = { ...prev };
-        
-        // Iterate through all 12 months
-        for (let month = 0; month < 12; month++) {
-          const monthKey = month.toString();
-          const isLocked = freshMonthStatus[month + 1] === true; // monthStatus uses 1-based month
+      // This runs LAST to ensure it's not overwritten by useEffect
+      setTimeout(() => {
+        setMonthUpdates((prev) => {
+          const newUpdates = { ...prev };
           
-          // ONLY update unlocked months
-          if (!isLocked) {
-            newUpdates[monthKey] = { ...newUpdates[monthKey] };
+          // Iterate through all 12 months
+          for (let month = 0; month < 12; month++) {
+            const monthKey = month.toString();
+            const isLocked = freshMonthStatus[month + 1] === true; // monthStatus uses 1-based month
             
-            console.log(`[Sync] Updating values for month ${month + 1}`);
-            
-            // Update each asset by its ID
-            freshAssets.forEach((asset) => {
-              // Check if there's a snapshot for this asset in this month
-              const monthData = freshYearSnapshots[asset.id]?.[month];
+            // ONLY update unlocked months
+            if (!isLocked) {
+              // Force create new object to trigger React update
+              newUpdates[monthKey] = {};
               
-              // Calculate current value: quantity * currentPrice
-              const currentValue = (asset.quantity || 0) * (asset.currentPrice || 0);
+              console.log(`[Sync] Updating values for month ${month + 1}`);
               
-              // Use snapshot value if exists and is recent, otherwise use calculated current value
-              const valueToUse = monthData?.value || currentValue;
-              
-              console.log(`[Sync] Asset ${asset.symbol}: value=${valueToUse}`);
-              
-              // Update the state with the asset identified by asset.id
-              newUpdates[monthKey][asset.id] = formatCurrencyInput(valueToUse);
-            });
+              // Update each asset by its ID
+              freshAssets.forEach((asset) => {
+                // Calculate current value: quantity * currentPrice
+                const currentValue = (asset.quantity || 0) * (asset.currentPrice || 0);
+                
+                console.log(`[Sync] Asset ${asset.symbol}: value=${currentValue}`);
+                
+                // ALWAYS use current calculated value for unlocked months
+                newUpdates[monthKey][asset.id] = formatCurrencyInput(currentValue);
+              });
+            } else {
+              // Keep existing values for locked months
+              newUpdates[monthKey] = prev[monthKey] || {};
+            }
           }
-          // Locked months are NOT touched
-        }
-        
-        console.log('[Sync] Final updates:', newUpdates);
-        return newUpdates;
-      });
+          
+          console.log('[Sync] Final updates:', newUpdates);
+          return newUpdates;
+        });
+      }, 150);
       
       toast({
         title: "Investimentos atualizados",
