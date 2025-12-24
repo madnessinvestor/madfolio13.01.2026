@@ -30,5 +30,13 @@
     "lastUpdated": "2025-12-24T20:01:35.335Z",
     "status": "success",
     "platform": "unknown"
+  },
+  {
+    "id": "c30e5b4adbc2792ef854904244aeaa86",
+    "name": "SEI-madness",
+    "balance": "$34.45",
+    "lastUpdated": "2025-12-24T20:02:07.704Z",
+    "status": "success",
+    "platform": "unknown"
   }
 ]
