@@ -429,10 +429,21 @@ export default function MonthlySnapshotsPage() {
     setIsSyncing(true);
     try {
       await apiRequest("POST", "/api/portfolio/sync");
-      // Refresh data after sync
-      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/month-status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      
+      // Invalidate and wait for queries to refetch
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year", selectedYear] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/snapshots/month-status", selectedYear] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/assets"] })
+      ]);
+      
+      // Force refetch to ensure data is updated
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/snapshots/year", selectedYear] }),
+        queryClient.refetchQueries({ queryKey: ["/api/snapshots/month-status", selectedYear] }),
+        queryClient.refetchQueries({ queryKey: ["/api/assets"] })
+      ]);
+      
       toast({
         title: "Investimentos atualizados",
         description: "Os investimentos não registrados foram atualizados com sucesso.",
