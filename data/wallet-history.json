@@ -19,16 +19,16 @@
     "id": "e6c3ef467cf9ef61a325539b74c70736",
     "name": "EVM-madnesstrezor",
     "balance": "$10,300",
-    "lastUpdated": "2025-12-25T11:11:09.942Z",
-    "status": "success",
+    "lastUpdated": "2025-12-25T11:20:56.584Z",
+    "status": "temporary_error",
     "platform": "unknown"
   },
   {
     "id": "c3b8222449c8bf85a6d7d1305f003452",
     "name": "EVM-madnesstwo",
-    "balance": "$17",
-    "lastUpdated": "2025-12-25T10:56:50.172Z",
-    "status": "success",
+    "balance": "93.83999999999999",
+    "lastUpdated": "2025-12-25T11:20:56.584Z",
+    "status": "temporary_error",
     "platform": "unknown"
   },
   {
@@ -42,9 +42,9 @@
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "$160.54",
-    "lastUpdated": "2025-12-24T20:02:46.205Z",
-    "status": "success",
+    "balance": "886.1807999999999",
+    "lastUpdated": "2025-12-25T11:20:56.585Z",
+    "status": "temporary_error",
     "platform": "unknown"
   }
 ]
