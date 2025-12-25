@@ -36,36 +36,40 @@ export function LiveRates() {
 
   const formatRate = (value: number | undefined, decimals: number = 2): string => {
     if (!value) return "...";
-    return value.toLocaleString("pt-BR", {
+    return `R$ ${value.toLocaleString("pt-BR", {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
-    });
+    })}`;
   };
 
-  const usdRate = exchangeRates?.USD ? 1 / exchangeRates.USD : undefined;
-  const eurRate = exchangeRates?.EUR ? 1 / exchangeRates.EUR : undefined;
-  const btcRate = cryptoPrices?.bitcoin?.brl ? 1 / cryptoPrices.bitcoin.brl : undefined;
-  const ethRate = cryptoPrices?.ethereum?.brl ? 1 / cryptoPrices.ethereum.brl : undefined;
+  const usdRate = exchangeRates?.USD;
+  const eurRate = exchangeRates?.EUR;
+  const btcRate = cryptoPrices?.bitcoin?.brl;
+  const ethRate = cryptoPrices?.ethereum?.brl;
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground border-l pl-3">
       <TrendingUp className="h-4 w-4" />
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
+          <span>💵</span>
           <span className="font-medium">USD:</span>
           <span>{formatRate(usdRate)}</span>
         </div>
         <div className="flex items-center gap-1">
+          <span>💶</span>
           <span className="font-medium">EUR:</span>
           <span>{formatRate(eurRate)}</span>
         </div>
         <div className="flex items-center gap-1">
+          <span>₿</span>
           <span className="font-medium">BTC:</span>
-          <span>{formatRate(btcRate, 8)}</span>
+          <span>{formatRate(btcRate, 0)}</span>
         </div>
         <div className="flex items-center gap-1">
+          <span>Ξ</span>
           <span className="font-medium">ETH:</span>
-          <span>{formatRate(ethRate, 6)}</span>
+          <span>{formatRate(ethRate, 0)}</span>
         </div>
       </div>
     </div>
