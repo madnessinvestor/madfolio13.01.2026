@@ -186,7 +186,6 @@ export async function syncPortfolioEvolution(
           year,
           month: currentMonth,
           totalValue,
-          date: snapshotDateStr,
           isLocked: 0,
         });
 

@@ -455,22 +455,30 @@ async function scrapeWalletWithTimeout(
         if (result.success && result.value) {
           // 🔄 CONVERSÃO USD → BRL: Garantir que valor esteja sempre em BRL antes de salvar
           let balanceBRL = result.value;
-          
+
           // Se contém "$" ou formato USD, converter para BRL
-          if (result.value.includes("$") || /^\d{1,3}(,\d{3})+(\.\d{2})?$/.test(result.value)) {
+          if (
+            result.value.includes("$") ||
+            /^\d{1,3}(,\d{3})+(\.\d{2})?$/.test(result.value)
+          ) {
             try {
               const usdValue = parseFloat(result.value.replace(/[\$,]/g, ""));
               if (!isNaN(usdValue) && usdValue > 0) {
                 const exchangeRate = await getExchangeRate("USD");
                 const brlValue = usdValue * exchangeRate;
                 balanceBRL = brlValue.toFixed(2);
-                console.log(`[Wallet] Converted ${result.value} USD → R$ ${balanceBRL} (rate: ${exchangeRate})`);
+                console.log(
+                  `[Wallet] Converted ${result.value} USD → R$ ${balanceBRL} (rate: ${exchangeRate})`
+                );
               }
             } catch (error) {
-              console.error(`[Wallet] Error converting ${result.value} to BRL:`, error);
+              console.error(
+                `[Wallet] Error converting ${result.value} to BRL:`,
+                error
+              );
             }
           }
-          
+
           console.log(`[Wallet] ✅ Sucesso: ${wallet.name} = R$ ${balanceBRL}`);
 
           // Save to cache (já em BRL)
@@ -1203,8 +1211,14 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
   // Helper: Converter valor USD para BRL se necessário
   const ensureBRL = async (balance: string): Promise<string> => {
     // Se já está em BRL ou é placeholder, retornar como está
-    if (!balance || balance === "Loading..." || balance === "Carregando..." || 
-        balance === "Aguardando" || balance === "Indisponível" || balance === "Erro") {
+    if (
+      !balance ||
+      balance === "Loading..." ||
+      balance === "Carregando..." ||
+      balance === "Aguardando" ||
+      balance === "Indisponível" ||
+      balance === "Erro"
+    ) {
       return balance;
     }
 
@@ -1213,17 +1227,24 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
       try {
         // Parse USD value
         const usdValue = parseFloat(balance.replace(/[\$,]/g, ""));
-        
+
         if (!isNaN(usdValue) && usdValue > 0) {
           // Get exchange rate and convert
           const exchangeRate = await getExchangeRate("USD");
           const brlValue = usdValue * exchangeRate;
-          
-          console.log(`[DetailedBalances] Converted ${balance} USD → ${brlValue.toFixed(2)} BRL (rate: ${exchangeRate})`);
+
+          console.log(
+            `[DetailedBalances] Converted ${balance} USD → ${brlValue.toFixed(
+              2
+            )} BRL (rate: ${exchangeRate})`
+          );
           return brlValue.toFixed(2);
         }
       } catch (error) {
-        console.error(`[DetailedBalances] Error converting ${balance} to BRL:`, error);
+        console.error(
+          `[DetailedBalances] Error converting ${balance} to BRL:`,
+          error
+        );
       }
     }
 
@@ -1322,7 +1343,9 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
       return {
         ...wallet,
         balance: balanceBRL,
-        lastKnownValue: wallet.lastKnownValue ? await ensureBRL(wallet.lastKnownValue) : undefined,
+        lastKnownValue: wallet.lastKnownValue
+          ? await ensureBRL(wallet.lastKnownValue)
+          : undefined,
       };
     });
 

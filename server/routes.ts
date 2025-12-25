@@ -1,14 +1,45 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertSnapshotSchema, insertWalletSchema, insertMonthlyPortfolioSnapshotSchema } from "@shared/schema";
+import {
+  insertAssetSchema,
+  insertSnapshotSchema,
+  insertWalletSchema,
+  insertMonthlyPortfolioSnapshotSchema,
+} from "@shared/schema";
 import { z } from "zod";
 
-import { fetchAssetPrice, updateAssetPrice, startPriceUpdater, fetchHistoricalAssetPrice } from "./services/pricing";
-import { fetchExchangeRates, convertToBRL, getExchangeRate } from "./services/exchangeRate";
+import {
+  fetchAssetPrice,
+  updateAssetPrice,
+  startPriceUpdater,
+  fetchHistoricalAssetPrice,
+} from "./services/pricing";
+import {
+  fetchExchangeRates,
+  convertToBRL,
+  getExchangeRate,
+} from "./services/exchangeRate";
 import { fetchWalletBalance } from "./services/walletBalance";
-import { getBalances, getDetailedBalances, startStepMonitor, forceRefresh, forceRefreshAndWait, setWallets, forceRefreshWallet, initializeWallet } from "./services/debankScraper";
-import { getWalletHistory, getAllHistory, getLatestByWallet, getWalletStats, getLastHighestValue, getLastValidBalance, createInitialHistoryEntry } from "./services/walletCache";
+import {
+  getBalances,
+  getDetailedBalances,
+  startStepMonitor,
+  forceRefresh,
+  forceRefreshAndWait,
+  setWallets,
+  forceRefreshWallet,
+  initializeWallet,
+} from "./services/debankScraper";
+import {
+  getWalletHistory,
+  getAllHistory,
+  getLatestByWallet,
+  getWalletStats,
+  getLastHighestValue,
+  getLastValidBalance,
+  createInitialHistoryEntry,
+} from "./services/walletCache";
 import { fetchJupPortfolio } from "./services/jupAgScraper";
 import { validateCredentials } from "./sqlite-auth";
 
@@ -16,7 +47,14 @@ const investmentSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
   category: z.string(),
-  market: z.enum(["crypto", "crypto_simplified", "fixed_income", "variable_income", "variable_income_simplified", "real_estate"]),
+  market: z.enum([
+    "crypto",
+    "crypto_simplified",
+    "fixed_income",
+    "variable_income",
+    "variable_income_simplified",
+    "real_estate",
+  ]),
   currency: z.enum(["BRL", "USD", "EUR"]).default("BRL"),
   quantity: z.number().positive(),
   acquisitionPrice: z.number().positive(),
@@ -39,10 +77,7 @@ export async function registerRoutes(
   app.get("/api/database-status", async (req, res) => {
     try {
       const { supabase } = await import("./supabase");
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .limit(1);
+      const { data, error } = await supabase.from("users").select("*").limit(1);
 
       if (error) {
         return res.json({ connected: false, error: error.message });
@@ -58,14 +93,14 @@ export async function registerRoutes(
     res.json({
       userId: req.user?.claims?.sub,
       user: req.user,
-      claims: req.user?.claims
+      claims: req.user?.claims,
     });
   });
 
   app.post("/login", (req, res) => {
     const { usernameOrEmail, password } = req.body;
     const result = validateCredentials(usernameOrEmail, password);
-    
+
     if (!result.success) {
       return res.status(401).json(result);
     }
@@ -74,10 +109,11 @@ export async function registerRoutes(
   });
 
   app.get("/api/assets", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const market = req.query.market as string | undefined;
-      const assets = market 
+      const assets = market
         ? await storage.getAssetsByMarket(market, userId)
         : await storage.getAssets(userId);
       res.json(assets);
@@ -99,8 +135,13 @@ export async function registerRoutes(
   });
 
   app.post("/api/assets", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
-    console.log(`[API] POST /api/assets - userId:`, userId, "auth check passed");
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
+    console.log(
+      `[API] POST /api/assets - userId:`,
+      userId,
+      "auth check passed"
+    );
     try {
       if (!userId) {
         console.error(`[API] ✗ POST /api/assets - Missing userId`);
@@ -109,12 +150,15 @@ export async function registerRoutes(
       const validated = insertAssetSchema.parse(req.body);
       console.log(`[API] ✓ Validation passed, saving asset to Supabase...`);
       const asset = await storage.createAsset({ ...validated, userId });
-      
+
       const price = await fetchAssetPrice(asset.symbol, asset.market);
       if (price !== null) {
-        await storage.updateAsset(asset.id, { currentPrice: price, lastPriceUpdate: new Date() });
+        await storage.updateAsset(asset.id, {
+          currentPrice: price,
+          lastPriceUpdate: new Date(),
+        });
       }
-      
+
       await storage.createActivityLog({
         userId,
         type: "create",
@@ -125,21 +169,28 @@ export async function registerRoutes(
         action: `Investimento adicionado: ${asset.symbol} - ${asset.name}`,
         details: `Quantidade: ${asset.quantity}, Categoria: ${asset.category}`,
       });
-      
+
       // Sync portfolio evolution after asset creation
       try {
-        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        const { syncPortfolioEvolution } = await import(
+          "./services/portfolioSync"
+        );
         await syncPortfolioEvolution(userId);
       } catch (error) {
         console.error("[API] Error syncing portfolio evolution:", error);
       }
-      
+
       const updatedAsset = await storage.getAsset(asset.id);
-      console.log(`[API] ✓ POST /api/assets complete - asset returned to client`);
+      console.log(
+        `[API] ✓ POST /api/assets complete - asset returned to client`
+      );
       res.status(201).json(updatedAsset);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error(`[API] ✗ POST /api/assets - Validation error:`, error.errors);
+        console.error(
+          `[API] ✗ POST /api/assets - Validation error:`,
+          error.errors
+        );
         return res.status(400).json({ error: error.errors });
       }
       console.error("[API] ✗ POST /api/assets - Server error:", error);
@@ -148,7 +199,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/assets/:id", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const oldAsset = await storage.getAsset(req.params.id);
       const validated = insertAssetSchema.partial().parse(req.body);
@@ -156,16 +208,26 @@ export async function registerRoutes(
       if (!asset) {
         return res.status(404).json({ error: "Asset not found" });
       }
-      
+
       if (oldAsset) {
         const changes = [];
-        if (validated.quantity !== undefined && oldAsset.quantity !== validated.quantity) {
-          changes.push(`Quantidade: ${oldAsset.quantity} → ${validated.quantity}`);
+        if (
+          validated.quantity !== undefined &&
+          oldAsset.quantity !== validated.quantity
+        ) {
+          changes.push(
+            `Quantidade: ${oldAsset.quantity} → ${validated.quantity}`
+          );
         }
-        if (validated.acquisitionPrice !== undefined && oldAsset.acquisitionPrice !== validated.acquisitionPrice) {
-          changes.push(`Preço de aquisição: ${oldAsset.acquisitionPrice} → ${validated.acquisitionPrice}`);
+        if (
+          validated.acquisitionPrice !== undefined &&
+          oldAsset.acquisitionPrice !== validated.acquisitionPrice
+        ) {
+          changes.push(
+            `Preço de aquisição: ${oldAsset.acquisitionPrice} → ${validated.acquisitionPrice}`
+          );
         }
-        
+
         if (changes.length > 0) {
           await storage.createActivityLog({
             userId,
@@ -179,15 +241,17 @@ export async function registerRoutes(
           });
         }
       }
-      
+
       // Sync portfolio evolution after asset update
       try {
-        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        const { syncPortfolioEvolution } = await import(
+          "./services/portfolioSync"
+        );
         await syncPortfolioEvolution(userId);
       } catch (error) {
         console.error("[API] Error syncing portfolio evolution:", error);
       }
-      
+
       res.json(asset);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -198,13 +262,14 @@ export async function registerRoutes(
   });
 
   app.delete("/api/assets/:id", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const asset = await storage.getAsset(req.params.id);
       if (!asset) {
         return res.status(404).json({ error: "Asset not found" });
       }
-      
+
       await storage.createActivityLog({
         userId,
         type: "delete",
@@ -215,17 +280,22 @@ export async function registerRoutes(
         action: `Investimento deletado: ${asset.symbol} - ${asset.name}`,
         details: `Quantidade: ${asset.quantity}`,
       });
-      
-      await storage.updateAsset(req.params.id, { isDeleted: 1, deletedAt: new Date() });
-      
+
+      await storage.updateAsset(req.params.id, {
+        isDeleted: 1,
+        deletedAt: new Date(),
+      });
+
       // Sync portfolio evolution after asset deletion
       try {
-        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        const { syncPortfolioEvolution } = await import(
+          "./services/portfolioSync"
+        );
         await syncPortfolioEvolution(userId);
       } catch (error) {
         console.error("[API] Error syncing portfolio evolution:", error);
       }
-      
+
       res.json({ success: true, message: "Asset deleted successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete asset" });
@@ -233,7 +303,8 @@ export async function registerRoutes(
   });
 
   app.get("/api/assets/history/all", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const allAssets = await storage.getAllAssetsIncludingDeleted(userId);
       res.json(allAssets);
@@ -243,22 +314,25 @@ export async function registerRoutes(
   });
 
   app.post("/api/assets/:id/refresh-price", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const price = await updateAssetPrice(req.params.id);
       if (price === null) {
         return res.status(404).json({ error: "Could not fetch price" });
       }
       const asset = await storage.getAsset(req.params.id);
-      
+
       // Sync portfolio evolution after price refresh
       try {
-        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        const { syncPortfolioEvolution } = await import(
+          "./services/portfolioSync"
+        );
         await syncPortfolioEvolution(userId);
       } catch (error) {
         console.error("[API] Error syncing portfolio evolution:", error);
       }
-      
+
       res.json(asset);
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh price" });
@@ -266,10 +340,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/investments", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const validated = investmentSchema.parse(req.body);
-      
+
       const asset = await storage.createAsset({
         userId,
         symbol: validated.symbol.toUpperCase(),
@@ -281,44 +356,51 @@ export async function registerRoutes(
         acquisitionPrice: validated.acquisitionPrice,
         acquisitionDate: validated.acquisitionDate,
       });
-      
+
       // Only fetch online prices for real crypto and variable income markets
-      if (validated.market === "crypto" || validated.market === "variable_income") {
+      if (
+        validated.market === "crypto" ||
+        validated.market === "variable_income"
+      ) {
         const price = await fetchAssetPrice(asset.symbol, asset.market);
         if (price !== null) {
-          await storage.updateAsset(asset.id, { 
-            currentPrice: price, 
-            lastPriceUpdate: new Date() 
+          await storage.updateAsset(asset.id, {
+            currentPrice: price,
+            lastPriceUpdate: new Date(),
           });
         } else {
           // Use acquisition price as fallback if price fetch fails
-          await storage.updateAsset(asset.id, { 
+          await storage.updateAsset(asset.id, {
             currentPrice: validated.acquisitionPrice,
-            lastPriceUpdate: new Date() 
+            lastPriceUpdate: new Date(),
           });
         }
       } else {
         // For simplified markets, fixed income, and real estate: use acquisition price
-        await storage.updateAsset(asset.id, { 
+        await storage.updateAsset(asset.id, {
           currentPrice: validated.acquisitionPrice,
-          lastPriceUpdate: new Date() 
+          lastPriceUpdate: new Date(),
         });
       }
-      
+
       const updatedAsset = await storage.getAsset(asset.id);
-      const currentPrice = updatedAsset?.currentPrice || validated.acquisitionPrice;
+      const currentPrice =
+        updatedAsset?.currentPrice || validated.acquisitionPrice;
       const totalValueInCurrency = validated.quantity * currentPrice;
-      const totalValueBRL = await convertToBRL(totalValueInCurrency, validated.currency);
-      
+      const totalValueBRL = await convertToBRL(
+        totalValueInCurrency,
+        validated.currency
+      );
+
       await storage.createSnapshot({
         assetId: asset.id,
         value: totalValueBRL,
         amount: validated.quantity,
         unitPrice: validated.acquisitionPrice,
         date: validated.acquisitionDate,
-        notes: "Aquisição inicial"
+        notes: "Aquisição inicial",
       });
-      
+
       res.status(201).json(updatedAsset);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -341,20 +423,30 @@ export async function registerRoutes(
   app.get("/api/price-lookup", async (req, res) => {
     const symbol = req.query.symbol as string;
     const market = req.query.market as string;
-    
+
     if (!symbol || !market) {
       return res.status(400).json({ error: "Symbol and market are required" });
     }
-    
+
     try {
       const price = await fetchAssetPrice(symbol, market);
       if (price === null) {
-        return res.json({ symbol: symbol.toUpperCase(), price: null, currency: "BRL", error: "Price not found" });
+        return res.json({
+          symbol: symbol.toUpperCase(),
+          price: null,
+          currency: "BRL",
+          error: "Price not found",
+        });
       }
-      
+
       res.json({ symbol: symbol.toUpperCase(), price, currency: "BRL" });
     } catch (error) {
-      res.json({ symbol: symbol.toUpperCase(), price: null, currency: "BRL", error: "Failed to fetch price" });
+      res.json({
+        symbol: symbol.toUpperCase(),
+        price: null,
+        currency: "BRL",
+        error: "Failed to fetch price",
+      });
     }
   });
 
@@ -375,21 +467,30 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Asset not found" });
       }
 
-      const { name, symbol, quantity, acquisitionPrice, acquisitionDate, currentPrice } = req.body;
+      const {
+        name,
+        symbol,
+        quantity,
+        acquisitionPrice,
+        acquisitionDate,
+        currentPrice,
+      } = req.body;
 
       const updates: any = {};
       if (name !== undefined) updates.name = name;
       if (symbol !== undefined) updates.symbol = symbol.toUpperCase();
       if (quantity !== undefined) updates.quantity = quantity;
-      if (acquisitionPrice !== undefined) updates.acquisitionPrice = acquisitionPrice;
-      if (acquisitionDate !== undefined) updates.acquisitionDate = acquisitionDate;
+      if (acquisitionPrice !== undefined)
+        updates.acquisitionPrice = acquisitionPrice;
+      if (acquisitionDate !== undefined)
+        updates.acquisitionDate = acquisitionDate;
       if (currentPrice !== undefined) {
         updates.currentPrice = currentPrice;
         updates.lastPriceUpdate = new Date();
       }
 
       const updatedAsset = await storage.updateAsset(req.params.id, updates);
-      
+
       if (currentPrice !== undefined && currentPrice !== asset.currentPrice) {
         const totalValue = (quantity || asset.quantity || 1) * currentPrice;
         await storage.createSnapshot({
@@ -397,8 +498,8 @@ export async function registerRoutes(
           value: totalValue,
           amount: quantity || asset.quantity || 1,
           unitPrice: currentPrice,
-          date: new Date().toISOString().split('T')[0],
-          notes: "Atualização manual"
+          date: new Date().toISOString().split("T")[0],
+          notes: "Atualização manual",
         });
       }
 
@@ -423,23 +524,39 @@ export async function registerRoutes(
 
       // Don't fetch historical price for stable assets
       if (asset.market === "fixed_income" || asset.market === "real_estate") {
-        return res.status(400).json({ error: "Cannot update historical price for stable assets" });
+        return res
+          .status(400)
+          .json({ error: "Cannot update historical price for stable assets" });
       }
 
       // Fetch historical price for the specified date
-      const historicalPrice = await fetchHistoricalAssetPrice(asset.symbol, asset.market, updateDate);
+      const historicalPrice = await fetchHistoricalAssetPrice(
+        asset.symbol,
+        asset.market,
+        updateDate
+      );
       if (historicalPrice === null) {
-        return res.status(400).json({ error: "Could not fetch historical price for this date. Available for crypto assets only." });
+        return res
+          .status(400)
+          .json({
+            error:
+              "Could not fetch historical price for this date. Available for crypto assets only.",
+          });
       }
 
       // Calculate total value with historical price
       const assetQuantity = quantity || asset.quantity || 1;
-      const totalValue = await convertToBRL(assetQuantity * historicalPrice, asset.currency);
+      const totalValue = await convertToBRL(
+        assetQuantity * historicalPrice,
+        asset.currency
+      );
 
       res.json({ price: historicalPrice, total: totalValue });
     } catch (error) {
       console.error("Error previewing historical investment:", error);
-      res.status(500).json({ error: "Failed to preview historical investment" });
+      res
+        .status(500)
+        .json({ error: "Failed to preview historical investment" });
     }
   });
 
@@ -457,18 +574,32 @@ export async function registerRoutes(
 
       // Don't fetch historical price for stable assets
       if (asset.market === "fixed_income" || asset.market === "real_estate") {
-        return res.status(400).json({ error: "Cannot update historical price for stable assets" });
+        return res
+          .status(400)
+          .json({ error: "Cannot update historical price for stable assets" });
       }
 
       // Fetch historical price for the specified date
-      const historicalPrice = await fetchHistoricalAssetPrice(asset.symbol, asset.market, updateDate);
+      const historicalPrice = await fetchHistoricalAssetPrice(
+        asset.symbol,
+        asset.market,
+        updateDate
+      );
       if (historicalPrice === null) {
-        return res.status(400).json({ error: "Could not fetch historical price for this date. Available for crypto assets only." });
+        return res
+          .status(400)
+          .json({
+            error:
+              "Could not fetch historical price for this date. Available for crypto assets only.",
+          });
       }
 
       // Calculate total value with historical price
       const assetQuantity = quantity || asset.quantity || 1;
-      const totalValue = await convertToBRL(assetQuantity * historicalPrice, asset.currency);
+      const totalValue = await convertToBRL(
+        assetQuantity * historicalPrice,
+        asset.currency
+      );
 
       // Create snapshot with historical data
       const snapshot = await storage.createSnapshot({
@@ -477,7 +608,9 @@ export async function registerRoutes(
         amount: assetQuantity,
         unitPrice: historicalPrice,
         date: updateDate,
-        notes: `Atualização histórica - ${historicalPrice.toFixed(2)} BRL por unidade`
+        notes: `Atualização histórica - ${historicalPrice.toFixed(
+          2
+        )} BRL por unidade`,
       });
 
       res.status(201).json(snapshot);
@@ -500,12 +633,17 @@ export async function registerRoutes(
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
-      
+
       if (!startDate || !endDate) {
-        return res.status(400).json({ error: "startDate and endDate are required" });
+        return res
+          .status(400)
+          .json({ error: "startDate and endDate are required" });
       }
-      
-      const snapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
+
+      const snapshots = await storage.getSnapshotsByDateRange(
+        startDate,
+        endDate
+      );
       res.json(snapshots);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch snapshots" });
@@ -518,32 +656,47 @@ export async function registerRoutes(
       if (isNaN(year)) {
         return res.status(400).json({ error: "Invalid year" });
       }
-      
+
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
-      
-      const snapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
-      
-      const assetMonthMap: Record<string, Record<number, { value: number; date: string; createdAt: string; isLocked: number }>> = {};
-      
-      snapshots.forEach(snapshot => {
+
+      const snapshots = await storage.getSnapshotsByDateRange(
+        startDate,
+        endDate
+      );
+
+      const assetMonthMap: Record<
+        string,
+        Record<
+          number,
+          { value: number; date: string; createdAt: string; isLocked: number }
+        >
+      > = {};
+
+      snapshots.forEach((snapshot) => {
         if (!assetMonthMap[snapshot.assetId]) {
           assetMonthMap[snapshot.assetId] = {};
         }
-        
+
         const date = new Date(snapshot.date);
         const month = date.getMonth();
-        
-        if (!assetMonthMap[snapshot.assetId][month] || new Date(snapshot.date) > new Date(assetMonthMap[snapshot.assetId][month].date)) {
+
+        if (
+          !assetMonthMap[snapshot.assetId][month] ||
+          new Date(snapshot.date) >
+            new Date(assetMonthMap[snapshot.assetId][month].date)
+        ) {
           assetMonthMap[snapshot.assetId][month] = {
             value: snapshot.value,
             date: snapshot.date,
-            createdAt: snapshot.createdAt ? snapshot.createdAt.toISOString() : new Date().toISOString(),
-            isLocked: snapshot.isLocked || 0
+            createdAt: snapshot.createdAt
+              ? snapshot.createdAt.toISOString()
+              : new Date().toISOString(),
+            isLocked: snapshot.isLocked || 0,
           };
         }
       });
-      
+
       res.json(assetMonthMap);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch snapshots for year" });
@@ -556,25 +709,28 @@ export async function registerRoutes(
       if (isNaN(year)) {
         return res.status(400).json({ error: "Invalid year" });
       }
-      
+
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
-      
-      const snapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
-      
+
+      const snapshots = await storage.getSnapshotsByDateRange(
+        startDate,
+        endDate
+      );
+
       const monthStatus: Record<number, boolean> = {};
       for (let i = 0; i < 12; i++) {
         monthStatus[i] = false;
       }
-      
-      snapshots.forEach(snapshot => {
+
+      snapshots.forEach((snapshot) => {
         const date = new Date(snapshot.date);
         const month = date.getMonth();
         if (snapshot.isLocked) {
           monthStatus[month] = true;
         }
       });
-      
+
       res.json(monthStatus);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch month status" });
@@ -585,18 +741,23 @@ export async function registerRoutes(
     try {
       const { year, month, locked } = req.body;
       if (year === undefined || month === undefined || locked === undefined) {
-        return res.status(400).json({ error: "year, month, and locked are required" });
+        return res
+          .status(400)
+          .json({ error: "year, month, and locked are required" });
       }
-      
-      const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-      
-      const snapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
-      
+
+      const startDate = `${year}-${month.toString().padStart(2, "0")}-01`;
+      const endDate = new Date(year, month, 0).toISOString().split("T")[0];
+
+      const snapshots = await storage.getSnapshotsByDateRange(
+        startDate,
+        endDate
+      );
+
       for (const snapshot of snapshots) {
         await storage.updateSnapshot(snapshot.id, { isLocked: locked ? 1 : 0 });
       }
-      
+
       res.json({ success: true, locked });
     } catch (error) {
       res.status(500).json({ error: "Failed to lock/unlock month" });
@@ -604,41 +765,52 @@ export async function registerRoutes(
   });
 
   app.post("/api/snapshots", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const validated = insertSnapshotSchema.parse(req.body);
-      
+
       // Check if the month is locked before updating
       // Extract month and year from the snapshot date
       const snapshotDate = new Date(validated.date);
       const snapshotMonth = snapshotDate.getMonth() + 1; // 1-12
       const snapshotYear = snapshotDate.getFullYear();
-      
+
       // Get snapshots from that month to check if any are locked
-      const startDate = `${snapshotYear}-${snapshotMonth.toString().padStart(2, '0')}-01`;
-      const endDate = new Date(snapshotYear, snapshotMonth, 0).toISOString().split('T')[0];
-      const monthSnapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
-      
+      const startDate = `${snapshotYear}-${snapshotMonth
+        .toString()
+        .padStart(2, "0")}-01`;
+      const endDate = new Date(snapshotYear, snapshotMonth, 0)
+        .toISOString()
+        .split("T")[0];
+      const monthSnapshots = await storage.getSnapshotsByDateRange(
+        startDate,
+        endDate
+      );
+
       // Check if any snapshot in this month is locked
-      const isMonthLocked = monthSnapshots.some(s => s.isLocked === 1 || s.isLocked === true);
-      
+      const isMonthLocked = monthSnapshots.some(
+        (s) => s.isLocked === 1 || s.isLocked === true
+      );
+
       if (isMonthLocked) {
         // Month is locked - prevent automatic updates
         // Return 403 Forbidden for automatic updates, but allow manual saves
         const isManualSave = req.body._manualSave === true;
-        
+
         if (!isManualSave) {
-          return res.status(403).json({ 
-            error: "Month is locked - automatic updates not allowed. Use manual edit to modify.",
+          return res.status(403).json({
+            error:
+              "Month is locked - automatic updates not allowed. Use manual edit to modify.",
             monthLocked: true,
             month: snapshotMonth,
-            year: snapshotYear
+            year: snapshotYear,
           });
         }
       }
-      
+
       const snapshot = await storage.upsertSnapshot(validated);
-      
+
       const asset = await storage.getAsset(validated.assetId);
       if (asset) {
         await storage.createActivityLog({
@@ -649,10 +821,12 @@ export async function registerRoutes(
           assetName: asset.name,
           assetSymbol: asset.symbol,
           action: `Valor atualizado para ${asset.symbol}`,
-          details: `R$ ${validated.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+          details: `R$ ${validated.value.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          })}`,
         });
       }
-      
+
       res.status(201).json(snapshot);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -672,7 +846,7 @@ export async function registerRoutes(
         for (let month = 0; month < 12; month++) {
           const monthDate = new Date(year, month, 1);
           const lastDay = new Date(year, month + 1, 0);
-          const dateStr = lastDay.toISOString().split('T')[0];
+          const dateStr = lastDay.toISOString().split("T")[0];
 
           for (const asset of assets) {
             const price = asset.currentPrice || asset.acquisitionPrice || 0;
@@ -681,11 +855,13 @@ export async function registerRoutes(
 
             if (value > 0) {
               const existingSnapshots = await storage.getSnapshotsByDateRange(
-                `${year}-${(month + 1).toString().padStart(2, '0')}-01`,
+                `${year}-${(month + 1).toString().padStart(2, "0")}-01`,
                 dateStr
               );
-              const exists = existingSnapshots.some(s => s.assetId === asset.id);
-              
+              const exists = existingSnapshots.some(
+                (s) => s.assetId === asset.id
+              );
+
               if (!exists) {
                 await storage.createSnapshot({
                   assetId: asset.id,
@@ -693,7 +869,7 @@ export async function registerRoutes(
                   amount: quantity,
                   unitPrice: price,
                   date: dateStr,
-                  notes: "Initial snapshot"
+                  notes: "Initial snapshot",
                 });
                 createdCount++;
               }
@@ -702,7 +878,11 @@ export async function registerRoutes(
         }
       }
 
-      res.json({ success: true, createdCount, message: `Created ${createdCount} initial snapshots` });
+      res.json({
+        success: true,
+        createdCount,
+        message: `Created ${createdCount} initial snapshots`,
+      });
     } catch (error) {
       console.error("Error initializing snapshots:", error);
       res.status(500).json({ error: "Failed to initialize snapshots" });
@@ -723,7 +903,9 @@ export async function registerRoutes(
 
   app.get("/api/statements", async (req: any, res) => {
     try {
-      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const year = req.query.year
+        ? parseInt(req.query.year as string)
+        : undefined;
       const statements = await storage.getMonthlyStatements(year);
       res.json(statements);
     } catch (error) {
@@ -736,29 +918,34 @@ export async function registerRoutes(
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
       const statement = await storage.getMonthlyStatement(month, year);
-      
+
       if (!statement) {
         return res.status(404).json({ error: "Statement not found" });
       }
-      
-      const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-      const snapshots = await storage.getSnapshotsByDateRange(startDate, endDate);
-      
+
+      const startDate = `${year}-${month.toString().padStart(2, "0")}-01`;
+      const endDate = new Date(year, month, 0).toISOString().split("T")[0];
+      const snapshots = await storage.getSnapshotsByDateRange(
+        startDate,
+        endDate
+      );
+
       const assets = await storage.getAssets();
-      const transactions = await Promise.all(snapshots.map(async (s) => {
-        const asset = assets.find(a => a.id === s.assetId);
-        return {
-          date: s.date,
-          assetSymbol: asset?.symbol || "Unknown",
-          value: s.value,
-          type: "snapshot" as const
-        };
-      }));
-      
+      const transactions = await Promise.all(
+        snapshots.map(async (s) => {
+          const asset = assets.find((a) => a.id === s.assetId);
+          return {
+            date: s.date,
+            assetSymbol: asset?.symbol || "Unknown",
+            value: s.value,
+            type: "snapshot" as const,
+          };
+        })
+      );
+
       res.json({
         ...statement,
-        transactions
+        transactions,
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch statement" });
@@ -774,7 +961,9 @@ export async function registerRoutes(
 
       const balance = await fetchWalletBalance(address);
       if (!balance) {
-        return res.status(404).json({ error: "Failed to fetch wallet balance" });
+        return res
+          .status(404)
+          .json({ error: "Failed to fetch wallet balance" });
       }
 
       res.json(balance);
@@ -796,14 +985,19 @@ export async function registerRoutes(
       }
 
       // Fetch from DeBankAPI API
-      const response = await fetch(`https://api.debank.com/v1/user/total_balance?id=${address}`, {
-        headers: {
-          "Accept": "application/json",
-        },
-      });
+      const response = await fetch(
+        `https://api.debank.com/v1/user/total_balance?id=${address}`,
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
-        return res.status(404).json({ error: "Failed to fetch from DeBankAPI" });
+        return res
+          .status(404)
+          .json({ error: "Failed to fetch from DeBankAPI" });
       }
 
       const data = await response.json();
@@ -827,12 +1021,16 @@ export async function registerRoutes(
     try {
       const portfolioId = req.query.address as string;
       if (!portfolioId) {
-        return res.status(400).json({ error: "address parameter (portfolio ID) is required" });
+        return res
+          .status(400)
+          .json({ error: "address parameter (portfolio ID) is required" });
       }
 
       const portfolio = await fetchJupPortfolio(portfolioId);
       if (!portfolio) {
-        return res.status(404).json({ error: "Failed to fetch Jup.Ag portfolio" });
+        return res
+          .status(404)
+          .json({ error: "Failed to fetch Jup.Ag portfolio" });
       }
 
       const rates = await fetchExchangeRates();
@@ -851,61 +1049,79 @@ export async function registerRoutes(
   });
 
   app.post("/api/portfolio/history", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const { totalValue, month, year, date } = req.body;
-      
+
       if (!totalValue || !month || !year || !date) {
-        console.error("Missing portfolio history fields:", { totalValue, month, year, date });
-        return res.status(400).json({ error: "Missing required fields: totalValue, month, year, date" });
+        console.error("Missing portfolio history fields:", {
+          totalValue,
+          month,
+          year,
+          date,
+        });
+        return res
+          .status(400)
+          .json({
+            error: "Missing required fields: totalValue, month, year, date",
+          });
       }
-      
+
       // Use createOrUpdate to avoid duplicates when re-saving a month
       const history = await storage.createOrUpdatePortfolioHistory({
         userId,
         totalValue,
         month,
         year,
-        date
+        date,
       });
       res.status(201).json(history);
     } catch (error) {
       console.error("Error creating/updating portfolio history:", error);
-      res.status(500).json({ error: "Failed to create or update portfolio history", details: String(error) });
+      res
+        .status(500)
+        .json({
+          error: "Failed to create or update portfolio history",
+          details: String(error),
+        });
     }
   });
 
   app.post("/api/portfolio/history/generate", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const assets = await storage.getAssets(userId);
       let currentValue = 0;
-      
+
       assets.forEach((asset) => {
         const quantity = asset.quantity || 0;
         const price = asset.currentPrice || asset.acquisitionPrice || 0;
         currentValue += quantity * price;
       });
-      
+
       if (currentValue === 0) currentValue = 100000;
-      
+
       const year = new Date().getFullYear();
-      
+
       for (let month = 1; month <= 12; month++) {
         const lastDay = new Date(year, month, 0).getDate();
-        const date = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        const date = `${year}-${String(month).padStart(2, "0")}-${String(
+          lastDay
+        ).padStart(2, "0")}`;
         const variation = (Math.random() - 0.5) * 0.1;
-        const value = currentValue * (1 + variation * (13 - month) / 12);
-        
+        const value = currentValue * (1 + (variation * (13 - month)) / 12);
+
         await storage.createPortfolioHistory({
           userId,
           totalValue: Math.max(value, currentValue * 0.8),
           month,
           year,
-          date
+          date,
         });
       }
-      
+
       res.json({ success: true, message: "Historical data generated" });
     } catch (error) {
       console.error("Error generating history:", error);
@@ -919,84 +1135,98 @@ export async function registerRoutes(
       const walletBalances = await getDetailedBalances();
       // This updates the cached wallet values which can be used to sync asset values
       // Implementation depends on how wallets are linked to assets
-      console.log("[Sync] Wallet balances available for sync:", walletBalances.length);
+      console.log(
+        "[Sync] Wallet balances available for sync:",
+        walletBalances.length
+      );
     } catch (error) {
       console.error("[Sync] Error syncing wallet values:", error);
     }
   }
 
   app.get("/api/portfolio/summary", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const allAssets = await storage.getAssets(userId);
       const rates = await fetchExchangeRates();
-      
+
       let totalValue = 0;
       let cryptoValue = 0;
       let traditionalValue = 0;
       let fixedIncomeValue = 0;
       let variableIncomeValue = 0;
       let realEstateValue = 0;
-      
-      const holdings = await Promise.all(allAssets.map(async (asset) => {
-        const currentPrice = asset.currentPrice || asset.acquisitionPrice || 0;
-        const quantity = asset.quantity || 0;
-        const currency = asset.currency || "BRL";
-        
-        const valueInCurrency = quantity * currentPrice;
-        const exchangeRate = rates[currency as keyof typeof rates] || 1;
-        const valueInBRL = valueInCurrency * exchangeRate;
-        
-        const acquisitionValueInCurrency = quantity * (asset.acquisitionPrice || 0);
-        const acquisitionValueInBRL = acquisitionValueInCurrency * exchangeRate;
-        
-        const profitLoss = valueInBRL - acquisitionValueInBRL;
-        const profitLossPercent = acquisitionValueInBRL > 0 ? (profitLoss / acquisitionValueInBRL) * 100 : 0;
-        
-        totalValue += valueInBRL;
-        
-        if (asset.market === "crypto") {
-          cryptoValue += valueInBRL;
-        } else if (asset.market === "real_estate") {
-          realEstateValue += valueInBRL;
-        } else if (asset.market === "fixed_income") {
-          fixedIncomeValue += valueInBRL;
-          traditionalValue += valueInBRL;
-        } else if (asset.market === "variable_income") {
-          variableIncomeValue += valueInBRL;
-          traditionalValue += valueInBRL;
-        } else {
-          traditionalValue += valueInBRL;
-        }
-        
-        return {
-          id: asset.id,
-          symbol: asset.symbol,
-          name: asset.name,
-          category: asset.category,
-          market: asset.market,
-          currency,
-          value: valueInBRL,
-          valueInCurrency,
-          quantity,
-          acquisitionPrice: asset.acquisitionPrice || 0,
-          currentPrice,
-          profitLoss,
-          profitLossPercent,
-          exchangeRate,
-          lastUpdate: asset.lastPriceUpdate
-        };
-      }));
-      
+
+      const holdings = await Promise.all(
+        allAssets.map(async (asset) => {
+          const currentPrice =
+            asset.currentPrice || asset.acquisitionPrice || 0;
+          const quantity = asset.quantity || 0;
+          const currency = asset.currency || "BRL";
+
+          const valueInCurrency = quantity * currentPrice;
+          const exchangeRate = rates[currency as keyof typeof rates] || 1;
+          const valueInBRL = valueInCurrency * exchangeRate;
+
+          const acquisitionValueInCurrency =
+            quantity * (asset.acquisitionPrice || 0);
+          const acquisitionValueInBRL =
+            acquisitionValueInCurrency * exchangeRate;
+
+          const profitLoss = valueInBRL - acquisitionValueInBRL;
+          const profitLossPercent =
+            acquisitionValueInBRL > 0
+              ? (profitLoss / acquisitionValueInBRL) * 100
+              : 0;
+
+          totalValue += valueInBRL;
+
+          if (asset.market === "crypto") {
+            cryptoValue += valueInBRL;
+          } else if (asset.market === "real_estate") {
+            realEstateValue += valueInBRL;
+          } else if (asset.market === "fixed_income") {
+            fixedIncomeValue += valueInBRL;
+            traditionalValue += valueInBRL;
+          } else if (asset.market === "variable_income") {
+            variableIncomeValue += valueInBRL;
+            traditionalValue += valueInBRL;
+          } else {
+            traditionalValue += valueInBRL;
+          }
+
+          return {
+            id: asset.id,
+            symbol: asset.symbol,
+            name: asset.name,
+            category: asset.category,
+            market: asset.market,
+            currency,
+            value: valueInBRL,
+            valueInCurrency,
+            quantity,
+            acquisitionPrice: asset.acquisitionPrice || 0,
+            currentPrice,
+            profitLoss,
+            profitLossPercent,
+            exchangeRate,
+            lastUpdate: asset.lastPriceUpdate,
+          };
+        })
+      );
+
       // Automatically create a history record for the current month if it doesn't exist
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
-      const dateStr = now.toISOString().split('T')[0];
+      const dateStr = now.toISOString().split("T")[0];
 
       try {
         const existingHistory = await storage.getPortfolioHistory(userId);
-        const currentMonthRecord = existingHistory.find(h => h.month === currentMonth && h.year === currentYear);
+        const currentMonthRecord = existingHistory.find(
+          (h) => h.month === currentMonth && h.year === currentYear
+        );
 
         if (!currentMonthRecord && totalValue > 0) {
           await storage.createPortfolioHistory({
@@ -1004,7 +1234,7 @@ export async function registerRoutes(
             totalValue,
             month: currentMonth,
             year: currentYear,
-            date: dateStr
+            date: dateStr,
           });
         }
       } catch (historyError) {
@@ -1020,7 +1250,7 @@ export async function registerRoutes(
         realEstateValue,
         cryptoExposure: totalValue > 0 ? (cryptoValue / totalValue) * 100 : 0,
         exchangeRates: rates,
-        holdings
+        holdings,
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch portfolio summary" });
@@ -1028,21 +1258,35 @@ export async function registerRoutes(
   });
 
   app.get("/api/portfolio/history", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       // Get saved portfolio history records (from monthly snapshots)
       const savedHistory = await storage.getPortfolioHistory(userId);
-      const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-      
+      const monthNames = [
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+      ];
+
       // Also get month lock status for isLocked field
       const historyByMonth = await storage.getPortfolioHistoryByMonth(userId);
-      const lockedMonths = new Map(historyByMonth
-        .map(h => [`${h.year}-${h.month}`, h.isLocked === 1])
+      const lockedMonths = new Map(
+        historyByMonth.map((h) => [`${h.year}-${h.month}`, h.isLocked === 1])
       );
-      
+
       // Format history - return ALL available data, not just locked months
       const formattedHistory = savedHistory
-        .filter(h => h && h.year && h.month)
+        .filter((h) => h && h.year && h.month)
         .sort((a, b) => {
           if (a.year !== b.year) return a.year - b.year;
           return a.month - b.month;
@@ -1060,15 +1304,26 @@ export async function registerRoutes(
             value: h.totalValue || 0,
             totalValue: h.totalValue || 0,
             isLocked: isLocked ? 1 : 0,
-            variation: prevValue > 0 ? ((h.totalValue - prevValue) / prevValue) * 100 : 0,
-            variationPercent: prevValue > 0 ? ((h.totalValue - prevValue) / prevValue) * 100 : 0
+            variation:
+              prevValue > 0
+                ? ((h.totalValue - prevValue) / prevValue) * 100
+                : 0,
+            variationPercent:
+              prevValue > 0
+                ? ((h.totalValue - prevValue) / prevValue) * 100
+                : 0,
           };
         });
-      
+
       res.json(formattedHistory.length > 0 ? formattedHistory : []);
     } catch (error) {
       console.error("[Portfolio History Error]", error);
-      res.status(500).json({ error: "Failed to fetch portfolio history", details: String(error) });
+      res
+        .status(500)
+        .json({
+          error: "Failed to fetch portfolio history",
+          details: String(error),
+        });
     }
   });
 
@@ -1091,18 +1346,21 @@ export async function registerRoutes(
   });
 
   app.post("/api/saldo/refresh", async (req, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const updatedBalances = await forceRefreshAndWait();
-      
+
       // Sync portfolio evolution after wallet refresh
       try {
-        const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+        const { syncPortfolioEvolution } = await import(
+          "./services/portfolioSync"
+        );
         await syncPortfolioEvolution(userId);
       } catch (error) {
         console.error("[API] Error syncing portfolio evolution:", error);
       }
-      
+
       res.json({ message: "Balances refreshed", balances: updatedBalances });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh DeBank balances" });
@@ -1113,7 +1371,7 @@ export async function registerRoutes(
     try {
       const walletName = decodeURIComponent(req.params.walletName);
       const updatedBalance = await forceRefreshWallet(walletName);
-      
+
       res.json({ message: "Wallet refreshed", balance: updatedBalance });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh wallet balance" });
@@ -1153,11 +1411,11 @@ export async function registerRoutes(
     try {
       const walletName = decodeURIComponent(req.params.walletName);
       const stats = getWalletStats(walletName);
-      
+
       if (!stats) {
         return res.status(404).json({ error: "No data for this wallet" });
       }
-      
+
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch wallet stats" });
@@ -1165,7 +1423,8 @@ export async function registerRoutes(
   });
 
   app.get("/api/wallets", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const userWallets = await storage.getWallets(userId);
       res.json(userWallets);
@@ -1175,10 +1434,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/wallets", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const validated = insertWalletSchema.parse(req.body);
-      
+
       // Auto-detect platform based on URL
       let platform = "debank";
       if (validated.link.includes("step.finance")) {
@@ -1192,20 +1452,26 @@ export async function registerRoutes(
       } else if (validated.link.includes("seiscan.io")) {
         platform = "sei";
       }
-      
+
       const wallet = await storage.createWallet({
         name: validated.name,
         link: validated.link,
         userId,
-        platform
+        platform,
       } as any);
-      
+
       const allWallets = await storage.getWallets(userId);
-      setWallets(allWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
-      
+      setWallets(
+        allWallets.map((w) => ({ id: w.id, name: w.name, link: w.link }))
+      );
+
       // Initialize the new wallet in cache with value from asset if exists
-      await initializeWallet({ id: wallet.id, name: validated.name, link: validated.link });
-      
+      await initializeWallet({
+        id: wallet.id,
+        name: validated.name,
+        link: validated.link,
+      });
+
       res.status(201).json(wallet);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1215,58 +1481,81 @@ export async function registerRoutes(
     }
   });
 
-
   app.delete("/api/wallets/:id", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const walletId = req.params.id;
-      
+
       // Validate wallet ID
-      if (!walletId || typeof walletId !== 'string' || walletId.trim().length === 0) {
+      if (
+        !walletId ||
+        typeof walletId !== "string" ||
+        walletId.trim().length === 0
+      ) {
         console.log(`[Wallet] Invalid wallet ID provided: ${walletId}`);
         return res.status(400).json({ error: "Invalid wallet ID provided" });
       }
-      
-      console.log(`[Wallet] Attempting to delete wallet: ${walletId} for user: ${userId}`);
-      
+
+      console.log(
+        `[Wallet] Attempting to delete wallet: ${walletId} for user: ${userId}`
+      );
+
       const userWallets = await storage.getWallets(userId);
-      const walletToDelete = userWallets.find(w => w.id === walletId);
-      
+      const walletToDelete = userWallets.find((w) => w.id === walletId);
+
       if (!walletToDelete) {
         console.log(`[Wallet] Wallet not found: ${walletId}`);
-        return res.status(404).json({ error: "Wallet not found or already deleted" });
+        return res
+          .status(404)
+          .json({ error: "Wallet not found or already deleted" });
       }
-      
+
       // Delete wallet with validation
       const deleted = await storage.deleteWallet(walletId);
       if (!deleted) {
-        console.log(`[Wallet] Failed to delete wallet from storage: ${walletId}`);
-        return res.status(500).json({ error: "Failed to delete wallet from database" });
+        console.log(
+          `[Wallet] Failed to delete wallet from storage: ${walletId}`
+        );
+        return res
+          .status(500)
+          .json({ error: "Failed to delete wallet from database" });
       }
-      
+
       console.log(`[Wallet] ✓ Deleted wallet: ${walletToDelete.name}`);
       const updatedWallets = await storage.getWallets(userId);
-      setWallets(updatedWallets.map(w => ({ id: w.id, name: w.name, link: w.link })));
-      
-      res.json({ success: true, message: `Wallet "${walletToDelete.name}" deleted successfully` });
+      setWallets(
+        updatedWallets.map((w) => ({ id: w.id, name: w.name, link: w.link }))
+      );
+
+      res.json({
+        success: true,
+        message: `Wallet "${walletToDelete.name}" deleted successfully`,
+      });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error(`[Wallet] Error deleting wallet:`, error);
-      
+
       // Return specific error messages
-      if (errorMessage.includes('Invalid wallet ID')) {
+      if (errorMessage.includes("Invalid wallet ID")) {
         return res.status(400).json({ error: "Invalid wallet ID provided" });
       }
-      if (errorMessage.includes('Wallet not found')) {
-        return res.status(404).json({ error: "Wallet not found or already deleted" });
+      if (errorMessage.includes("Wallet not found")) {
+        return res
+          .status(404)
+          .json({ error: "Wallet not found or already deleted" });
       }
-      
-      res.status(500).json({ error: "Failed to delete wallet", details: errorMessage });
+
+      res
+        .status(500)
+        .json({ error: "Failed to delete wallet", details: errorMessage });
     }
   });
 
   app.get("/api/activities", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const activities = await storage.getActivities(userId);
       res.json(activities);
@@ -1280,18 +1569,18 @@ export async function registerRoutes(
     try {
       const { walletName } = req.params;
       const limit = parseInt(req.query.limit as string) || 20;
-      
+
       const history = getWalletHistory(walletName, limit);
       const stats = getWalletStats(walletName);
-      
+
       res.json({
         walletName,
         history,
         stats,
-        totalEntries: history.length
+        totalEntries: history.length,
       });
     } catch (error) {
-      console.error('[API] Error fetching wallet history:', error);
+      console.error("[API] Error fetching wallet history:", error);
       res.status(500).json({ error: "Failed to fetch wallet history" });
     }
   });
@@ -1300,24 +1589,28 @@ export async function registerRoutes(
     try {
       const allHistory = getAllHistory();
       const latestByWallet = getLatestByWallet();
-      
+
       res.json({
         allHistory: allHistory.slice(0, 100), // Last 100 entries
         latestByWallet,
-        totalEntries: allHistory.length
+        totalEntries: allHistory.length,
       });
     } catch (error) {
-      console.error('[API] Error fetching all wallet history:', error);
+      console.error("[API] Error fetching all wallet history:", error);
       res.status(500).json({ error: "Failed to fetch wallet history" });
     }
   });
 
   // Monthly Portfolio Snapshots endpoints
   app.get("/api/monthly-snapshots", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const year = req.query.year ? Number(req.query.year) : undefined;
-      const snapshots = await storage.getMonthlyPortfolioSnapshots(userId, year);
+      const snapshots = await storage.getMonthlyPortfolioSnapshots(
+        userId,
+        year
+      );
       res.json(snapshots);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch monthly snapshots" });
@@ -1325,7 +1618,8 @@ export async function registerRoutes(
   });
 
   app.post("/api/monthly-snapshots", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const validated = insertMonthlyPortfolioSnapshotSchema.parse(req.body);
       const snapshot = await storage.createOrUpdateMonthlyPortfolioSnapshot({
@@ -1355,7 +1649,8 @@ export async function registerRoutes(
 
   // Sync endpoint - confirms all data is saved to database
   app.post("/api/sync", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       // All data is already auto-saved to storage
       // This endpoint confirms the sync and returns user stats
@@ -1367,7 +1662,7 @@ export async function registerRoutes(
           wallets: 0,
           snapshots: 0,
           syncedAt: new Date().toISOString(),
-        }
+        },
       });
     } catch (error) {
       console.error("Sync error:", error);
@@ -1377,11 +1672,14 @@ export async function registerRoutes(
 
   // Portfolio Evolution Sync endpoint - manually trigger portfolio evolution sync
   app.post("/api/portfolio/sync", async (req: any, res) => {
-    const userId = req.session?.userId || req.user?.claims?.sub || "default-user";
+    const userId =
+      req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
-      const { syncPortfolioEvolution } = await import("./services/portfolioSync");
+      const { syncPortfolioEvolution } = await import(
+        "./services/portfolioSync"
+      );
       await syncPortfolioEvolution(userId);
-      
+
       res.json({
         success: true,
         message: "Evolução do portfólio sincronizada com sucesso",

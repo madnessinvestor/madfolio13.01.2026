@@ -254,7 +254,10 @@ export default function WalletTracker() {
     // ⚠️ CRÍTICO: Se contém "$" ou vírgula (formato USD), está em USD
     // Isso indica que o backend não converteu ainda - mostrar "Atualizando..."
     if (balance.includes("$") || /^\d{1,3}(,\d{3})+(\.\d{2})?$/.test(balance)) {
-      console.warn("[Frontend] Valor em USD recebido, aguardando conversão:", balance);
+      console.warn(
+        "[Frontend] Valor em USD recebido, aguardando conversão:",
+        balance
+      );
       return "Atualizando…";
     }
 

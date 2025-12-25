@@ -13,7 +13,14 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Calendar, Loader2, TrendingUp, TrendingDown, Save, Lock } from "lucide-react";
+import {
+  Calendar,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  Save,
+  Lock,
+} from "lucide-react";
 import type { Asset } from "@shared/schema";
 
 interface SnapshotUpdate {
@@ -29,7 +36,20 @@ interface SnapshotData {
   isLocked: number;
 }
 
-const monthShortNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const monthShortNames = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 export default function UpdateInvestmentsPage() {
   const { toast } = useToast();
@@ -51,9 +71,15 @@ export default function UpdateInvestmentsPage() {
     localStorage.setItem("updateInvestments_selectedYear", selectedYear);
   }, [selectedYear]);
   const [monthDates, setMonthDates] = useState<Record<string, string>>({});
-  const [monthUpdates, setMonthUpdates] = useState<Record<string, Record<string, string>>>({});
-  const [monthUpdateDates, setMonthUpdateDates] = useState<Record<string, string>>({});
-  const [monthLockedStatus, setMonthLockedStatus] = useState<Record<number, boolean>>({});
+  const [monthUpdates, setMonthUpdates] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const [monthUpdateDates, setMonthUpdateDates] = useState<
+    Record<string, string>
+  >({});
+  const [monthLockedStatus, setMonthLockedStatus] = useState<
+    Record<number, boolean>
+  >({});
   const [savingMonths, setSavingMonths] = useState<Set<number>>(new Set());
   const originalDataRef = useRef<Record<string, Record<string, string>>>({});
 
@@ -66,7 +92,7 @@ export default function UpdateInvestmentsPage() {
   const getMonthSequence = () => {
     const year = parseInt(selectedYear);
     const sequence = [];
-    
+
     if (year === 2025) {
       for (let i = 11; i < 12; i++) {
         sequence.push(i);
@@ -85,7 +111,9 @@ export default function UpdateInvestmentsPage() {
     queryKey: ["/api/assets"],
   });
 
-  const { data: yearSnapshots = {} } = useQuery<Record<string, Record<number, SnapshotData>>>({
+  const { data: yearSnapshots = {} } = useQuery<
+    Record<string, Record<number, SnapshotData>>
+  >({
     queryKey: ["/api/snapshots/year", selectedYear],
   });
 
@@ -114,9 +142,9 @@ export default function UpdateInvestmentsPage() {
           const monthData = yearSnapshots[asset.id]?.[month];
           // For locked months, ONLY use saved snapshot values (immutable)
           // For unlocked months, use snapshot value if available, otherwise calculate from price
-          const isMonthLocked = monthLockedStatus[month + 1] === true;
+          const isMonthLocked = monthLockedStatus[month] === true;
           let value = 0;
-          
+
           if (isMonthLocked && monthData?.value) {
             // Locked month: use saved snapshot value (immutable)
             value = monthData.value;
@@ -127,10 +155,10 @@ export default function UpdateInvestmentsPage() {
             // No snapshot: calculate from price (only for unlocked months)
             if (!isMonthLocked) {
               const price = asset.currentPrice || asset.acquisitionPrice || 0;
-              value = ((asset.quantity || 0) * price) || 0;
+              value = (asset.quantity || 0) * price || 0;
             }
           }
-          
+
           newMonthUpdates[monthKey][asset.id] = formatCurrencyInput(value);
         });
 
@@ -144,7 +172,9 @@ export default function UpdateInvestmentsPage() {
             }
           }
         }
-        newMonthUpdateDates[monthKey] = latestDate ? new Date(latestDate).toLocaleDateString("pt-BR") : "";
+        newMonthUpdateDates[monthKey] = latestDate
+          ? new Date(latestDate).toLocaleDateString("pt-BR")
+          : "";
       }
 
       setMonthDates(newMonthDates);
@@ -155,11 +185,17 @@ export default function UpdateInvestmentsPage() {
   }, [assets, selectedYear, yearSnapshots, monthLockedStatus]);
 
   const formatCurrencyInput = (value: number): string => {
-    return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return value.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   const formatCurrencyDisplay = (value: number): string => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `R$ ${value.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   const parseCurrencyValue = (val: string): number => {
@@ -198,17 +234,35 @@ export default function UpdateInvestmentsPage() {
   });
 
   const lockMonthMutation = useMutation({
-    mutationFn: async ({ year, month, locked }: { year: number; month: number; locked: boolean }) => {
-      return apiRequest("PATCH", "/api/snapshots/month/lock", { year, month, locked });
+    mutationFn: async ({
+      year,
+      month,
+      locked,
+    }: {
+      year: number;
+      month: number;
+      locked: boolean;
+    }) => {
+      return apiRequest("PATCH", "/api/snapshots/month/lock", {
+        year,
+        month,
+        locked,
+      });
     },
     onSuccess: (_, { year, month, locked }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/month-status", year.toString()] });
-      queryClient.invalidateQueries({ queryKey: ["/api/snapshots/year", year.toString()] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/snapshots/month-status", year.toString()],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/snapshots/year", year.toString()],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/history"] });
-      
+
       toast({
         title: locked ? "Mês bloqueado" : "Mês desbloqueado",
-        description: locked ? `${monthShortNames[month]} ${year} está bloqueado` : `${monthShortNames[month]} ${year} foi desbloqueado`,
+        description: locked
+          ? `${monthShortNames[month - 1]} ${year} está bloqueado`
+          : `${monthShortNames[month - 1]} ${year} foi desbloqueado`,
       });
     },
     onError: () => {
@@ -263,7 +317,7 @@ export default function UpdateInvestmentsPage() {
       }
 
       const year = parseInt(selectedYear);
-      
+
       // Save monthly portfolio total to portfolio history
       if (monthTotal > 0 && monthDates[month]) {
         await apiRequest("POST", "/api/portfolio/history", {
@@ -273,8 +327,8 @@ export default function UpdateInvestmentsPage() {
           date: monthDates[month],
         });
       }
-      
-      lockMonthMutation.mutate({ year, month, locked: true });
+
+      lockMonthMutation.mutate({ year, month: month + 1, locked: true });
     } catch (error) {
       toast({
         title: "Erro",
@@ -295,7 +349,7 @@ export default function UpdateInvestmentsPage() {
 
     try {
       const year = parseInt(selectedYear);
-      lockMonthMutation.mutate({ year, month, locked: false });
+      lockMonthMutation.mutate({ year, month: month + 1, locked: false });
     } catch (error) {
       toast({
         title: "Erro",
@@ -323,7 +377,10 @@ export default function UpdateInvestmentsPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Atualizar Investimentos</h1>
-        <p className="text-muted-foreground mt-2">Atualize valores por mês. Clique em "Salvar" para bloquear o mês no gráfico</p>
+        <p className="text-muted-foreground mt-2">
+          Atualize valores por mês. Clique em "Salvar" para bloquear o mês no
+          gráfico
+        </p>
       </div>
 
       <Card>
@@ -359,196 +416,241 @@ export default function UpdateInvestmentsPage() {
           ) : (
             <div className="space-y-4">
               <div className="border rounded-lg overflow-hidden flex flex-col">
-                <div className="overflow-x-auto overflow-y-visible scrollbar-visible" style={{ scrollBehavior: "smooth" }}>
+                <div
+                  className="overflow-x-auto overflow-y-visible scrollbar-visible"
+                  style={{ scrollBehavior: "smooth" }}
+                >
                   <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b bg-background">
-                    <th className="sticky left-0 z-20 bg-background border-r px-4 py-3 text-left font-semibold min-w-40">
-                      Investimento
-                    </th>
-                    {monthSequence.map((actualMonth, displayIdx) => (
-                      <th key={displayIdx} className="border-r px-2 py-2 text-center font-semibold min-w-32">
-                        <div className="text-xs font-medium">{monthShortNames[actualMonth]}</div>
-                        <div className="text-xs text-muted-foreground font-normal">
-                          {monthLockedStatus[actualMonth] ? "Registrado" : "Data"}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Date input row */}
-                  <tr className="border-b bg-muted/20">
-                    <td className="sticky left-0 z-10 bg-muted/20 border-r px-4 py-2 text-xs font-medium">Data</td>
-                    {monthSequence.map((actualMonth, displayIdx) => (
-                      <td key={displayIdx} className="border-r px-2 py-2">
-                        {monthLockedStatus[actualMonth] ? (
-                          <div className="flex items-center justify-center gap-1 text-xs text-green-600 dark:text-green-400">
-                            <Lock className="w-3 h-3" />
-                            <span>Registrado</span>
-                          </div>
-                        ) : (
-                          <input
-                            type="date"
-                            value={monthDates[actualMonth] || ""}
-                            onChange={(e) => {
-                              setMonthDates((prev) => ({
-                                ...prev,
-                                [actualMonth]: e.target.value,
-                              }));
-                            }}
-                            className="w-full px-2 py-1 text-xs border rounded bg-background"
-                            data-testid={`input-month-date-${actualMonth}`}
-                          />
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-
-                  {/* Asset rows */}
-                  {assets.map((asset) => (
-                    <tr key={asset.id} className="border-b hover:bg-muted/50">
-                      <td className="sticky left-0 z-10 bg-background hover:bg-muted/50 border-r px-4 py-3">
-                        <p className="font-semibold text-sm">{asset.symbol}</p>
-                        <p className="text-xs text-muted-foreground">{asset.name}</p>
-                      </td>
-                      {monthSequence.map((actualMonth, displayIdx) => {
-                        const isMonthLocked = monthLockedStatus[actualMonth];
-                        return (
-                          <td key={displayIdx} className="border-r px-2 py-2">
-                            <input
-                              type="text"
-                              value={monthUpdates[actualMonth]?.[asset.id] || ""}
-                              onChange={(e) =>
-                                handleValueChange(asset.id, actualMonth.toString(), e.target.value)
-                              }
-                              placeholder="0,00"
-                              disabled={isMonthLocked}
-                              className={`w-full px-2 py-1 text-xs border rounded text-right transition-colors ${
-                                isMonthLocked 
-                                  ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 opacity-60 cursor-not-allowed border-gray-200 dark:border-gray-700" 
-                                  : "bg-background"
-                              }`}
-                              data-testid={`input-value-${asset.id}-${actualMonth}`}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-
-                  {/* Total row */}
-                  <tr className="bg-muted/50 border-t-2 font-semibold">
-                    <td className="sticky left-0 z-10 bg-muted/50 border-r px-4 py-3 text-sm">
-                      Total do Mês
-                    </td>
-                    {monthSequence.map((actualMonth, displayIdx) => {
-                      const currentTotal = getMonthTotalValue(actualMonth);
-                      const previousTotal = displayIdx > 0 ? getMonthTotalValue(monthSequence[displayIdx - 1]) : currentTotal;
-                      const evolution = calculateEvolution(currentTotal, previousTotal);
-                      const isMonthLocked = monthLockedStatus[actualMonth];
-
-                      return (
-                        <td key={displayIdx} className="border-r px-2 py-2">
-                          <div className="text-center">
-                            <div className={`text-sm font-semibold transition-colors ${
-                              isMonthLocked ? "text-gray-400 dark:text-gray-500" : ""
-                            }`}>
-                              {formatCurrencyDisplay(currentTotal)}
+                    <thead>
+                      <tr className="border-b bg-background">
+                        <th className="sticky left-0 z-20 bg-background border-r px-4 py-3 text-left font-semibold min-w-40">
+                          Investimento
+                        </th>
+                        {monthSequence.map((actualMonth, displayIdx) => (
+                          <th
+                            key={displayIdx}
+                            className="border-r px-2 py-2 text-center font-semibold min-w-32"
+                          >
+                            <div className="text-xs font-medium">
+                              {monthShortNames[actualMonth]}
                             </div>
-                            {displayIdx > 0 && (
-                              <>
-                                <div
-                                  className={`text-xs font-medium transition-colors ${
-                                    isMonthLocked 
-                                      ? "text-gray-400 dark:text-gray-500"
-                                      : evolution.value > 0
-                                      ? "text-green-600 dark:text-green-400"
-                                      : evolution.value < 0
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-muted-foreground"
+                            <div className="text-xs text-muted-foreground font-normal">
+                              {monthLockedStatus[actualMonth]
+                                ? "Registrado"
+                                : "Data"}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Date input row */}
+                      <tr className="border-b bg-muted/20">
+                        <td className="sticky left-0 z-10 bg-muted/20 border-r px-4 py-2 text-xs font-medium">
+                          Data
+                        </td>
+                        {monthSequence.map((actualMonth, displayIdx) => (
+                          <td key={displayIdx} className="border-r px-2 py-2">
+                            {monthLockedStatus[actualMonth] ? (
+                              <div className="flex items-center justify-center gap-1 text-xs text-green-600 dark:text-green-400">
+                                <Lock className="w-3 h-3" />
+                                <span>Registrado</span>
+                              </div>
+                            ) : (
+                              <input
+                                type="date"
+                                value={monthDates[actualMonth] || ""}
+                                onChange={(e) => {
+                                  setMonthDates((prev) => ({
+                                    ...prev,
+                                    [actualMonth]: e.target.value,
+                                  }));
+                                }}
+                                className="w-full px-2 py-1 text-xs border rounded bg-background"
+                                data-testid={`input-month-date-${actualMonth}`}
+                              />
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Asset rows */}
+                      {assets.map((asset) => (
+                        <tr
+                          key={asset.id}
+                          className="border-b hover:bg-muted/50"
+                        >
+                          <td className="sticky left-0 z-10 bg-background hover:bg-muted/50 border-r px-4 py-3">
+                            <p className="font-semibold text-sm">
+                              {asset.symbol}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {asset.name}
+                            </p>
+                          </td>
+                          {monthSequence.map((actualMonth, displayIdx) => {
+                            const isMonthLocked =
+                              monthLockedStatus[actualMonth] === true;
+                            return (
+                              <td
+                                key={displayIdx}
+                                className="border-r px-2 py-2"
+                              >
+                                <input
+                                  type="text"
+                                  value={
+                                    monthUpdates[actualMonth]?.[asset.id] || ""
+                                  }
+                                  onChange={(e) =>
+                                    handleValueChange(
+                                      asset.id,
+                                      actualMonth.toString(),
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0,00"
+                                  disabled={isMonthLocked}
+                                  className={`w-full px-2 py-1 text-xs border rounded text-right transition-colors ${
+                                    isMonthLocked
+                                      ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 opacity-60 cursor-not-allowed border-gray-200 dark:border-gray-700"
+                                      : "bg-background"
                                   }`}
-                                >
-                                  {evolution.value > 0 ? "+" : ""}{formatCurrencyDisplay(evolution.value)}
-                                </div>
+                                  data-testid={`input-value-${asset.id}-${actualMonth}`}
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+
+                      {/* Total row */}
+                      <tr className="bg-muted/50 border-t-2 font-semibold">
+                        <td className="sticky left-0 z-10 bg-muted/50 border-r px-4 py-3 text-sm">
+                          Total do Mês
+                        </td>
+                        {monthSequence.map((actualMonth, displayIdx) => {
+                          const currentTotal = getMonthTotalValue(actualMonth);
+                          const previousTotal =
+                            displayIdx > 0
+                              ? getMonthTotalValue(
+                                  monthSequence[displayIdx - 1]
+                                )
+                              : currentTotal;
+                          const evolution = calculateEvolution(
+                            currentTotal,
+                            previousTotal
+                          );
+                          const isMonthLocked = monthLockedStatus[actualMonth];
+
+                          return (
+                            <td key={displayIdx} className="border-r px-2 py-2">
+                              <div className="text-center">
                                 <div
-                                  className={`text-xs font-medium transition-colors ${
+                                  className={`text-sm font-semibold transition-colors ${
                                     isMonthLocked
                                       ? "text-gray-400 dark:text-gray-500"
-                                      : evolution.value > 0
-                                      ? "text-green-600 dark:text-green-400"
-                                      : evolution.value < 0
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-muted-foreground"
+                                      : ""
                                   }`}
                                 >
-                                  {evolution.percentage > 0 ? "+" : ""}{evolution.percentage.toFixed(2)}%
+                                  {formatCurrencyDisplay(currentTotal)}
                                 </div>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
+                                {displayIdx > 0 && (
+                                  <>
+                                    <div
+                                      className={`text-xs font-medium transition-colors ${
+                                        isMonthLocked
+                                          ? "text-gray-400 dark:text-gray-500"
+                                          : evolution.value > 0
+                                          ? "text-green-600 dark:text-green-400"
+                                          : evolution.value < 0
+                                          ? "text-red-600 dark:text-red-400"
+                                          : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {evolution.value > 0 ? "+" : ""}
+                                      {formatCurrencyDisplay(evolution.value)}
+                                    </div>
+                                    <div
+                                      className={`text-xs font-medium transition-colors ${
+                                        isMonthLocked
+                                          ? "text-gray-400 dark:text-gray-500"
+                                          : evolution.value > 0
+                                          ? "text-green-600 dark:text-green-400"
+                                          : evolution.value < 0
+                                          ? "text-red-600 dark:text-red-400"
+                                          : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {evolution.percentage > 0 ? "+" : ""}
+                                      {evolution.percentage.toFixed(2)}%
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
 
-                  {/* Button row - Save/Edit buttons for each month */}
-                  <tr className="border-b bg-background">
-                    <td className="sticky left-0 z-10 bg-background border-r px-4 py-3" />
-                    {monthSequence.map((actualMonth, displayIdx) => {
-                      const isMonthLocked = monthLockedStatus[actualMonth];
-                      return (
-                        <td key={displayIdx} className="border-r px-2 py-3">
-                          {!isMonthLocked ? (
-                            <Button
-                              onClick={() => handleSaveMonth(actualMonth)}
-                              disabled={savingMonths.has(actualMonth)}
-                              size="sm"
-                              className="w-full gap-1 bg-green-600 hover:bg-green-700 text-white"
-                              data-testid={`button-save-month-${actualMonth}`}
-                            >
-                              {savingMonths.has(actualMonth) ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  Salvando
-                                </>
+                      {/* Button row - Save/Edit buttons for each month */}
+                      <tr className="border-b bg-background">
+                        <td className="sticky left-0 z-10 bg-background border-r px-4 py-3" />
+                        {monthSequence.map((actualMonth, displayIdx) => {
+                          const isMonthLocked = monthLockedStatus[actualMonth];
+                          return (
+                            <td key={displayIdx} className="border-r px-2 py-3">
+                              {!isMonthLocked ? (
+                                <Button
+                                  onClick={() => handleSaveMonth(actualMonth)}
+                                  disabled={savingMonths.has(actualMonth)}
+                                  size="sm"
+                                  className="w-full gap-1 bg-green-600 hover:bg-green-700 text-white"
+                                  data-testid={`button-save-month-${actualMonth}`}
+                                >
+                                  {savingMonths.has(actualMonth) ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      Salvando
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Save className="w-3 h-3" />
+                                      Salvar
+                                    </>
+                                  )}
+                                </Button>
                               ) : (
-                                <>
-                                  <Save className="w-3 h-3" />
-                                  Salvar
-                                </>
+                                <Button
+                                  onClick={() => handleEditMonth(actualMonth)}
+                                  disabled={savingMonths.has(actualMonth)}
+                                  size="sm"
+                                  className="w-full gap-1 bg-red-600 hover:bg-red-700 text-white"
+                                  data-testid={`button-edit-month-${actualMonth}`}
+                                >
+                                  {savingMonths.has(actualMonth) ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Lock className="w-3 h-3" />
+                                      Editar
+                                    </>
+                                  )}
+                                </Button>
                               )}
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => handleEditMonth(actualMonth)}
-                              disabled={savingMonths.has(actualMonth)}
-                              size="sm"
-                              className="w-full gap-1 bg-red-600 hover:bg-red-700 text-white"
-                              data-testid={`button-edit-month-${actualMonth}`}
-                            >
-                              {savingMonths.has(actualMonth) ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                </>
-                              ) : (
-                                <>
-                                  <Lock className="w-3 h-3" />
-                                  Editar
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </tbody>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
               </div>
               <div className="text-xs text-muted-foreground">
-                💡 Dica: Clique em "Salvar" (verde) abaixo de cada mês para bloquear. Valores bloqueados aparecem em cinza e no gráfico. Clique em "Editar" (vermelho) para desbloquear.
+                💡 Dica: Clique em "Salvar" (verde) abaixo de cada mês para
+                bloquear. Valores bloqueados aparecem em cinza e no gráfico.
+                Clique em "Editar" (vermelho) para desbloquear.
               </div>
             </div>
           )}

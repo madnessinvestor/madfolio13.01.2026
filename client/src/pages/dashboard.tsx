@@ -145,22 +145,25 @@ export default function Dashboard() {
   const autoSaveTimerRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Função auxiliar para salvar automaticamente sem bloquear
-  const autoSaveMonth = useCallback(async (assetId: string, month: number, value: string, date: string) => {
-    try {
-      const numericValue = parseCurrencyValue(value);
-      if (numericValue > 0 && date) {
-        // Salva mas NÃO bloqueia o mês (isLocked permanece 0)
-        await apiRequest("POST", "/api/snapshots", {
-          assetId,
-          value: numericValue,
-          date,
-          isLocked: 0, // Importante: não bloquear no auto-save
-        });
+  const autoSaveMonth = useCallback(
+    async (assetId: string, month: number, value: string, date: string) => {
+      try {
+        const numericValue = parseCurrencyValue(value);
+        if (numericValue > 0 && date) {
+          // Salva mas NÃO bloqueia o mês (isLocked permanece 0)
+          await apiRequest("POST", "/api/snapshots", {
+            assetId,
+            value: numericValue,
+            date,
+            isLocked: 0, // Importante: não bloquear no auto-save
+          });
+        }
+      } catch (error) {
+        console.error("Auto-save error:", error);
       }
-    } catch (error) {
-      console.error("Auto-save error:", error);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Initialize useEffect for year persistence
   const [mounted, setMounted] = useState(false);
@@ -172,7 +175,9 @@ export default function Dashboard() {
   useEffect(() => {
     return () => {
       // Limpa todos os timers pendentes
-      Object.values(autoSaveTimerRef.current).forEach(timer => clearTimeout(timer));
+      Object.values(autoSaveTimerRef.current).forEach((timer) =>
+        clearTimeout(timer)
+      );
     };
   }, []);
 
