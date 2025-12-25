@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS monthly_portfolio_snapshots (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'default-user',
   year INTEGER NOT NULL,
-  month INTEGER NOT NULL CHECK (month >= 0 AND month < 12),
+  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
   total_value REAL NOT NULL,
   date TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),

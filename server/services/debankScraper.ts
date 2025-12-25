@@ -1505,10 +1505,14 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
   // STEP 1: Reset completo do estado interno
   await resetWalletTrackerState();
 
-  // STEP 2: Aguardar 2 segundos para garantir que tudo foi limpo
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // STEP 2: Limpar timestamps para forçar atualização imediata (ignorar MIN_WALLET_UPDATE_INTERVAL)
+  lastWalletUpdate.clear();
+  console.log("[Force] ✓ Timestamps limpos - atualização imediata permitida");
 
-  // STEP 3: Marca todas as wallets como "em atualização" com valores históricos
+  // STEP 3: Aguardar 1 segundo para garantir que tudo foi limpo
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // STEP 4: Marca todas as wallets como "em atualização" com valores históricos
   for (const wallet of WALLETS) {
     const lastValidEntry = getLastValidBalance(wallet.name);
     let fallbackValue = lastValidEntry?.balance;
@@ -1524,13 +1528,13 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
       link: wallet.link,
       balance: fallbackValue || "Atualizando...",
       lastUpdated: new Date(),
-      status: fallbackValue ? "temporary_error" : "temporary_error",
+      status: "temporary_error", // Status temporário durante atualização
       lastKnownValue: fallbackValue,
       error: "Atualização manual em andamento",
     });
   }
 
-  // STEP 4: Aguardar atualização completa com timeout de segurança
+  // STEP 5: Aguardar atualização completa com timeout de segurança
   try {
     await Promise.race([
       updateWalletsSequentially(WALLETS),
@@ -1545,19 +1549,26 @@ export async function forceRefreshAndWait(): Promise<WalletBalance[]> {
     await resetWalletTrackerState();
   }
 
-  return await getDetailedBalances();
+  // STEP 6: Retornar dados atualizados
+  const updatedBalances = await getDetailedBalances();
+  console.log(`[Force] ✓ Retornando ${updatedBalances.length} wallets atualizadas`);
+  return updatedBalances;
 }
 
 export async function forceRefreshWallet(
   walletName: string
 ): Promise<WalletBalance | null> {
-  console.log(`[Force] Refreshing wallet: ${walletName}`);
+  console.log(`[Force] 🔄 Refresh manual da wallet: ${walletName}`);
 
   const wallet = WALLETS.find((w) => w.name === walletName);
   if (!wallet) {
-    console.log(`[Force] Wallet not found: ${walletName}`);
+    console.log(`[Force] Wallet não encontrada: ${walletName}`);
     return null;
   }
+
+  // ✅ CRÍTICO: Limpar timestamp desta wallet para forçar atualização imediata
+  lastWalletUpdate.delete(walletName);
+  console.log(`[Force] ✓ Timestamp limpo para ${walletName} - atualização imediata permitida`);
 
   let browser: Browser | null = null;
 

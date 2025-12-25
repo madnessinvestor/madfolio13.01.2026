@@ -1329,7 +1329,21 @@ export async function registerRoutes(
   app.get("/api/saldo/detailed", async (req, res) => {
     try {
       const balances = await getDetailedBalances();
-      res.json(balances);
+      
+      // ✅ CRÍTICO: Adicionar timestamp para evitar 304 Not Modified
+      // Isso garante que o frontend sempre receba dados frescos
+      const response = {
+        balances,
+        timestamp: new Date().toISOString(),
+        updated: Date.now()
+      };
+      
+      // Desabilitar cache HTTP para esta rota
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      res.json(response);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch DeBank balances" });
     }

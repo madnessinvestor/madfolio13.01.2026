@@ -69,8 +69,15 @@ export default function WalletTracker() {
     refetch,
   } = useQuery<WalletBalance[]>({
     queryKey: ["/api/saldo/detailed"],
+    queryFn: async () => {
+      const response = await fetch("/api/saldo/detailed");
+      if (!response.ok) throw new Error("Failed to fetch balances");
+      const data = await response.json();
+      // ✅ Extrair balances do novo formato de resposta
+      return data.balances || data;
+    },
     refetchInterval: false, // Desabilitado para evitar race conditions
-    staleTime: 30000, // Cache válido por 30 segundos
+    staleTime: 0, // ✅ Sem cache - sempre buscar dados frescos
     retry: 1, // Tentar apenas 1 vez para evitar delay
     refetchOnWindowFocus: false, // Evitar refetch automático
   });
