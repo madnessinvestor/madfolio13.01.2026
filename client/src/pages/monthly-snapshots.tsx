@@ -690,19 +690,44 @@ export default function MonthlySnapshotsPage() {
 
       console.log("All month columns:", allMonthColumns);
 
+      // Collect all unique asset IDs from all years' snapshots
+      const allAssetIds = new Set<string>();
+      allYearsData.forEach(({ snapshots }) => {
+        Object.keys(snapshots).forEach((id) => allAssetIds.add(id));
+      });
+
+      console.log("All asset IDs from snapshots:", Array.from(allAssetIds));
+
+      // Create a map of asset ID to asset details
+      const assetMap = new Map<string, Asset>();
+      assets.forEach((asset) => assetMap.set(asset.id, asset));
+
+      console.log("Asset map size:", assetMap.size);
+      console.log("First asset from map:", Array.from(assetMap.values())[0]);
+
       // Prepare data for Excel
       const exportData: any[] = [];
 
-      // Create a row for each asset
-      assets.forEach((asset, index) => {
+      // Create a row for each asset that has snapshots
+      allAssetIds.forEach((assetId, index) => {
+        const asset = assetMap.get(assetId);
+        if (!asset) {
+          console.warn(`Asset ${assetId} not found in assets list`);
+          return;
+        }
+
         const row: any = {
           Investimento: `${asset.symbol} - ${asset.name}`,
         };
 
         // Log do primeiro asset para debug
         if (index === 0) {
-          console.log("First asset ID:", asset.id);
-          console.log("First asset data from year 2025:", allYearsData[0]?.snapshots[asset.id]);
+          console.log("First asset ID from snapshots:", assetId);
+          console.log("First asset object:", asset);
+          console.log(
+            "First asset data from year 2025:",
+            allYearsData[0]?.snapshots[assetId]
+          );
         }
 
         // Iterate through each year
@@ -713,16 +738,19 @@ export default function MonthlySnapshotsPage() {
             const columnKey = `${monthName}_${year}`;
 
             // Get month data regardless of locked status
-            const monthData = snapshots[asset.id]?.[month];
+            const monthData = snapshots[assetId]?.[month];
             const value = monthData?.value ?? 0;
 
             // Log para debug no primeiro asset e primeiro mês com dados
             if (index === 0 && month === 0 && year === "2025") {
-              console.log(`Asset ${asset.id} - Month ${month} - Year ${year}:`, {
+              console.log(`Asset ${assetId} - Month ${month} - Year ${year}:`, {
                 monthData,
                 value,
                 snapshotsKeys: Object.keys(snapshots),
-                hasAssetData: !!snapshots[asset.id]
+                hasAssetData: !!snapshots[assetId],
+                snapshotMonthKeys: snapshots[assetId]
+                  ? Object.keys(snapshots[assetId])
+                  : [],
               });
             }
 
@@ -747,8 +775,8 @@ export default function MonthlySnapshotsPage() {
           const columnKey = `${monthName}_${year}`;
 
           let monthTotal = 0;
-          assets.forEach((asset) => {
-            const monthData = snapshots[asset.id]?.[month];
+          allAssetIds.forEach((assetId) => {
+            const monthData = snapshots[assetId]?.[month];
             if (monthData?.value) {
               monthTotal += monthData.value;
             }
