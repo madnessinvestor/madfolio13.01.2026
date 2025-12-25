@@ -761,11 +761,11 @@ async function updateWalletsSequentially(wallets: WalletConfig[]): Promise<void>
         console.log(`[Sequential] Attempt ${attempts}/${maxAttempts} for ${wallet.name}`);
         
         try {
-          // Timeouts reduzidos para melhorar performance
+          // Timeouts aumentados para DeBank (90s) e outros (45s)
           const balance = await scrapeWalletWithTimeout(
             browser,
             wallet,
-            wallet.link.includes('debank.com') ? 45000 : 35000
+            wallet.link.includes('debank.com') ? 90000 : 45000
           ).catch(err => {
             console.error(`[Sequential] Scrape error caught: ${err}`);
             // Retorna valor padrão em caso de erro
