@@ -680,8 +680,8 @@ export default function MonthlySnapshotsPage() {
 
       allYearsData.forEach(({ year, snapshots, monthStatus }) => {
         for (let month = 0; month < 12; month++) {
-          // Only include locked months (monthStatus is 1-based: month+1)
-          const isLocked = monthStatus[month + 1] === true;
+          // Only include locked months (monthStatus uses 0-based index: 0-11)
+          const isLocked = monthStatus[month] === true;
 
           if (!isLocked) {
             continue; // Skip unlocked months
@@ -695,7 +695,8 @@ export default function MonthlySnapshotsPage() {
             const monthData = snapshots[assetId]?.[month];
             const value = monthData?.value ?? 0;
 
-            if (monthData?.isLocked === 1) {
+            // Add value if snapshot exists (locked status already checked above)
+            if (value > 0) {
               assetValues[assetId] = value;
               monthTotal += value;
             }

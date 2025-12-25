@@ -7,22 +7,26 @@ A funcionalidade de exportação para Excel na página "Evolução do Portfólio
 ## ✨ Principais Melhorias
 
 ### 1. **Filtro de Meses Bloqueados**
+
 - ✅ Agora **exporta SOMENTE meses salvos/bloqueados** (isLocked = 1)
 - ✅ Remove meses não consolidados da exportação
 - ✅ Garante dados consistentes e oficiais
 
 ### 2. **Cálculo de Variações**
+
 - ✅ **Variação em R$**: Diferença absoluta mês a mês
 - ✅ **Variação em %**: Percentual de crescimento/redução
 - ✅ Usa a **mesma lógica** do "Extrato de Variação Mensal" da interface
 - ✅ Primeiro mês marcado com "-" (sem variação anterior)
 
 ### 3. **Nova Estrutura do Excel**
+
 - ✅ **Formato vertical** (uma linha por mês) ao invés de horizontal
 - ✅ Colunas por investimento + TOTAL + Variações
 - ✅ Melhor legibilidade e análise temporal
 
 ### 4. **Reconhecimento Completo**
+
 - ✅ Todos os investimentos de **2025 até 2030**
 - ✅ Todos os ativos são incluídos automaticamente
 - ✅ Valores exatamente iguais à interface
@@ -43,8 +47,8 @@ A funcionalidade de exportação para Excel na página "Evolução do Portfólio
 
 ```typescript
 // Para o primeiro mês bloqueado
-variation = "-"
-variationPercent = "-"
+variation = "-";
+variationPercent = "-";
 
 // Para meses subsequentes
 const previousTotal = allLockedMonths[index - 1].total;
@@ -72,16 +76,16 @@ const variationPercent = (variation / previousTotal) * 100;
 
 ## 🎯 Conformidade com Requisitos
 
-| Requisito | Status | Descrição |
-|-----------|--------|-----------|
-| Reconhecer todos os investimentos 2025-2030 | ✅ | Loop em todos os anos |
-| Extrair nome, ano, mês e valor | ✅ | Estrutura completa implementada |
-| Incluir variação R$ | ✅ | Coluna "Variação R$" |
-| Incluir variação % | ✅ | Coluna "Variação %" |
-| Usar lógica do "Extrato de Variação" | ✅ | Mesma fórmula implementada |
-| Somente meses bloqueados | ✅ | Filtro isLocked aplicado |
-| Dados batem com a interface | ✅ | Mesma fonte de dados (API) |
-| Valores consolidados/salvos | ✅ | Apenas isLocked = 1 |
+| Requisito                                   | Status | Descrição                       |
+| ------------------------------------------- | ------ | ------------------------------- |
+| Reconhecer todos os investimentos 2025-2030 | ✅     | Loop em todos os anos           |
+| Extrair nome, ano, mês e valor              | ✅     | Estrutura completa implementada |
+| Incluir variação R$                         | ✅     | Coluna "Variação R$"            |
+| Incluir variação %                          | ✅     | Coluna "Variação %"             |
+| Usar lógica do "Extrato de Variação"        | ✅     | Mesma fórmula implementada      |
+| Somente meses bloqueados                    | ✅     | Filtro isLocked aplicado        |
+| Dados batem com a interface                 | ✅     | Mesma fonte de dados (API)      |
+| Valores consolidados/salvos                 | ✅     | Apenas isLocked = 1             |
 
 ## 🧪 Como Testar
 
@@ -103,17 +107,20 @@ const variationPercent = (variation / previousTotal) * 100;
 ## 💡 Exemplos de Uso
 
 ### Cenário 1: Dezembro 2025 bloqueado
+
 ```
 12/2025 | R$ 100.000 | -      | -
 ```
 
 ### Cenário 2: Janeiro 2026 bloqueado
+
 ```
 12/2025 | R$ 100.000 | -           | -
 01/2026 | R$ 105.000 | +R$ 5.000   | +5.00%
 ```
 
 ### Cenário 3: Fevereiro 2026 com queda
+
 ```
 12/2025 | R$ 100.000 | -           | -
 01/2026 | R$ 105.000 | +R$ 5.000   | +5.00%
