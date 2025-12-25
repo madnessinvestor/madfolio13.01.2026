@@ -2,9 +2,9 @@
   {
     "id": "3c6def059126280b714103bbc04a3d31",
     "name": "APTOS-madness",
-    "balance": "86.33279999999999",
-    "lastUpdated": "2025-12-25T10:41:40.936Z",
-    "status": "temporary_error",
+    "balance": "$15.64",
+    "lastUpdated": "2025-12-25T10:41:59.489Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
@@ -26,24 +26,24 @@
   {
     "id": "c3b8222449c8bf85a6d7d1305f003452",
     "name": "EVM-madnesstwo",
-    "balance": "93.83999999999999",
-    "lastUpdated": "2025-12-25T10:41:40.936Z",
-    "status": "temporary_error",
+    "balance": "$17",
+    "lastUpdated": "2025-12-24T21:01:35.348Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
     "id": "c30e5b4adbc2792ef854904244aeaa86",
     "name": "SEI-madness",
-    "balance": "191.10239999999996",
-    "lastUpdated": "2025-12-25T10:41:40.936Z",
-    "status": "temporary_error",
+    "balance": "$34.62",
+    "lastUpdated": "2025-12-25T10:36:14.434Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "$160.68",
-    "lastUpdated": "2025-12-25T10:41:56.121Z",
+    "balance": "$160.54",
+    "lastUpdated": "2025-12-24T20:02:46.205Z",
     "status": "success",
     "platform": "unknown"
   }
