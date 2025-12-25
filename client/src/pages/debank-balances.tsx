@@ -65,7 +65,7 @@ export default function WalletTracker() {
     if (updatingWallets.size > 0) {
       const timeout = setTimeout(() => {
         setUpdatingWallets(new Set());
-        queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+        queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       }, 90000); // 90 segundos
       
       return () => clearTimeout(timeout);
@@ -97,26 +97,28 @@ export default function WalletTracker() {
       const response = await apiRequest("POST", "/api/saldo/refresh", {});
       return response.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onSuccess: async (data) => {
+      // ✅ CORREÇÃO: usar refetchQueries ao invés de invalidateQueries
+      // refetchQueries força um fetch imediato, ignorando staleTime
+      await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       toast({
         title: "Saldos atualizados",
         description: "Os saldos foram atualizados com sucesso. Intervalo mínimo de 1 minuto por wallet e 20 segundos entre wallets.",
       });
     },
-    onError: () => {
-      // Mesmo em erro, força refetch para obter fallback values
-      queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onError: async () => {
+      // ✅ Mesmo em erro, força refetch para obter fallback values
+      await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       toast({
         title: "Erro",
         description: "Falha ao atualizar os saldos.",
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      // Garantir que sempre atualize após finalizar (sucesso ou erro)
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onSettled: async () => {
+      // ✅ Garantir que sempre atualize após finalizar (sucesso ou erro)
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       }, 1000);
     },
   });
@@ -126,8 +128,8 @@ export default function WalletTracker() {
       const response = await apiRequest("POST", "/api/wallets", data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       setNewWalletName("");
       setNewWalletLink("");
       setIsAddingWallet(false);
@@ -149,8 +151,8 @@ export default function WalletTracker() {
     mutationFn: async (walletId: string) => {
       return apiRequest("DELETE", `/api/wallets/${walletId}`).then(res => res.json());
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       toast({
         title: "Sucesso",
         description: "Wallet removida com sucesso.",
@@ -180,26 +182,27 @@ export default function WalletTracker() {
         });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onSuccess: async () => {
+      // ✅ CORREÇÃO: usar refetchQueries ao invés de invalidateQueries
+      await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       toast({
         title: "Sucesso",
         description: "Wallet atualizada.",
       });
     },
-    onError: () => {
-      // Mesmo em erro, força refetch para obter fallback values
-      queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onError: async () => {
+      // ✅ Mesmo em erro, força refetch para obter fallback values
+      await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       toast({
         title: "Erro",
         description: "Falha ao atualizar wallet.",
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      // Garantir que sempre atualize após finalizar
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] });
+    onSettled: async () => {
+      // ✅ Garantir que sempre atualize após finalizar
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] });
       }, 1000);
     },
   });
@@ -243,7 +246,7 @@ export default function WalletTracker() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-destructive">Erro ao carregar saldos</p>
-        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/saldo/detailed"] })}>
+        <Button onClick={() => queryClient.refetchQueries({ queryKey: ["/api/saldo/detailed"] })}>
           Tentar novamente
         </Button>
       </div>
