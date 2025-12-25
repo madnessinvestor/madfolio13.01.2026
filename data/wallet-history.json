@@ -34,16 +34,16 @@
   {
     "id": "c30e5b4adbc2792ef854904244aeaa86",
     "name": "SEI-madness",
-    "balance": "190.44",
-    "lastUpdated": "2025-12-25T11:09:21.096Z",
-    "status": "temporary_error",
+    "balance": "$34.50",
+    "lastUpdated": "2025-12-25T10:57:22.805Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "$160.72",
-    "lastUpdated": "2025-12-25T11:09:35.876Z",
+    "balance": "$160.54",
+    "lastUpdated": "2025-12-24T20:02:46.205Z",
     "status": "success",
     "platform": "unknown"
   }
