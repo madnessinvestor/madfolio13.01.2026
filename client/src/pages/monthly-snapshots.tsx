@@ -861,14 +861,6 @@ export default function MonthlySnapshotsPage() {
             gráfico
           </p>
         </div>
-        <Button
-          onClick={handleExportToExcel}
-          className="gap-2"
-          variant="outline"
-        >
-          <Download className="w-4 h-4" />
-          Exportar para Excel
-        </Button>
       </div>
 
       <Card>
@@ -1067,6 +1059,38 @@ export default function MonthlySnapshotsPage() {
                           {monthSequence.map((actualMonth, displayIdx) => {
                             const isMonthLocked =
                               monthLockedStatus[actualMonth];
+
+                            // Calculate individual asset evolution (same logic as Total do Mês)
+                            const currentValue = parseCurrencyValue(
+                              monthUpdates[actualMonth]?.[asset.id] || "0"
+                            );
+                            let previousValue = currentValue;
+                            let showVariation = false;
+
+                            if (displayIdx > 0) {
+                              const prevMonth = monthSequence[displayIdx - 1];
+                              previousValue = parseCurrencyValue(
+                                monthUpdates[prevMonth]?.[asset.id] || "0"
+                              );
+                              showVariation = true;
+                            } else if (actualMonth === 0) {
+                              // January: compare with December of previous year
+                              const decemberSnapshot =
+                                previousYearSnapshots[asset.id]?.[11]; // December is month 11
+                              if (
+                                decemberSnapshot?.value &&
+                                decemberSnapshot.value > 0
+                              ) {
+                                previousValue = decemberSnapshot.value;
+                                showVariation = true;
+                              }
+                            }
+
+                            const evolution = calculateEvolution(
+                              currentValue,
+                              previousValue
+                            );
+
                             return (
                               <td
                                 key={displayIdx}
@@ -1093,6 +1117,36 @@ export default function MonthlySnapshotsPage() {
                                   }`}
                                   data-testid={`input-value-${asset.id}-${actualMonth}`}
                                 />
+                                {isMonthLocked &&
+                                  showVariation &&
+                                  currentValue > 0 && (
+                                    <div className="mt-1 space-y-0.5">
+                                      <div
+                                        className={`text-xs font-medium ${
+                                          evolution.value > 0
+                                            ? "text-green-600 dark:text-green-400"
+                                            : evolution.value < 0
+                                            ? "text-red-600 dark:text-red-400"
+                                            : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {evolution.value > 0 ? "+" : ""}
+                                        {formatCurrencyDisplay(evolution.value)}
+                                      </div>
+                                      <div
+                                        className={`text-xs font-medium ${
+                                          evolution.value > 0
+                                            ? "text-green-600 dark:text-green-400"
+                                            : evolution.value < 0
+                                            ? "text-red-600 dark:text-red-400"
+                                            : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {evolution.percentage > 0 ? "+" : ""}
+                                        {evolution.percentage.toFixed(2)}%
+                                      </div>
+                                    </div>
+                                  )}
                               </td>
                             );
                           })}
