@@ -34,7 +34,10 @@ export function LiveRates() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const formatRate = (value: number | undefined, decimals: number = 2): string => {
+  const formatRate = (
+    value: number | undefined,
+    decimals: number = 2
+  ): string => {
     if (!value) return "...";
     return `R$ ${value.toLocaleString("pt-BR", {
       minimumFractionDigits: decimals,
