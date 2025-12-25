@@ -241,8 +241,7 @@ export default function WalletTracker() {
   });
 
   const formatBalance = (balance: string) => {
-    // Se o valor contém "$" ou vírgula (formato USD), retornar sem formatação
-    // pois o backend deveria ter convertido para BRL
+    // Estados de carregamento e placeholder
     if (
       balance === "Loading..." ||
       balance === "Carregando..." ||
@@ -250,6 +249,13 @@ export default function WalletTracker() {
       balance === "Indisponível"
     ) {
       return balance;
+    }
+
+    // ⚠️ CRÍTICO: Se contém "$" ou vírgula (formato USD), está em USD
+    // Isso indica que o backend não converteu ainda - mostrar "Atualizando..."
+    if (balance.includes("$") || /^\d{1,3}(,\d{3})+(\.\d{2})?$/.test(balance)) {
+      console.warn("[Frontend] Valor em USD recebido, aguardando conversão:", balance);
+      return "Atualizando…";
     }
 
     // Remover símbolos de moeda e separadores
@@ -453,9 +459,11 @@ export default function WalletTracker() {
                     {getPlatformName(wallet.link)}
                   </span>
                   {wallet.balance === "Loading..." ||
-                  wallet.balance === "Carregando..." ? (
+                  wallet.balance === "Carregando..." ||
+                  wallet.balance === "Atualizando…" ||
+                  wallet.balance.includes("$") ? (
                     <Badge variant="secondary" className="text-xs">
-                      Carregando
+                      Atualizando
                     </Badge>
                   ) : (
                     <Badge

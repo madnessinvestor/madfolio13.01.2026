@@ -453,10 +453,28 @@ async function scrapeWalletWithTimeout(
         if (timeoutHandle) clearTimeout(timeoutHandle);
 
         if (result.success && result.value) {
-          console.log(`[Wallet] ✅ Sucesso: ${wallet.name} = ${result.value}`);
+          // 🔄 CONVERSÃO USD → BRL: Garantir que valor esteja sempre em BRL antes de salvar
+          let balanceBRL = result.value;
+          
+          // Se contém "$" ou formato USD, converter para BRL
+          if (result.value.includes("$") || /^\d{1,3}(,\d{3})+(\.\d{2})?$/.test(result.value)) {
+            try {
+              const usdValue = parseFloat(result.value.replace(/[\$,]/g, ""));
+              if (!isNaN(usdValue) && usdValue > 0) {
+                const exchangeRate = await getExchangeRate("USD");
+                const brlValue = usdValue * exchangeRate;
+                balanceBRL = brlValue.toFixed(2);
+                console.log(`[Wallet] Converted ${result.value} USD → R$ ${balanceBRL} (rate: ${exchangeRate})`);
+              }
+            } catch (error) {
+              console.error(`[Wallet] Error converting ${result.value} to BRL:`, error);
+            }
+          }
+          
+          console.log(`[Wallet] ✅ Sucesso: ${wallet.name} = R$ ${balanceBRL}`);
 
-          // Save to cache
-          addCacheEntry(wallet.name, result.value, result.platform, "success");
+          // Save to cache (já em BRL)
+          addCacheEntry(wallet.name, balanceBRL, result.platform, "success");
 
           // 🆕 SINCRONIZAR COM GITHUB
           syncHistoryToGitHub();
@@ -465,10 +483,10 @@ async function scrapeWalletWithTimeout(
             id: wallet.id,
             name: wallet.name,
             link: wallet.link,
-            balance: result.value,
+            balance: balanceBRL,
             lastUpdated: new Date(),
             status: "success",
-            lastKnownValue: result.value,
+            lastKnownValue: balanceBRL,
           });
         } else {
           // 🎯 FLUXO CORRETO: Falha de scraping → consultar banco ANTES de retornar erro
@@ -1182,6 +1200,37 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
     "SEI-madness": "196.18",
   };
 
+  // Helper: Converter valor USD para BRL se necessário
+  const ensureBRL = async (balance: string): Promise<string> => {
+    // Se já está em BRL ou é placeholder, retornar como está
+    if (!balance || balance === "Loading..." || balance === "Carregando..." || 
+        balance === "Aguardando" || balance === "Indisponível" || balance === "Erro") {
+      return balance;
+    }
+
+    // Se contém "$" ou vírgula no formato americano, está em USD
+    if (balance.includes("$") || /^\d{1,3}(,\d{3})+(\.\d{2})?$/.test(balance)) {
+      try {
+        // Parse USD value
+        const usdValue = parseFloat(balance.replace(/[\$,]/g, ""));
+        
+        if (!isNaN(usdValue) && usdValue > 0) {
+          // Get exchange rate and convert
+          const exchangeRate = await getExchangeRate("USD");
+          const brlValue = usdValue * exchangeRate;
+          
+          console.log(`[DetailedBalances] Converted ${balance} USD → ${brlValue.toFixed(2)} BRL (rate: ${exchangeRate})`);
+          return brlValue.toFixed(2);
+        }
+      } catch (error) {
+        console.error(`[DetailedBalances] Error converting ${balance} to BRL:`, error);
+      }
+    }
+
+    // Já está em BRL ou formato inválido, retornar como está
+    return balance;
+  };
+
   // 🎯 REGRA PRINCIPAL: Backend é fonte única de verdade
   // Se scraping falhou, SEMPRE usar último saldo válido do histórico
   const balances = Array.from(balanceCache.values())
@@ -1193,31 +1242,34 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
         const lastValidEntry = await getLastValidBalance(wallet.name);
 
         if (lastValidEntry) {
+          const balanceBRL = await ensureBRL(lastValidEntry.balance);
           console.log(
-            `[getDetailedBalances] ${wallet.name}: usando último saldo válido do histórico: ${lastValidEntry.balance} (${lastValidEntry.timestamp})`
+            `[getDetailedBalances] ${wallet.name}: usando último saldo válido do histórico: ${balanceBRL} (${lastValidEntry.timestamp})`
           );
 
           // ✅ CORREÇÃO: Se há histórico salvo, status DEVE ser 'success' e erro DEVE ser null
           // Falha de browser não é erro funcional quando há dados persistidos
           return {
             ...wallet,
-            balance: lastValidEntry.balance,
+            balance: balanceBRL,
             lastUpdated: new Date(lastValidEntry.timestamp),
             status: "success" as const, // ✅ Status OK quando usa histórico
-            lastKnownValue: lastValidEntry.balance,
+            lastKnownValue: balanceBRL,
             error: undefined, // ✅ Sem erro quando há histórico válido
           };
         }
 
         // 2. Se não tem histórico, usar lastKnownValue do cache em memória
         if (wallet.lastKnownValue) {
+          const balanceBRL = await ensureBRL(wallet.lastKnownValue);
           console.log(
-            `[getDetailedBalances] ${wallet.name}: usando lastKnownValue do cache: ${wallet.lastKnownValue}`
+            `[getDetailedBalances] ${wallet.name}: usando lastKnownValue do cache: ${balanceBRL}`
           );
           return {
             ...wallet,
-            balance: wallet.lastKnownValue,
+            balance: balanceBRL,
             status: "success" as const, // ✅ Status OK quando usa cache válido
+            lastKnownValue: balanceBRL,
             error: undefined, // ✅ Sem erro quando há valor conhecido
           };
         }
@@ -1225,29 +1277,30 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
         // 3. ⚠️ INTERCEPTAR "Aguardando" - aplicar valor inicial se wallet está na lista
         const seedValue = INITIAL_WALLET_VALUES[wallet.name];
         if (seedValue) {
+          const seedBRL = await ensureBRL(seedValue);
           console.log(
-            `[getDetailedBalances] ${wallet.name}: aplicando valor inicial seed: R$ ${seedValue}`
+            `[getDetailedBalances] ${wallet.name}: aplicando valor inicial seed: R$ ${seedBRL}`
           );
 
           // Criar histórico inicial para persistir o valor
-          createInitialHistoryEntry(wallet.name, seedValue, "seed-api");
+          createInitialHistoryEntry(wallet.name, seedBRL, "seed-api");
 
           // Atualizar cache em memória
           balanceCache.set(wallet.name, {
             ...wallet,
-            balance: seedValue,
+            balance: seedBRL,
             lastUpdated: new Date(),
             status: "success",
-            lastKnownValue: seedValue,
+            lastKnownValue: seedBRL,
             error: undefined,
           });
 
           return {
             ...wallet,
-            balance: seedValue,
+            balance: seedBRL,
             lastUpdated: new Date(),
             status: "success" as const,
-            lastKnownValue: seedValue,
+            lastKnownValue: seedBRL,
             error: undefined,
           };
         }
@@ -1264,8 +1317,13 @@ export async function getDetailedBalances(): Promise<WalletBalance[]> {
         };
       }
 
-      // Status é success - retornar normalmente
-      return wallet;
+      // Status é success - garantir conversão BRL antes de retornar
+      const balanceBRL = await ensureBRL(wallet.balance);
+      return {
+        ...wallet,
+        balance: balanceBRL,
+        lastKnownValue: wallet.lastKnownValue ? await ensureBRL(wallet.lastKnownValue) : undefined,
+      };
     });
 
   return await Promise.all(balances);
