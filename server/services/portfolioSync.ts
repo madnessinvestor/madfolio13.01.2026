@@ -138,10 +138,10 @@ export async function syncPortfolioEvolution(
       return;
     }
 
-    // Obter mês e ano atuais
+    // Obter mês e ano atuais usando UTC para evitar problemas de timezone
     const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1; // 1-12
-    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getUTCMonth() + 1; // 1-12
+    const currentYear = currentDate.getUTCFullYear();
 
     console.log(
       `[Portfolio Sync] Current period: ${currentYear}-${currentMonth
@@ -178,19 +178,27 @@ export async function syncPortfolioEvolution(
 
         // Mês não está bloqueado, pode atualizar
         // 1. Atualizar snapshot consolidado do portfólio
-        const lastDayOfMonth = new Date(year, currentMonth, 0); // Último dia do mês
-        const snapshotDateStr = lastDayOfMonth.toISOString().split("T")[0];
+        // Gerar data determinística no formato ISO (YYYY-MM-01)
+        const date = `${year}-${String(currentMonth).padStart(2, "0")}-01`;
+
+        // Validação explícita - nunca permitir date null
+        if (!date || date.length !== 10) {
+          throw new Error(
+            `[Portfolio Sync] Invalid snapshot date generated for ${year}-${currentMonth}: ${date}`
+          );
+        }
 
         await storage.createOrUpdateMonthlyPortfolioSnapshot({
           userId,
           year,
           month: currentMonth,
           totalValue,
+          date,
           isLocked: 0,
         });
 
         // 2. NOVO: Atualizar snapshots individuais por ativo para meses não bloqueados
-        const snapshotDate = snapshotDateStr;
+        const snapshotDate = date;
 
         for (const asset of allAssets) {
           try {
@@ -296,8 +304,17 @@ export async function syncPortfolioHistory(
     }
 
     const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getUTCMonth() + 1;
+    const currentYear = currentDate.getUTCFullYear();
+
+    // Gerar data determinística no formato ISO (YYYY-MM-01)
+    const date = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
+
+    if (!date || date.length !== 10) {
+      throw new Error(
+        `[Portfolio History] Invalid date generated for ${currentYear}-${currentMonth}: ${date}`
+      );
+    }
 
     // Atualizar portfolio history para o mês atual
     await storage.createOrUpdatePortfolioHistory({
@@ -305,9 +322,7 @@ export async function syncPortfolioHistory(
       totalValue,
       month: currentMonth,
       year: currentYear,
-      date: new Date(currentYear, currentMonth - 1, 1)
-        .toISOString()
-        .split("T")[0],
+      date,
     });
 
     console.log(

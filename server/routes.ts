@@ -536,12 +536,10 @@ export async function registerRoutes(
         updateDate
       );
       if (historicalPrice === null) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Could not fetch historical price for this date. Available for crypto assets only.",
-          });
+        return res.status(400).json({
+          error:
+            "Could not fetch historical price for this date. Available for crypto assets only.",
+        });
       }
 
       // Calculate total value with historical price
@@ -586,12 +584,10 @@ export async function registerRoutes(
         updateDate
       );
       if (historicalPrice === null) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Could not fetch historical price for this date. Available for crypto assets only.",
-          });
+        return res.status(400).json({
+          error:
+            "Could not fetch historical price for this date. Available for crypto assets only.",
+        });
       }
 
       // Calculate total value with historical price
@@ -1061,11 +1057,9 @@ export async function registerRoutes(
           year,
           date,
         });
-        return res
-          .status(400)
-          .json({
-            error: "Missing required fields: totalValue, month, year, date",
-          });
+        return res.status(400).json({
+          error: "Missing required fields: totalValue, month, year, date",
+        });
       }
 
       // Use createOrUpdate to avoid duplicates when re-saving a month
@@ -1079,12 +1073,10 @@ export async function registerRoutes(
       res.status(201).json(history);
     } catch (error) {
       console.error("Error creating/updating portfolio history:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to create or update portfolio history",
-          details: String(error),
-        });
+      res.status(500).json({
+        error: "Failed to create or update portfolio history",
+        details: String(error),
+      });
     }
   });
 
@@ -1318,12 +1310,10 @@ export async function registerRoutes(
       res.json(formattedHistory.length > 0 ? formattedHistory : []);
     } catch (error) {
       console.error("[Portfolio History Error]", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to fetch portfolio history",
-          details: String(error),
-        });
+      res.status(500).json({
+        error: "Failed to fetch portfolio history",
+        details: String(error),
+      });
     }
   });
 
@@ -1622,8 +1612,26 @@ export async function registerRoutes(
       req.session?.userId || req.user?.claims?.sub || "default-user";
     try {
       const validated = insertMonthlyPortfolioSnapshotSchema.parse(req.body);
+
+      // Gerar data determinística se não fornecida
+      let date = validated.date;
+      if (!date) {
+        date = `${validated.year}-${String(validated.month).padStart(
+          2,
+          "0"
+        )}-01`;
+      }
+
+      // Validação: garantir que date nunca seja null
+      if (!date || date.length !== 10) {
+        return res.status(400).json({
+          error: `Invalid date format for snapshot ${validated.year}-${validated.month}`,
+        });
+      }
+
       const snapshot = await storage.createOrUpdateMonthlyPortfolioSnapshot({
         ...validated,
+        date,
         userId,
       });
       res.json(snapshot);
