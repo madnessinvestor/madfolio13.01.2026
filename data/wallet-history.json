@@ -2,8 +2,8 @@
   {
     "id": "3c6def059126280b714103bbc04a3d31",
     "name": "APTOS-madness",
-    "balance": "88.50",
-    "lastUpdated": "2026-01-01T09:18:32.286Z",
+    "balance": "88.16",
+    "lastUpdated": "2025-12-31T16:18:29.943Z",
     "status": "success",
     "platform": "unknown"
   },
@@ -42,8 +42,8 @@
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "876.53",
-    "lastUpdated": "2026-01-01T08:21:56.396Z",
+    "balance": "877.90",
+    "lastUpdated": "2026-01-01T09:21:57.254Z",
     "status": "success",
     "platform": "unknown"
   }
