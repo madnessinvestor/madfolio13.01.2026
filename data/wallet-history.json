@@ -19,7 +19,7 @@
     "id": "e6c3ef467cf9ef61a325539b74c70736",
     "name": "EVM-madnesstrezor",
     "balance": "59535.48",
-    "lastUpdated": "2026-01-03T19:48:07.065Z",
+    "lastUpdated": "2026-01-03T19:58:08.315Z",
     "status": "success",
     "platform": "unknown"
   },
@@ -42,8 +42,8 @@
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "893.91",
-    "lastUpdated": "2026-01-03T19:57:29.593Z",
+    "balance": "894.45",
+    "lastUpdated": "2026-01-03T19:37:18.064Z",
     "status": "success",
     "platform": "unknown"
   }
