@@ -2,9 +2,9 @@
   {
     "id": "3c6def059126280b714103bbc04a3d31",
     "name": "APTOS-madness",
-    "balance": "98.62",
-    "lastUpdated": "2026-01-03T19:26:51.188Z",
-    "status": "temporary_error",
+    "balance": "98.41",
+    "lastUpdated": "2026-01-03T17:18:51.551Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
@@ -35,8 +35,8 @@
     "id": "c30e5b4adbc2792ef854904244aeaa86",
     "name": "SEI-madness",
     "balance": "208.46",
-    "lastUpdated": "2026-01-03T19:26:51.189Z",
-    "status": "temporary_error",
+    "lastUpdated": "2026-01-03T16:21:30.412Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
