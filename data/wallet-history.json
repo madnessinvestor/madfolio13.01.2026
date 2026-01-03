@@ -2,16 +2,16 @@
   {
     "id": "3c6def059126280b714103bbc04a3d31",
     "name": "APTOS-madness",
-    "balance": "98.62",
-    "lastUpdated": "2026-01-03T19:19:01.814Z",
+    "balance": "98.41",
+    "lastUpdated": "2026-01-03T17:18:51.551Z",
     "status": "success",
     "platform": "unknown"
   },
   {
     "id": "4a33f86f754f33c0323cec9a0713d9f3",
     "name": "EVM-madnessmain",
-    "balance": "318818.95",
-    "lastUpdated": "2026-01-03T19:11:34.891Z",
+    "balance": "318780.66",
+    "lastUpdated": "2026-01-03T19:19:57.240Z",
     "status": "success",
     "platform": "unknown"
   },
