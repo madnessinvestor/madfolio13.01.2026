@@ -18,9 +18,9 @@
   {
     "id": "e6c3ef467cf9ef61a325539b74c70736",
     "name": "EVM-madnesstrezor",
-    "balance": "59458.90",
-    "lastUpdated": "2026-01-03T19:26:51.189Z",
-    "status": "temporary_error",
+    "balance": "59508.13",
+    "lastUpdated": "2026-01-03T19:36:14.517Z",
+    "status": "success",
     "platform": "unknown"
   },
   {
