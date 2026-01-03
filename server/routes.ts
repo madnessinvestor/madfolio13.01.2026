@@ -706,24 +706,24 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid year" });
       }
 
-      const startDate = `${year}-01-01`;
-      const endDate = `${year}-12-31`;
+      const userId =
+        req.session?.userId || req.user?.claims?.sub || "default-user";
 
-      const snapshots = await storage.getSnapshotsByDateRange(
-        startDate,
-        endDate
-      );
-
+      // Initialize month status (using 1-based month indexing: 1-12)
       const monthStatus: Record<number, boolean> = {};
-      for (let i = 0; i < 12; i++) {
+      for (let i = 1; i <= 12; i++) {
         monthStatus[i] = false;
       }
 
-      snapshots.forEach((snapshot) => {
-        const date = new Date(snapshot.date);
-        const month = date.getMonth();
-        if (snapshot.isLocked) {
-          monthStatus[month] = true;
+      // Check monthly portfolio snapshots
+      const monthlySnapshots = await storage.getMonthlyPortfolioSnapshots(
+        userId,
+        year
+      );
+
+      monthlySnapshots.forEach((snapshot) => {
+        if (snapshot.isLocked === 1) {
+          monthStatus[snapshot.month] = true;
         }
       });
 
@@ -742,6 +742,9 @@ export async function registerRoutes(
           .json({ error: "year, month, and locked are required" });
       }
 
+      const userId =
+        req.session?.userId || req.user?.claims?.sub || "default-user";
+
       const startDate = `${year}-${month.toString().padStart(2, "0")}-01`;
       const endDate = new Date(year, month, 0).toISOString().split("T")[0];
 
@@ -752,6 +755,21 @@ export async function registerRoutes(
 
       for (const snapshot of snapshots) {
         await storage.updateSnapshot(snapshot.id, { isLocked: locked ? 1 : 0 });
+      }
+
+      // Also update the monthly portfolio snapshot
+      const monthlySnapshot = await storage.getMonthlyPortfolioSnapshot(
+        userId,
+        month,
+        year
+      );
+
+      if (monthlySnapshot) {
+        if (locked) {
+          await storage.lockMonthlySnapshot(monthlySnapshot.id);
+        } else {
+          await storage.unlockMonthlySnapshot(monthlySnapshot.id);
+        }
       }
 
       res.json({ success: true, locked });
@@ -772,22 +790,14 @@ export async function registerRoutes(
       const snapshotMonth = snapshotDate.getMonth() + 1; // 1-12
       const snapshotYear = snapshotDate.getFullYear();
 
-      // Get snapshots from that month to check if any are locked
-      const startDate = `${snapshotYear}-${snapshotMonth
-        .toString()
-        .padStart(2, "0")}-01`;
-      const endDate = new Date(snapshotYear, snapshotMonth, 0)
-        .toISOString()
-        .split("T")[0];
-      const monthSnapshots = await storage.getSnapshotsByDateRange(
-        startDate,
-        endDate
+      // Check if the monthly portfolio snapshot is locked
+      const monthlySnapshot = await storage.getMonthlyPortfolioSnapshot(
+        userId,
+        snapshotMonth,
+        snapshotYear
       );
 
-      // Check if any snapshot in this month is locked
-      const isMonthLocked = monthSnapshots.some(
-        (s) => s.isLocked === 1 || s.isLocked === true
-      );
+      const isMonthLocked = monthlySnapshot?.isLocked === 1;
 
       if (isMonthLocked) {
         // Month is locked - prevent automatic updates

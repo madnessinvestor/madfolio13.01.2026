@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useCurrencyConverter } from "@/components/CurrencySwitcher";
+import { memo } from "react";
 
 export interface Holding {
   id: string;
@@ -36,7 +37,7 @@ interface HoldingsTableProps {
   realEstate?: boolean;
 }
 
-export function HoldingsTable({
+export const HoldingsTable = memo(function HoldingsTable({
   title,
   holdings,
   onAdd,
@@ -200,4 +201,4 @@ export function HoldingsTable({
       </CardContent>
     </Card>
   );
-}
+});

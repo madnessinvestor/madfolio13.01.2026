@@ -142,7 +142,7 @@ export default function UpdateInvestmentsPage() {
           const monthData = yearSnapshots[asset.id]?.[month];
           // For locked months, ONLY use saved snapshot values (immutable)
           // For unlocked months, use snapshot value if available, otherwise calculate from price
-          const isMonthLocked = monthLockedStatus[month] === true;
+          const isMonthLocked = monthLockedStatus[month + 1] === true; // Use 1-based month
           let value = 0;
 
           if (isMonthLocked && monthData?.value) {
@@ -276,7 +276,7 @@ export default function UpdateInvestmentsPage() {
 
   const handleValueChange = (assetId: string, month: string, value: string) => {
     const monthNum = parseInt(month);
-    if (monthLockedStatus[monthNum]) return;
+    if (monthLockedStatus[monthNum + 1]) return;
 
     setMonthUpdates((prev) => {
       const newUpdates = {
@@ -435,7 +435,7 @@ export default function UpdateInvestmentsPage() {
                               {monthShortNames[actualMonth]}
                             </div>
                             <div className="text-xs text-muted-foreground font-normal">
-                              {monthLockedStatus[actualMonth]
+                              {monthLockedStatus[actualMonth + 1]
                                 ? "Registrado"
                                 : "Data"}
                             </div>
@@ -451,7 +451,7 @@ export default function UpdateInvestmentsPage() {
                         </td>
                         {monthSequence.map((actualMonth, displayIdx) => (
                           <td key={displayIdx} className="border-r px-2 py-2">
-                            {monthLockedStatus[actualMonth] ? (
+                            {monthLockedStatus[actualMonth + 1] ? (
                               <div className="flex items-center justify-center gap-1 text-xs text-green-600 dark:text-green-400">
                                 <Lock className="w-3 h-3" />
                                 <span>Registrado</span>
@@ -490,7 +490,7 @@ export default function UpdateInvestmentsPage() {
                           </td>
                           {monthSequence.map((actualMonth, displayIdx) => {
                             const isMonthLocked =
-                              monthLockedStatus[actualMonth] === true;
+                              monthLockedStatus[actualMonth + 1] === true;
                             return (
                               <td
                                 key={displayIdx}
@@ -540,7 +540,7 @@ export default function UpdateInvestmentsPage() {
                             currentTotal,
                             previousTotal
                           );
-                          const isMonthLocked = monthLockedStatus[actualMonth];
+                          const isMonthLocked = monthLockedStatus[actualMonth + 1];
 
                           return (
                             <td key={displayIdx} className="border-r px-2 py-2">
@@ -596,7 +596,7 @@ export default function UpdateInvestmentsPage() {
                       <tr className="border-b bg-background">
                         <td className="sticky left-0 z-10 bg-background border-r px-4 py-3" />
                         {monthSequence.map((actualMonth, displayIdx) => {
-                          const isMonthLocked = monthLockedStatus[actualMonth];
+                          const isMonthLocked = monthLockedStatus[actualMonth + 1];
                           return (
                             <td key={displayIdx} className="border-r px-2 py-3">
                               {!isMonthLocked ? (

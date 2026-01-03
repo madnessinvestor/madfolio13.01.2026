@@ -167,7 +167,7 @@ export default function MonthlySnapshotsPage() {
     // Generate 12 months for the selected year
     for (let month = 0; month < 12; month++) {
       // Check if month is locked (registered)
-      const isLocked = monthLockedStatus[month] === true;
+      const isLocked = monthLockedStatus[month + 1] === true;
       const monthTotal = getMonthTotalValue(month);
 
       data.push({
@@ -364,7 +364,7 @@ export default function MonthlySnapshotsPage() {
 
   const handleValueChange = (assetId: string, month: string, value: string) => {
     const monthNum = parseInt(month);
-    if (monthLockedStatus[monthNum]) return;
+    if (monthLockedStatus[monthNum + 1]) return;
 
     setMonthUpdates((prev) => {
       const newUpdates = {
@@ -1003,7 +1003,7 @@ export default function MonthlySnapshotsPage() {
                               {monthShortNames[actualMonth]}
                             </div>
                             <div className="text-xs text-muted-foreground font-normal">
-                              {monthLockedStatus[actualMonth]
+                              {monthLockedStatus[actualMonth + 1]
                                 ? "Registrado"
                                 : "Data"}
                             </div>
@@ -1019,7 +1019,7 @@ export default function MonthlySnapshotsPage() {
                         </td>
                         {monthSequence.map((actualMonth, displayIdx) => (
                           <td key={displayIdx} className="border-r px-2 py-2">
-                            {monthLockedStatus[actualMonth] ? (
+                            {monthLockedStatus[actualMonth + 1] ? (
                               <div className="flex items-center justify-center gap-1 text-xs text-green-600 dark:text-green-400">
                                 <Lock className="w-3 h-3" />
                                 <span>Registrado</span>
@@ -1058,7 +1058,7 @@ export default function MonthlySnapshotsPage() {
                           </td>
                           {monthSequence.map((actualMonth, displayIdx) => {
                             const isMonthLocked =
-                              monthLockedStatus[actualMonth];
+                              monthLockedStatus[actualMonth + 1];
 
                             // Calculate individual asset evolution (same logic as Total do Mês)
                             const currentValue = parseCurrencyValue(
@@ -1187,7 +1187,7 @@ export default function MonthlySnapshotsPage() {
                             currentTotal,
                             previousTotal
                           );
-                          const isMonthLocked = monthLockedStatus[actualMonth];
+                          const isMonthLocked = monthLockedStatus[actualMonth + 1];
 
                           return (
                             <td key={displayIdx} className="border-r px-2 py-2">
@@ -1243,7 +1243,7 @@ export default function MonthlySnapshotsPage() {
                       <tr className="border-b bg-background">
                         <td className="sticky left-0 z-10 bg-background border-r px-4 py-3" />
                         {monthSequence.map((actualMonth, displayIdx) => {
-                          const isMonthLocked = monthLockedStatus[actualMonth];
+                          const isMonthLocked = monthLockedStatus[actualMonth + 1];
                           return (
                             <td key={displayIdx} className="border-r px-2 py-3">
                               {!isMonthLocked ? (
@@ -1335,7 +1335,7 @@ export default function MonthlySnapshotsPage() {
                   }> = [];
 
                   for (let month = 0; month < 12; month++) {
-                    if (monthLockedStatus[month]) {
+                    if (monthLockedStatus[month + 1]) {
                       const total = getMonthTotalValue(month);
                       const monthName = monthShortNames[month];
                       const monthStr = `${String(month + 1).padStart(

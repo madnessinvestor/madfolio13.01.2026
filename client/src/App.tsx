@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,34 +21,45 @@ import { apiRequest } from "@/lib/queryClient";
 import { CurrencyProvider, useDisplayCurrency } from "@/hooks/use-currency";
 
 import NotFound from "@/pages/not-found";
-import Dashboard from "@/pages/dashboard";
-import CryptoPage from "@/pages/crypto";
-import FixedIncomePage from "@/pages/fixed-income";
-import VariableIncomePage from "@/pages/variable-income";
-import RealEstatePage from "@/pages/real-estate";
-import HistoryPage from "@/pages/history";
-import StatementsPage from "@/pages/statements";
-import DeBankBalances from "@/pages/debank-balances";
-import UpdateInvestmentsPage from "@/pages/update-investments";
-import ActivityPage from "@/pages/activity";
-import MonthlySnapshotsPage from "@/pages/monthly-snapshots";
+
+// Lazy load pages para melhorar performance inicial
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const CryptoPage = lazy(() => import("@/pages/crypto"));
+const FixedIncomePage = lazy(() => import("@/pages/fixed-income"));
+const VariableIncomePage = lazy(() => import("@/pages/variable-income"));
+const RealEstatePage = lazy(() => import("@/pages/real-estate"));
+const HistoryPage = lazy(() => import("@/pages/history"));
+const StatementsPage = lazy(() => import("@/pages/statements"));
+const DeBankBalances = lazy(() => import("@/pages/debank-balances"));
+const UpdateInvestmentsPage = lazy(() => import("@/pages/update-investments"));
+const ActivityPage = lazy(() => import("@/pages/activity"));
+const MonthlySnapshotsPage = lazy(() => import("@/pages/monthly-snapshots"));
+
+// Componente de loading
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/crypto" component={CryptoPage} />
-      <Route path="/fixed-income" component={FixedIncomePage} />
-      <Route path="/variable-income" component={VariableIncomePage} />
-      <Route path="/real-estate" component={RealEstatePage} />
-      <Route path="/history" component={HistoryPage} />
-      <Route path="/statements" component={StatementsPage} />
-      <Route path="/activity" component={ActivityPage} />
-      <Route path="/debank" component={DeBankBalances} />
-      <Route path="/update-investments" component={UpdateInvestmentsPage} />
-      <Route path="/monthly-snapshots" component={MonthlySnapshotsPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/crypto" component={CryptoPage} />
+        <Route path="/fixed-income" component={FixedIncomePage} />
+        <Route path="/variable-income" component={VariableIncomePage} />
+        <Route path="/real-estate" component={RealEstatePage} />
+        <Route path="/history" component={HistoryPage} />
+        <Route path="/statements" component={StatementsPage} />
+        <Route path="/activity" component={ActivityPage} />
+        <Route path="/debank" component={DeBankBalances} />
+        <Route path="/update-investments" component={UpdateInvestmentsPage} />
+        <Route path="/monthly-snapshots" component={MonthlySnapshotsPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

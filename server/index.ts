@@ -148,11 +148,11 @@ app.use((req, res, next) => {
     console.error("[Init] Error syncing portfolio evolution:", error);
   }
   
-  // Start wallet monitoring (scraping every 60 minutes)
+  // Start wallet monitoring (scraping every 120 minutes)
   try {
     const { startStepMonitor } = await import("./services/debankScraper");
-    startStepMonitor(60 * 60 * 1000); // 60 minutes
-    console.log(`[Init] Wallet monitoring started`);
+    startStepMonitor(120 * 60 * 1000); // 120 minutes - reduzido para economizar recursos
+    console.log(`[Init] Wallet monitoring started (2h interval)`);
   } catch (error) {
     console.error("[Init] Error starting wallet monitoring:", error);
   }

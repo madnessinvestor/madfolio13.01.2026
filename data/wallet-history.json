@@ -10,8 +10,8 @@
   {
     "id": "4a33f86f754f33c0323cec9a0713d9f3",
     "name": "EVM-madnessmain",
-    "balance": "318797.07",
-    "lastUpdated": "2026-01-03T19:22:50.413Z",
+    "balance": "318791.60",
+    "lastUpdated": "2026-01-03T19:22:55.299Z",
     "status": "success",
     "platform": "unknown"
   },
@@ -42,9 +42,9 @@
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "895.00",
-    "lastUpdated": "2026-01-03T19:21:42.228Z",
-    "status": "temporary_error",
+    "balance": "894.84",
+    "lastUpdated": "2026-01-03T19:11:39.584Z",
+    "status": "success",
     "platform": "unknown"
   }
 ]

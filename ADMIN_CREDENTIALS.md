@@ -112,9 +112,9 @@ npm run seed:admin
 # Start development server
 npm run dev
 ```
-
+# Esse login não exite mais
 Login with:
-- Username: `madnessinvestor`
+- Username: `madnessinvestor` 
 - Password: `123456`
 
 ---

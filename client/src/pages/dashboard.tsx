@@ -148,6 +148,13 @@ export default function Dashboard() {
   const autoSaveMonth = useCallback(
     async (assetId: string, month: number, value: string, date: string) => {
       try {
+        // Verificar se o mês está bloqueado antes de tentar salvar
+        const monthNum = month + 1; // Convert 0-based to 1-based
+        if (monthLockedStatus[monthNum]) {
+          console.log(`[AutoSave] Month ${monthNum} is locked, skipping auto-save`);
+          return;
+        }
+
         const numericValue = parseCurrencyValue(value);
         if (numericValue > 0 && date) {
           // Salva mas NÃO bloqueia o mês (isLocked permanece 0)
@@ -162,7 +169,7 @@ export default function Dashboard() {
         console.error("Auto-save error:", error);
       }
     },
-    []
+    [monthLockedStatus]
   );
 
   // Initialize useEffect for year persistence
@@ -227,7 +234,7 @@ export default function Dashboard() {
 
     // Generate 12 months for the selected year
     for (let month = 0; month < 12; month++) {
-      const isLocked = monthLockedStatus[month] === true;
+      const isLocked = monthLockedStatus[month + 1] === true;
       const monthTotal = getMonthTotalValue(month);
 
       // Calculate variation from previous month
@@ -431,7 +438,7 @@ export default function Dashboard() {
 
   const handleValueChange = (assetId: string, month: string, value: string) => {
     const monthNum = parseInt(month);
-    if (monthLockedStatus[monthNum]) return;
+    if (monthLockedStatus[monthNum + 1]) return;
 
     // Atualiza o estado local imediatamente
     setMonthUpdates((prev) => {

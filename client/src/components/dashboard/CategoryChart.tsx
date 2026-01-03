@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { memo } from "react";
 
 interface CategoryData {
   name: string;
@@ -13,7 +14,7 @@ interface CategoryChartProps {
   showPercentage?: boolean;
 }
 
-export function CategoryChart({ title, data, showPercentage = true }: CategoryChartProps) {
+export const CategoryChart = memo(function CategoryChart({ title, data, showPercentage = true }: CategoryChartProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   const formatCurrency = (value: number) =>
@@ -92,4 +93,4 @@ export function CategoryChart({ title, data, showPercentage = true }: CategoryCh
       </CardContent>
     </Card>
   );
-}
+});

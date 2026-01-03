@@ -226,8 +226,8 @@ let gitHistoryCache: Map<string, WalletHistoryEntry> = new Map();
 
 // 🕒 Controle de frequência: rastrear última atualização de cada wallet
 const lastWalletUpdate = new Map<string, number>();
-const MIN_WALLET_UPDATE_INTERVAL = 60 * 1000; // 1 minuto entre atualizações da MESMA wallet
-const INTER_WALLET_DELAY = 20 * 1000; // 20 segundos entre wallets diferentes
+const MIN_WALLET_UPDATE_INTERVAL = 120 * 1000; // 2 minutos entre atualizações da MESMA wallet (aumentado)
+const INTER_WALLET_DELAY = 30 * 1000; // 30 segundos entre wallets diferentes (aumentado)
 
 // Controle de concorrência: garantir que apenas 1 browser esteja ativo por vez
 let isRefreshing = false;

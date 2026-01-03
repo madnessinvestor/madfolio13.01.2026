@@ -73,19 +73,14 @@ export default function WalletTracker() {
       const response = await fetch("/api/saldo/detailed");
       if (!response.ok) throw new Error("Failed to fetch balances");
       const data = await response.json();
-      // ✅ Extrair balances do novo formato de resposta
       return data.balances || data;
     },
-    refetchInterval: false, // Desabilitado para evitar race conditions
-    staleTime: 0, // ✅ Sem cache - sempre buscar dados frescos
-    retry: 1, // Tentar apenas 1 vez para evitar delay
-    refetchOnWindowFocus: false, // Evitar refetch automático
+    refetchInterval: false,
+    staleTime: 5 * 60 * 1000, // 5 minutos de cache
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // Evita refetch automático
   });
-
-  // Auto-refresh wallet balances when component mounts
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
 
   // Timeout de segurança: limpar wallets em atualização após 90 segundos
   useEffect(() => {

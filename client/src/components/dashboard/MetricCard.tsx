@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useDisplayCurrency } from "@/hooks/use-currency";
+import { memo } from "react";
 
 interface MetricCardProps {
   title: string;
@@ -11,7 +12,7 @@ interface MetricCardProps {
   icon?: LucideIcon;
 }
 
-export function MetricCard({ title, value, change, changeLabel, icon: Icon }: MetricCardProps) {
+export const MetricCard = memo(function MetricCard({ title, value, change, changeLabel, icon: Icon }: MetricCardProps) {
   const { isBalanceHidden } = useDisplayCurrency();
   const isPositive = change !== undefined && change > 0;
   const isNegative = change !== undefined && change < 0;
@@ -59,4 +60,4 @@ export function MetricCard({ title, value, change, changeLabel, icon: Icon }: Me
       </CardContent>
     </Card>
   );
-}
+});

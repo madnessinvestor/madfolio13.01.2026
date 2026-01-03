@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Bitcoin, Landmark, BarChart3, Building2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { memo } from "react";
 
 interface ExposureCardProps {
   cryptoValue: number;
@@ -19,7 +20,7 @@ interface AssetItem {
   icon: React.ElementType;
 }
 
-export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValue, realEstateValue = 0, formatCurrency: customFormat }: ExposureCardProps) {
+export const ExposureCard = memo(function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValue, realEstateValue = 0, formatCurrency: customFormat }: ExposureCardProps) {
   const total = cryptoValue + fixedIncomeValue + variableIncomeValue + realEstateValue;
   
   const formatDefault = (value: number) =>
@@ -169,4 +170,4 @@ export function ExposureCard({ cryptoValue, fixedIncomeValue, variableIncomeValu
       </CardContent>
     </Card>
   );
-}
+});

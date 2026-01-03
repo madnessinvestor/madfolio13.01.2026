@@ -198,6 +198,7 @@ export async function syncPortfolioEvolution(
         });
 
         // 2. NOVO: Atualizar snapshots individuais por ativo para meses não bloqueados
+        // IMPORTANTE: Só atualiza se o mês NÃO estiver bloqueado
         const snapshotDate = date;
 
         for (const asset of allAssets) {
@@ -226,7 +227,7 @@ export async function syncPortfolioEvolution(
               );
 
               if (assetSnapshot) {
-                // Se snapshot existe e não está bloqueado, atualizar
+                // Se snapshot existe e não está bloqueado individualmente, atualizar
                 if (!assetSnapshot.isLocked) {
                   await storage.updateSnapshot(assetSnapshot.id, {
                     value: valueInBRL,
