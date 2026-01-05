@@ -2,8 +2,8 @@
   {
     "id": "3c6def059126280b714103bbc04a3d31",
     "name": "APTOS-madness",
-    "balance": "100.29",
-    "lastUpdated": "2026-01-05T21:46:21.977Z",
+    "balance": "100.84",
+    "lastUpdated": "2026-01-05T01:29:34.398Z",
     "status": "success",
     "platform": "unknown"
   },
@@ -34,16 +34,16 @@
   {
     "id": "c30e5b4adbc2792ef854904244aeaa86",
     "name": "SEI-madness",
-    "balance": "221.49",
-    "lastUpdated": "2026-01-05T21:49:53.254Z",
+    "balance": "214.81",
+    "lastUpdated": "2026-01-05T01:33:04.047Z",
     "status": "success",
     "platform": "unknown"
   },
   {
     "id": "9a8e628e9767ef655706ffe96dbb60f6",
     "name": "STARKNET-madness",
-    "balance": "902.63",
-    "lastUpdated": "2026-01-05T19:50:38.897Z",
+    "balance": "902.79",
+    "lastUpdated": "2026-01-05T21:50:42.097Z",
     "status": "success",
     "platform": "unknown"
   }
