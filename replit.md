@@ -9,7 +9,7 @@
 - **Database**: SQLite (local app.db) with optional Supabase integration
 - **Authentication**: Replit Auth + Local Credentials
 - **Deployment**: Replit autoscale (build: npm run build, run: node dist/index.cjs)
-- **Last Import**: December 22, 2025
+- **Last Import**: January 14, 2026
 
 ## Architecture
 

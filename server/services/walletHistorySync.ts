@@ -51,6 +51,12 @@ export function saveHistoryToFile(history: Map<string, WalletHistoryEntry>): boo
 
 // Fazer commit e push para GitHub
 export async function syncToGitHub(message: string = 'Update wallet history'): Promise<boolean> {
+  // Skip git operations in Replit environment to avoid auth prompts
+  if (process.env.REPL_ID) {
+    console.log('[GitSync] Skipping git sync in Replit environment');
+    return true;
+  }
+  
   try {
     // Verificar se há mudanças
     const status = execSync('git status --porcelain data/wallet-history.json', { encoding: 'utf-8' });
@@ -86,6 +92,12 @@ export async function syncToGitHub(message: string = 'Update wallet history'): P
 
 // Pull do GitHub (para quando servidor iniciar)
 export async function pullFromGitHub(): Promise<boolean> {
+  // Skip git operations in Replit environment to avoid auth prompts
+  if (process.env.REPL_ID) {
+    console.log('[GitSync] Skipping git pull in Replit environment');
+    return true;
+  }
+  
   try {
     console.log('[GitSync] ⬇️ Baixando histórico do GitHub...');
     execSync('git pull origin main --no-rebase', { encoding: 'utf-8' });

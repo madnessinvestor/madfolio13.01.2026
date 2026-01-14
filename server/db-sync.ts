@@ -17,12 +17,16 @@ export async function syncDatabaseWithGit() {
     
     console.log(`[DB-SYNC] Checking for remote changes...`);
     
-    // Fetch latest from remote
-    try {
-      execSync("git fetch", { cwd: PROJECT_ROOT, stdio: "ignore" });
-      console.log(`[DB-SYNC] ✓ Git fetch completed`);
-    } catch {
-      console.log(`[DB-SYNC] No remote configured`);
+    // Fetch latest from remote (skip in Replit environment to avoid auth prompts)
+    if (!process.env.REPL_ID) {
+      try {
+        execSync("git fetch", { cwd: PROJECT_ROOT, stdio: "ignore", timeout: 5000 });
+        console.log(`[DB-SYNC] ✓ Git fetch completed`);
+      } catch {
+        console.log(`[DB-SYNC] No remote configured`);
+      }
+    } else {
+      console.log(`[DB-SYNC] Skipping fetch in Replit environment`);
     }
     
     // Check if database file exists
