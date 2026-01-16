@@ -37,13 +37,6 @@ import {
 import {
   getWalletHistory,
   getAllHistory,
-  getLatestByWallet,
-  getWalletStats,
-  getLastHighestValue,
-  getLastValidBalance,
-  createInitialHistoryEntry,
-} from "./services/walletCache";
-import { fetchJupPortfolio } from "./services/jupAgScraper";
 import { validateCredentials } from "./sqlite-auth";
 
 const investmentSchema = z.object({
@@ -1459,12 +1452,6 @@ export async function registerRoutes(
     try {
       const userWallets = await storage.getWallets(userId);
       res.json(userWallets);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch wallets" });
-    }
-  });
-
-  app.post("/api/wallets", async (req: any, res) => {
     const userId =
       req.session?.userId || req.user?.claims?.sub || "default-user";
     try {

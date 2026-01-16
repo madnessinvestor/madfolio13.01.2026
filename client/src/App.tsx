@@ -30,8 +30,6 @@ const VariableIncomePage = lazy(() => import("@/pages/variable-income"));
 const RealEstatePage = lazy(() => import("@/pages/real-estate"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 const StatementsPage = lazy(() => import("@/pages/statements"));
-const DeBankBalances = lazy(() => import("@/pages/debank-balances"));
-const UpdateInvestmentsPage = lazy(() => import("@/pages/update-investments"));
 const ActivityPage = lazy(() => import("@/pages/activity"));
 const MonthlySnapshotsPage = lazy(() => import("@/pages/monthly-snapshots"));
 
@@ -53,9 +51,6 @@ function Router() {
         <Route path="/real-estate" component={RealEstatePage} />
         <Route path="/history" component={HistoryPage} />
         <Route path="/statements" component={StatementsPage} />
-        <Route path="/activity" component={ActivityPage} />
-        <Route path="/debank" component={DeBankBalances} />
-        <Route path="/update-investments" component={UpdateInvestmentsPage} />
         <Route path="/monthly-snapshots" component={MonthlySnapshotsPage} />
         <Route component={NotFound} />
       </Switch>

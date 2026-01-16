@@ -11,22 +11,6 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import {
-  LayoutDashboard,
-  Bitcoin,
-  Landmark,
-  BarChart3,
-  Building2,
-  FileText,
-  Wallet,
-  TrendingUp,
-  Twitter,
-  Github,
-  Youtube,
-  Instagram,
-  Send,
-  MessageCircle,
-} from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
 const menuItems = [
@@ -65,12 +49,6 @@ const menuItems = [
     url: "/activity",
     icon: FileText,
   },
-  {
-    title: "Wallet Tracker",
-    url: "/debank",
-    icon: Wallet,
-  },
-];
 
 export function AppSidebar() {
   const [location] = useLocation();
