@@ -30,17 +30,6 @@ import {
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Mercado Cripto", url: "/crypto", icon: Bitcoin },
-  { title: "Renda Fixa", url: "/fixed-income", icon: Landmark },
-  { title: "Renda Variável", url: "/variable-income", icon: BarChart3 },
-  { title: "Imóveis", url: "/real-estate", icon: Building2 },
-  { title: "Evolução do Portfólio", url: "/monthly-snapshots", icon: TrendingUp },
-  { title: "Lançamentos", url: "/activity", icon: FileText },
-  { title: "Wallet Tracker", url: "/debank", icon: Wallet },
-  { title: "Tokens", url: "/tokens", icon: Coins },
-];
 
 export function AppSidebar() {
   const [location] = useLocation();
