@@ -33,7 +33,7 @@ const StatementsPage = lazy(() => import("@/pages/statements"));
 const ActivityPage = lazy(() => import("@/pages/activity"));
 const MonthlySnapshotsPage = lazy(() => import("@/pages/monthly-snapshots"));
 const TokensPage = lazy(() => import("@/pages/tokens"));
-const DebankPage = lazy(() => import("@/pages/debank"));
+const DebankPage = lazy(() => import("@/pages/debank-balances"));
 
 // Componente de loading
 const PageLoader = () => (
