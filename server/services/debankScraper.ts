@@ -1680,3 +1680,13 @@ export async function forceRefresh(): Promise<WalletBalance[]> {
 
   return await getDetailedBalances();
 }
+
+export async function fetchDetailedTokens(walletUrl: string) {
+  // Simulating fetching detailed tokens for DeBank
+  // In a real scenario, this would use the browser/puppeteer setup
+  return [
+    { name: "Ethereum", symbol: "ETH", balance: 1.5, value: 3500, type: "wallet" },
+    { name: "USDC", symbol: "USDC", balance: 1000, value: 1000, type: "wallet" },
+    { name: "Aave Lending", symbol: "aUSDC", balance: 500, value: 500, type: "lending" },
+  ];
+}
