@@ -31,6 +31,9 @@ const RealEstatePage = lazy(() => import("@/pages/real-estate"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 const StatementsPage = lazy(() => import("@/pages/statements"));
 const ActivityPage = lazy(() => import("@/pages/activity"));
+const MonthlySnapshotsPage = lazy(() => import("@/pages/monthly-snapshots"));
+const TokensPage = lazy(() => import("@/pages/tokens"));
+const DebankPage = lazy(() => import("@/pages/debank"));
 
 // Componente de loading
 const PageLoader = () => (
@@ -50,6 +53,11 @@ function Router() {
         <Route path="/real-estate" component={RealEstatePage} />
         <Route path="/history" component={HistoryPage} />
         <Route path="/statements" component={StatementsPage} />
+        <Route path="/monthly-snapshots" component={MonthlySnapshotsPage} />
+        <Route path="/tokens" component={TokensPage} />
+        <Route path="/debank" component={DebankPage} />
+        <Route path="/activity" component={ActivityPage} />
+        <Route component={NotFound} />
       </Switch>
     </Suspense>
   );
